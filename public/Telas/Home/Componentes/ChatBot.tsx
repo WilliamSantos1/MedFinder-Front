@@ -2,27 +2,41 @@
 import { useEffect, useRef, useState } from "react";
 import {Bot,Send,User,} from "lucide-react";
 
+import type { ChatMessage } from "../Componentes/mockChat";
 import {
-  ChatMessage,
   getMockResponse,
   mockInitialMessages,
 } from "../Componentes/mockChat";
 
 const ChatBot = () => {
-  const [messages, setMessages] =
-    useState<ChatMessage[]>(mockInitialMessages);
+  const [messages, setMessages] = useState<ChatMessage[]>(mockInitialMessages);
 
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+
 
   // Mantém o chat sempre na última mensagem
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({
-      behavior: "smooth",
-    });
-  }, [messages, isLoading]);
+  const isFirstRender = useRef(true);
+
+const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+useEffect(() => {
+  if (isFirstRender.current) {
+    isFirstRender.current = false;
+    return;
+  }
+
+  const container = messagesContainerRef.current;
+
+  if (!container) return;
+
+  container.scrollTo({
+    top: container.scrollHeight,
+    behavior: "smooth",
+  });
+}, [messages, isLoading]);
+
 
   const handleSendMessage = () => {
     const message = input.trim();
@@ -82,7 +96,8 @@ const ChatBot = () => {
       </div>
 
       {/* Mensagens */}
-      <div className="flex-1 space-y-4 overflow-y-auto bg-gray-50 p-4">
+      <div className="flex-1 space-y-4 overflow-y-auto bg-gray-50 p-4"
+      ref={messagesContainerRef}>
         {messages.map((message) => (
           <div
             key={message.id}
@@ -136,7 +151,7 @@ const ChatBot = () => {
           </div>
         )}
 
-        <div ref={messagesEndRef} />
+        <div/>
       </div>
 
       {/* Input */}

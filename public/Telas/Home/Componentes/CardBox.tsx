@@ -8,7 +8,7 @@ const CardBox = ({ title, description, number }: CardBoxProps) => {
   return (
     <div className="flex flex-1 flex-col rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
      <div className="flex gap-2">
-       <h3 className="text-lg font-semibold text-[#dd7a7a]">
+       <h3 className="text-lg font-semibold text-secondary">
         {number}
       </h3>
       <h3 className="text-lg font-semibold text-gray-800">

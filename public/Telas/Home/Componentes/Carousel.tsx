@@ -95,24 +95,8 @@ const Carousel = ({ items }: CarouselProps) => {
             />
 
             <div
-              className="
-                absolute
-                right-0
-                top-1/2
-                flex
-                w-[70%]
-                -translate-y-1/2
-                items-center
-                justify-center
-                bg-gradient-to-l
-                from-black/70
-                to-transparent
-                p-3
-                sm:w-[55%]
-                sm:p-4
-                md:h-[10vh]
-                md:w-[40%]
-              "
+              className="absolute right-0 bottom-1/4 flex w-[70%]-translate-y-1/2 items-center justify-center bg-gradient-to-l from-black/70
+                        to-transparent p-3 sm:w-[55%] sm:p-4 md:h-[10vh] md:w-[40%]"
             >
               <h3
                 className={`
