@@ -81,11 +81,6 @@ export default function App() {
             <h3>Um passo de cada vez.</h3>
             <p>Encontrar o cuidado certo começa por entender o que você precisa.</p>
           </div>
-          <div className="privacy-caption">
-            <LockKeyhole size={14} />
-            <span>Seu relato merece cuidado</span>
-          </div>
-          <p className="sidebar-version">MedFinder · orientação de atendimento</p>
         </div>
       </aside>
       <div className="main-shell">
@@ -93,9 +88,6 @@ export default function App() {
           <span className="breadcrumb">
             Seu cuidado <ChevronRight size={14} />{' '}
             <strong>{navigation.find((item) => item.id === view)?.label}</strong>
-          </span>
-          <span className="privacy-pill">
-            <ShieldCheck size={15} /> Sem cadastro
           </span>
         </header>
         <main id="main" tabIndex={-1}>

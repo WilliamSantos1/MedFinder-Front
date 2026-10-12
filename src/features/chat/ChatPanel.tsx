@@ -65,9 +65,6 @@ export function ChatPanel(props: CareFilterProps) {
               : 'Conectando ao serviço…'}
           </p>
         </div>
-        <span className="chat-header-badge">
-          <Sparkles size={13} /> SEU GUIA DE CUIDADO
-        </span>
       </div>
       <CareFilters {...props} />
       <div

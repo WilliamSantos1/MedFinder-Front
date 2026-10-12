@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 .app-shell {
   min-height: 100vh;
   display: grid;
@@ -156,7 +158,7 @@
   display: flex;
   align-items: center;
   gap: 13px;
-  font-size: 11px;
+  font-size: 0.8rem;
   color: #73817a;
 }
 .breadcrumb strong {
@@ -183,7 +185,7 @@ main {
   padding: 0 4px 30px;
 }
 .eyebrow {
-  font-size: 9px;
+  font-size: 1rem;
   font-weight: 600;
   letter-spacing: 1.8px;
   color: #557966;
@@ -209,7 +211,7 @@ h1 > span {
   color: #498575;
 }
 .intro-description {
-  font-size: 12px;
+  font-size: 1rem;
   color: #6a7b72;
   margin-top: 15px;
   line-height: 1.6;
@@ -315,7 +317,7 @@ h1 > span {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 10px;
+  font-size: 0.8rem;
   color: #627c6c;
   margin-top: 4px;
 }
@@ -354,7 +356,7 @@ h1 > span {
   color: #6c8376;
 }
 .filter-control label {
-  font-size: 10px;
+  font-size: 0.8rem;
 }
 .filter-control select {
   border: 0;
@@ -363,7 +365,7 @@ h1 > span {
   background: transparent;
   width: 100%;
   min-width: 0;
-  font-size: 10px;
+  font-size: 0.8rem;
   color: #324f40;
   padding: 6px 0;
 }
@@ -395,7 +397,7 @@ h1 > span {
   box-shadow: 0 0 0 7px #f9fbf7;
 }
 .welcome-eyebrow {
-  font-size: 8px;
+  font-size: 0.8rem;
   letter-spacing: 1.5px;
   color: #5d806b;
   margin-bottom: 9px;
@@ -408,7 +410,7 @@ h1 > span {
   color: #244735;
 }
 .chat-welcome > p {
-  font-size: 11px;
+  font-size: 0.8rem;
   color: #708177;
   line-height: 1.8;
   margin-top: 10px;
@@ -430,7 +432,7 @@ h1 > span {
   border-radius: 7px;
   background: #fff;
   color: #4c6a57;
-  font-size: 10px;
+  font-size: 0.8rem;
 }
 .suggestions button:hover {
   background: #f0f6ee;
@@ -444,7 +446,7 @@ h1 > span {
   display: flex;
   gap: 6px;
   align-items: center;
-  font-size: 9px;
+  font-size: 0.8rem;
   color: #728479;
   margin-top: 18px;
 }
@@ -479,7 +481,7 @@ h1 > span {
   min-height: 40px;
   outline: none;
   padding: 2px 0;
-  font-size: 12px;
+  font-size: 0.8rem;
   line-height: 1.6;
   color: #314a39;
 }
@@ -508,7 +510,7 @@ h1 > span {
   justify-content: space-between;
   gap: 10px;
   color: #76877a;
-  font-size: 8px;
+  font-size: 0.8rem;
   margin-top: 9px;
 }
 .composer-footer span:first-child {
@@ -517,7 +519,7 @@ h1 > span {
   align-items: center;
 }
 .chat-disclaimer {
-  font-size: 9px;
+  font-size: 0.8rem;
   color: #7e8c82;
   text-align: center;
   margin-top: 15px;
@@ -593,17 +595,17 @@ h1 > span {
   place-items: center;
   background: #eaf1e5;
   color: #607d51;
-  font-size: 9px;
+  font-size: 0.8rem;
   flex-shrink: 0;
 }
 .journey-steps h3 {
-  font-size: 11px;
+  font-size: 0.8rem;
   font-weight: 600;
   color: #3b563b;
   padding: 4px 0 6px;
 }
 .journey-steps p {
-  font-size: 10px;
+  font-size: 0.8rem;
   line-height: 1.8;
   color: #697e60;
 }
@@ -612,7 +614,7 @@ h1 > span {
   align-items: center;
   gap: 9px;
   padding: 5px 0;
-  font-size: 11px;
+  font-size: 0.8rem;
   font-weight: 600;
   color: #386647;
   background: transparent;
@@ -640,14 +642,14 @@ h1 > span {
   flex-shrink: 0;
 }
 .safety-card h3 {
-  font-size: 10px;
+  font-size: 0.8rem;
   font-weight: 600;
   color: #445d42;
   line-height: 1.6;
   margin-bottom: 5px;
 }
 .safety-card p {
-  font-size: 10px;
+  font-size: 0.8rem;
   line-height: 1.8;
   color: #71816b;
 }
@@ -659,7 +661,7 @@ h1 > span {
   display: flex;
   gap: 8px;
   padding: 15px 5px;
-  font-size: 9px;
+  font-size: 0.8rem;
   line-height: 1.7;
   color: #6d806e;
 }
@@ -673,7 +675,7 @@ h1 > span {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  font-size: 9px;
+  font-size: 0.8rem;
   color: #7c8b7e;
 }
 .page-footer span > span {
@@ -682,13 +684,13 @@ h1 > span {
 .page-footer button {
   background: transparent;
   color: #677d69;
-  font-size: 9px;
+  font-size: 0.8rem;
 }
 .has-messages {
   padding: 20px;
 }
 .message-author {
-  font-size: 10px;
+  font-size: 0.8rem;
   display: flex;
   gap: 5px;
   align-items: center;
@@ -698,7 +700,7 @@ h1 > span {
 }
 .message-author > span {
   font-weight: 500;
-  font-size: 7px;
+  font-size: 0.5rem;
   letter-spacing: 0.6px;
   margin-left: auto;
   color: #657866;
@@ -729,7 +731,7 @@ h1 > span {
   background: #fcfdfb;
 }
 .answer-text {
-  font-size: 12px;
+  font-size: 0.8rem;
   line-height: 1.9;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -745,14 +747,14 @@ h1 > span {
   border: 1px solid #d2e1ca;
   border-radius: 5px;
   padding: 5px 9px;
-  font-size: 10px;
+  font-size: 0.8rem;
   color: #3a6243;
 }
 .follow-up {
   margin-top: 15px;
   padding-top: 12px;
   border-top: 1px solid #e3e9df;
-  font-size: 11px;
+  font-size: 0.8rem;
   line-height: 1.8;
 }
 .follow-up strong {
@@ -766,11 +768,11 @@ h1 > span {
   margin-top: 18px;
 }
 .chat-clinics > h3 {
-  font-size: 12px;
+  font-size: 0.8rem;
   font-weight: 600;
 }
 .result-note {
-  font-size: 9px;
+  font-size: 0.8rem;
   line-height: 1.6;
   color: #6e7e6c;
   margin: 5px 0 10px;
@@ -784,7 +786,7 @@ h1 > span {
   line-height: 1.7;
 }
 .source-details {
-  font-size: 10px;
+  font-size: 0.8rem;
   margin-top: 15px;
   padding-top: 12px;
   border-top: 1px solid #dfe7da;
@@ -826,7 +828,7 @@ h1 > span {
   line-height: 1.7;
 }
 .response-notice {
-  font-size: 9px;
+  font-size: 0.8rem;
   color: #7b8474;
   margin-top: 12px;
   line-height: 1.7;
@@ -949,7 +951,7 @@ h1 > span {
   margin-top: 12px;
 }
 .insurance-tags span {
-  font-size: 9px;
+  font-size: 0.7rem;
   background: #f2f5ed;
   border: 1px solid #e7edde;
   border-radius: 4px;
@@ -963,7 +965,7 @@ h1 > span {
 }
 .clinic-demo-note,
 .clinic-verification {
-  font-size: 9px;
+  font-size: 0.8rem;
   line-height: 1.6;
   color: #827861;
   border-top: 1px solid #eeeae0;
@@ -974,7 +976,7 @@ h1 > span {
   display: flex;
   flex-wrap: wrap;
   gap: 13px;
-  font-size: 11px;
+  font-size: 0.8rem;
   color: #487149;
   margin-top: 16px;
 }
@@ -992,10 +994,10 @@ h1 > span {
   border-radius: 8px;
 }
 .compact .clinic-title-row h3 {
-  font-size: 11px;
+  font-size: 0.8rem;
 }
 .compact .clinic-badge {
-  font-size: 7px;
+  font-size: 0.6rem;
 }
 .compact .clinic-icon {
   width: 30px;
@@ -1003,11 +1005,11 @@ h1 > span {
 }
 .compact .clinic-location {
   margin-top: 9px;
-  font-size: 10px;
+  font-size: 0.8rem;
 }
 .compact .clinic-specialties {
   margin-top: 5px;
-  font-size: 10px;
+  font-size: 0.8rem;
 }
 .compact .insurance-tags {
   margin-top: 7px;
@@ -1015,7 +1017,7 @@ h1 > span {
 .compact .clinic-demo-note {
   margin-top: 9px;
   padding-top: 7px;
-  font-size: 8px;
+  font-size: 0.8rem;
 }
 .directory-filters {
   background: #fff;
@@ -1046,7 +1048,7 @@ h1 > span {
   font-weight: 500;
 }
 .directory-count > span {
-  font-size: 10px;
+  font-size: 0.8rem;
   color: #728269;
 }
 .clinic-grid {
@@ -1114,7 +1116,7 @@ h1 > span {
   padding: 20px;
 }
 .about-grid article > span {
-  font-size: 9px;
+  font-size: 0.8rem;
   color: #668353;
   letter-spacing: 1px;
 }
@@ -1124,7 +1126,7 @@ h1 > span {
   margin: 12px 0 8px;
 }
 .about-grid p {
-  font-size: 11px;
+  font-size: 0.8rem;
   line-height: 1.9;
   color: #6d7c62;
 }
@@ -1132,16 +1134,16 @@ h1 > span {
   border-top: 1px solid #e0e8d9;
   padding-top: 20px;
   margin-bottom: 20px;
-  font-size: 13px;
+  font-size: 0.8rem;
 }
 .privacy-details p {
-  font-size: 12px;
+  font-size: 0.8rem;
   line-height: 1.9;
   color: #66765b;
   padding-top: 14px;
 }
 .about-panel > p.about-disclaimer {
-  font-size: 11px;
+  font-size: 0.8rem;
   margin: 20px 0;
 }
 .primary-button {
@@ -1355,7 +1357,7 @@ h1 > span {
     padding: 27px 18px 0;
   }
   .eyebrow {
-    font-size: 8px;
+    font-size: 0.8rem;
     letter-spacing: 1.2px;
   }
   h1 {
@@ -1363,7 +1365,7 @@ h1 > span {
     letter-spacing: -1.3px;
   }
   .intro-description {
-    font-size: 12px;
+    font-size: 0.8rem;
     max-width: 340px;
   }
   .page-intro {
