@@ -6,7 +6,6 @@ import {
   HeartPulse,
   LoaderCircle,
   LockKeyhole,
-  Sparkles,
   Square,
 } from 'lucide-react';
 import { CareFilters, type CareFilterProps } from '../../components/CareFilters';
