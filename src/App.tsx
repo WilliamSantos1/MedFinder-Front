@@ -16,6 +16,8 @@ import { ClinicDirectory } from './features/clinics/ClinicDirectory';
 import { useCatalog } from './hooks/useCatalog';
 import { useGeolocation } from './hooks/useGeolocation';
 import './App.css';
+import { ReturnFeedbackDialog } from './features/followup/ReturnFeedbackDialog';
+import { useReturnFollowUp } from './features/followup/useReturnFollowUp';
 
 type View = 'chat' | 'clinics' | 'about';
 const navigation = [
@@ -25,6 +27,7 @@ const navigation = [
 ];
 
 export default function App() {
+  const followUp = useReturnFollowUp();
   const geolocation = useGeolocation();
   const [view, setView] = useState<View>('chat');
   const [session, setSession] = useState(0);
@@ -314,6 +317,9 @@ export default function App() {
           </footer>
         </main>
       </div>
+      {followUp.pending.length > 0 && (
+        <ReturnFeedbackDialog items={followUp.pending} onFinish={followUp.finish} />
+      )}
     </div>
   );
 }

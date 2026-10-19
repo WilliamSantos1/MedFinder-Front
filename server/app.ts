@@ -11,6 +11,7 @@ import {
   clinicFiltersSchema,
   clinicSearchSchema,
   feedbackRequestSchema,
+  visitFeedbackRequestSchema,
 } from '../shared/contracts.js';
 import type { AIProvider } from './ai/provider.js';
 import { createProvider } from './ai/factory.js';
@@ -141,6 +142,16 @@ export async function buildApp(
         : reply
             .code(400)
             .send({ error: 'Feedback inválido ou expirado. Confira o motivo e tente novamente.' });
+    },
+  );
+  app.post(
+    '/api/visit-feedback',
+    { config: { rateLimit: { max: config.FEEDBACK_RATE_LIMIT, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const saved = await feedback.saveVisit(visitFeedbackRequestSchema.parse(request.body));
+      return saved
+        ? { status: 'saved' }
+        : reply.code(400).send({ error: 'Avaliação inválida ou expirada.' });
     },
   );
   app.post(

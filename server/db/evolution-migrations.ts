@@ -133,4 +133,20 @@ export const evolutionMigrations = [
       ON CONFLICT(id) DO NOTHING;
     `,
   },
+  {
+    version: 11,
+    sql: `
+      -- O comprovante passa a lembrar quais clínicas foram indicadas naquela resposta.
+      ALTER TABLE response_receipts ADD COLUMN clinic_ids text[] NOT NULL DEFAULT '{}';
+      CREATE TABLE clinic_visit_feedback (
+        response_id uuid NOT NULL,
+        clinic_id text NOT NULL,
+        rating smallint NOT NULL CHECK (rating BETWEEN 1 AND 5),
+        comment text CHECK (length(comment)<=500),
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (response_id, clinic_id)
+      );
+    `,
+  },
 ];

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ChatRequest, ChatResponse } from '../../../shared/contracts';
 import { api } from '../../lib/api';
+import { rememberRecommendation } from '../followup/storage';
 
 export type Message =
   | { id: string; role: 'user'; text: string }
@@ -46,6 +47,7 @@ export function useChat(timeoutMs = 60000) {
       const response = await api.chat({ ...input, history, context }, current.signal);
       lastFilters.current = { city: input.city, insurance: input.insurance };
       setMessages((previous) => [...previous, { id: response.id, role: 'assistant', response }]);
+      rememberRecommendation(response);
       return true;
     } catch (failure) {
       setMessages((previous) => previous.filter((item) => item.id !== userMessage.id));

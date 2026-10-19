@@ -102,7 +102,7 @@ describe('Upgrade de instalação existente', () => {
       expect((await db.query('SELECT id FROM clinic_documents')).rows).toEqual([]);
       expect(
         (await db.query('SELECT version FROM schema_migrations ORDER BY version')).rows,
-      ).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((version) => ({ version })));
+      ).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((version) => ({ version })));
       const result = await new CatalogRepository(db, true).search({
         city: 'Fortaleza',
         insurance: 'Plano Exemplo A',

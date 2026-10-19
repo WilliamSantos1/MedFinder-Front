@@ -4,6 +4,7 @@ import {
   type ChatRequest,
   clinicResultsSchema,
   type FeedbackRequest,
+  type VisitFeedbackRequest,
 } from '../../shared/contracts';
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -22,6 +23,12 @@ export const api = {
   catalog: (signal: AbortSignal) => request<CatalogMeta>('/catalog', { signal }),
   clinics: async (body: string, signal: AbortSignal) =>
     clinicResultsSchema.parse(await request('/clinics/search', { method: 'POST', body, signal })),
+  visitFeedback: (body: VisitFeedbackRequest) =>
+    request<{ status: 'saved' }>('/visit-feedback', {
+      method: 'POST',
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(15000),
+    }),
   feedback: (body: FeedbackRequest) =>
     request<{ status: 'saved' }>('/feedback', {
       method: 'POST',

@@ -1,5 +1,10 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import type { ChatResponse, FeedbackReason, FeedbackRequest } from '../../shared/contracts.js';
+import type {
+  ChatResponse,
+  FeedbackReason,
+  FeedbackRequest,
+  VisitFeedbackRequest,
+} from '../../shared/contracts.js';
 import { PROMPT_VERSION } from '../ai/prompt.js';
 import { redactIdentifiers } from '../domain/text.js';
 import type { Database } from './database.js';
@@ -20,9 +25,16 @@ export class FeedbackRepository {
       reasons.push('insurance_problem');
     const token = randomBytes(32).toString('hex');
     await this.db.query(
-      `INSERT INTO response_receipts(response_id,token_hash,mode,prompt_version,allowed_reasons)
-      VALUES($1,$2,$3,$4,$5)`,
-      [response.id, digest(token), response.mode, PROMPT_VERSION, reasons],
+      `INSERT INTO response_receipts(response_id,token_hash,mode,prompt_version,allowed_reasons,clinic_ids)
+      VALUES($1,$2,$3,$4,$5,$6)`,
+      [
+        response.id,
+        digest(token),
+        response.mode,
+        PROMPT_VERSION,
+        reasons,
+        response.clinics.map((clinic) => clinic.id),
+      ],
     );
     return { token, reasons };
   }
@@ -51,6 +63,22 @@ export class FeedbackRepository {
         input.responseId,
         digest(input.token),
       ],
+    );
+    return result.rows.length === 1;
+  }
+
+  async saveVisit(input: VisitFeedbackRequest): Promise<boolean> {
+    // Só aceita clínicas que aquela resposta realmente indicou e comprovantes ainda válidos.
+    const comment = input.comment ? redactIdentifiers(input.comment).slice(0, 500) : null;
+    const result = await this.db.query(
+      `INSERT INTO clinic_visit_feedback(response_id,clinic_id,rating,comment)
+      SELECT r.response_id,$2::text,$3::int,$4::text FROM response_receipts r
+      WHERE r.response_id=$1 AND r.token_hash=$5 AND r.created_at>now()-interval '7 days'
+        AND $2::text=ANY(r.clinic_ids)
+      ON CONFLICT(response_id,clinic_id) DO UPDATE SET rating=EXCLUDED.rating,
+        comment=EXCLUDED.comment,updated_at=now()
+      RETURNING response_id`,
+      [input.responseId, input.clinicId, input.rating, comment, digest(input.token)],
     );
     return result.rows.length === 1;
   }

@@ -1798,3 +1798,80 @@ h1 > span {
     text-align: left;
   }
 }
+.return-dialog {
+  margin: auto;
+  width: min(32rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.5rem;
+  color: inherit;
+  background: #fff;
+  box-shadow: 0 20px 60px #0b2a2133;
+}
+.return-dialog::backdrop {
+  background: #0b2a2166;
+}
+.return-dialog form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.return-dialog h2 {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: var(--green);
+}
+.return-dialog p,
+.return-dialog small {
+  font-size: var(--text-base);
+  line-height: 1.6;
+  color: var(--muted);
+}
+.return-dialog fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.return-dialog legend {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+.return-dialog fieldset > label {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  padding: 0.4rem 0;
+}
+.return-dialog textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.6rem;
+  resize: vertical;
+}
+.star-rating > div {
+  display: flex;
+  gap: 0.25rem;
+}
+.star-rating label {
+  display: inline-flex;
+  cursor: pointer;
+  color: #b8a878;
+}
+.star-rating .star.filled {
+  fill: currentColor;
+}
+.star-rating label:focus-within {
+  outline: 3px solid #27a88e;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.return-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}

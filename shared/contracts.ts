@@ -280,3 +280,14 @@ export const clinicResultsSchema = z.object({
   order: z.enum(['name', 'proximity']),
 });
 export type ClinicResults = z.infer<typeof clinicResultsSchema>;
+
+export const visitFeedbackRequestSchema = z
+  .object({
+    responseId: z.uuid(),
+    token: z.string().regex(/^[a-f0-9]{64}$/),
+    clinicId: idSchema,
+    rating: z.number().int().min(1).max(5),
+    comment: z.string().trim().max(500).optional(),
+  })
+  .strict();
+export type VisitFeedbackRequest = z.infer<typeof visitFeedbackRequestSchema>;
