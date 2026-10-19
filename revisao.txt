@@ -1,0 +1,3797 @@
+=================== shared/contracts.ts ===================
+import { z } from 'zod';
+
+export const idSchema = z.string().regex(/^[a-z0-9-]{3,80}$/);
+export const httpsUrl = z
+  .url()
+  .refine((url) => new URL(url).protocol === 'https:', 'Use uma URL HTTPS.');
+export const specialtySchema = z
+  .object({ id: idSchema, name: z.string().trim().min(2).max(120) })
+  .strict();
+export type Specialty = z.infer<typeof specialtySchema>;
+export const specialtyImportSchema = specialtySchema.extend({
+  aliases: z.array(z.string().trim().min(2).max(120)).max(30).default([]),
+  active: z.boolean().default(true),
+});
+export const locationSchema = z
+  .object({
+    latitude: z.number().finite().min(-90).max(90),
+    longitude: z.number().finite().min(-180).max(180),
+  })
+  .strict();
+export type Location = z.infer<typeof locationSchema>;
+export const clarificationTopicSchema = z.enum([
+  'location',
+  'onset_duration',
+  'pattern',
+  'associated_symptoms',
+  'trigger',
+  'impact',
+  'age_group',
+]);
+export type ClarificationTopic = z.infer<typeof clarificationTopicSchema>;
+export const careContextSchema = z
+  .object({
+    questions: z.array(clarificationTopicSchema).max(2),
+    askedTopics: z.array(clarificationTopicSchema).max(7),
+    round: z.number().int().min(1).max(3),
+  })
+  .strict();
+export const chatContextSchema = z
+  .object({
+    specialtyId: idSchema.nullable(),
+    clinicIds: z.array(idSchema).max(6),
+    city: z.string().trim().max(80),
+    insurance: z.string().trim().max(80),
+    care: careContextSchema.optional(),
+  })
+  .strict();
+export type ChatContext = z.infer<typeof chatContextSchema>;
+export const intentSchema = z.enum(['care_navigation', 'clinic_search', 'clinic_information']);
+export const chatRequestSchema = z
+  .object({
+    message: z.string().trim().min(1).max(2000),
+    history: z.array(z.string().trim().min(1).max(2000)).max(6).default([]),
+    city: z.string().trim().max(80).default(''),
+    insurance: z.string().trim().max(80).default(''),
+    consent: z.boolean().default(false),
+    location: locationSchema.optional(),
+    context: chatContextSchema.optional(),
+  })
+  .strict();
+export type ChatRequest = z.infer<typeof chatRequestSchema>;
+
+const clinicFields = z
+  .object({
+    id: idSchema,
+    name: z.string().trim().min(3).max(120),
+    city: z.string().trim().min(2).max(80),
+    state: z
+      .string()
+      .regex(/^[A-Z]{2}$/)
+      .nullable(),
+    neighborhood: z.string().trim().min(2).max(100).nullable(),
+    address: z.string().trim().min(5).max(200),
+    specialties: z.array(idSchema).min(1).max(100),
+    insurances: z.array(z.string().trim().min(2).max(80)).max(100),
+    accessNote: z.string().trim().min(10).max(300).nullable().default(null),
+    professionalName: z.string().trim().min(2).max(200).nullable().optional(),
+    provenance: z.enum(['manual', 'public-directory', 'official-website']).optional(),
+    phone: z
+      .string()
+      .regex(/^\+55\d{10,11}$/)
+      .nullable(),
+    website: httpsUrl.nullable(),
+    sourceUrl: httpsUrl.nullable(),
+    verifiedAt: z.iso.datetime().nullable(),
+    latitude: locationSchema.shape.latitude.nullable().default(null),
+    longitude: locationSchema.shape.longitude.nullable().default(null),
+    coordinatesVerifiedAt: z.iso.datetime().nullable().default(null),
+    coordinatesSourceUrl: httpsUrl.nullable().default(null),
+    isDemo: z.boolean(),
+    active: z.boolean(),
+  })
+  .strict();
+export const clinicSchema = clinicFields.superRefine((clinic, ctx) => {
+  if (!clinic.isDemo && (!clinic.sourceUrl || !clinic.verifiedAt))
+    ctx.addIssue({ code: 'custom', message: 'Clínicas reais exigem fonte e data de verificação.' });
+  if ((clinic.latitude === null) !== (clinic.longitude === null))
+    ctx.addIssue({ code: 'custom', message: 'Informe ambas as coordenadas ou nenhuma.' });
+  if (
+    !clinic.isDemo &&
+    clinic.latitude !== null &&
+    (!clinic.coordinatesVerifiedAt || !clinic.coordinatesSourceUrl)
+  )
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Coordenadas reais exigem fonte e verificação próprias.',
+    });
+  if (
+    [clinic.verifiedAt, clinic.coordinatesVerifiedAt].some(
+      (date) => date && Date.parse(date) > Date.now(),
+    )
+  )
+    ctx.addIssue({ code: 'custom', message: 'A verificação não pode estar no futuro.' });
+});
+export type Clinic = z.infer<typeof clinicSchema>;
+// Read DTO: distances belong to the request and are never written to clinics.
+export const clinicResultSchema = clinicFields.extend({
+  specialtyDetails: z.array(specialtySchema),
+  distanceKm: z.number().finite().nonnegative().nullable(),
+});
+export type ClinicResult = z.infer<typeof clinicResultSchema>;
+export const clinicDocumentSchema = z
+  .object({
+    id: idSchema,
+    clinicId: idSchema,
+    title: z.string().trim().min(5).max(150),
+    content: z.string().trim().min(40).max(20000),
+    sourceUrl: httpsUrl.nullable(),
+    verifiedAt: z.iso.datetime().nullable(),
+    isDemo: z.boolean(),
+    active: z.boolean(),
+  })
+  .strict()
+  .superRefine((doc, ctx) => {
+    if (!doc.isDemo && (!doc.sourceUrl || !doc.verifiedAt))
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Texto real exige fonte oficial e data de verificação.',
+      });
+    if (doc.verifiedAt && Date.parse(doc.verifiedAt) > Date.now())
+      ctx.addIssue({ code: 'custom', message: 'A verificação não pode estar no futuro.' });
+  });
+export type ClinicDocument = z.infer<typeof clinicDocumentSchema>;
+export const sourceSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  url: httpsUrl.nullable(),
+  publisher: z.string(),
+  excerpt: z.string(),
+  clinicId: idSchema.optional(),
+  isDemo: z.boolean().default(false),
+});
+export type Source = z.infer<typeof sourceSchema>;
+const urgencySchema = z.enum(['emergency', 'prompt', 'routine', 'uncertain']);
+// Providers get one candidate only; the backend resolves it against the active database taxonomy.
+export const modelAnswerFormat = z
+  .object({
+    answer: z.string().min(1).max(1800),
+    urgency: urgencySchema,
+    specialty: z
+      .object({
+        name: z.string().min(2).max(120),
+        reason: z.string().min(1).max(240),
+      })
+      .strict()
+      .nullable(),
+    // The model selects topics; only backend-owned questions reach the interface.
+    questions: z.array(clarificationTopicSchema).max(2),
+  })
+  .strict();
+export const modelAnswerSchema = modelAnswerFormat.superRefine((value, ctx) => {
+  if (
+    !value.answer.trim() ||
+    (value.specialty && (!value.specialty.name.trim() || !value.specialty.reason.trim()))
+  )
+    ctx.addIssue({ code: 'custom', message: 'Campos de texto não podem ser vazios.' });
+});
+export type ModelAnswer = z.infer<typeof modelAnswerSchema>;
+
+export const feedbackReasonSchema = z.enum([
+  'incorrect_specialty',
+  'unclear_answer',
+  'not_helpful',
+  'clinic_problem',
+  'location_problem',
+  'insurance_problem',
+  'too_slow',
+  'other',
+]);
+export type FeedbackReason = z.infer<typeof feedbackReasonSchema>;
+export const feedbackRequestSchema = z
+  .object({
+    responseId: z.uuid(),
+    token: z.string().regex(/^[a-f0-9]{64}$/),
+    rating: z.enum(['positive', 'negative']),
+    reason: feedbackReasonSchema.optional(),
+    comment: z.string().trim().max(500).optional(),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (value.rating === 'negative' && !value.reason)
+      ctx.addIssue({ code: 'custom', message: 'Escolha o motivo do feedback negativo.' });
+    if (value.rating === 'positive' && (value.reason || value.comment))
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Feedback positivo não inclui motivo ou comentário.',
+      });
+  });
+export type FeedbackRequest = z.infer<typeof feedbackRequestSchema>;
+export const responseModeSchema = z.enum([
+  'demo',
+  'openai',
+  'ollama',
+  'safety',
+  'fallback',
+  'catalog',
+]);
+export const chatResponseSchema = z
+  .object({
+    id: z.uuid(),
+    answer: z.string(),
+    urgency: urgencySchema,
+    specialty: specialtySchema.extend({ reason: z.string().optional() }).nullable(),
+    intent: intentSchema,
+    context: chatContextSchema.nullable(),
+    status: z.enum([
+      'ok',
+      'llm_unavailable',
+      'invalid_output',
+      'needs_information',
+      'specialty_unrecognized',
+      'specialty_not_registered',
+      'no_matching_clinics',
+    ]),
+    questions: z.array(z.string()),
+    sources: z.array(sourceSchema),
+    clinics: z.array(clinicResultSchema),
+    ragStatus: z.enum(['skipped', 'not_indexed', 'available', 'no_matches', 'unavailable']),
+    locationUsed: z.boolean(),
+    mode: responseModeSchema,
+    notice: z.string(),
+    feedback: z.object({ token: z.string(), reasons: z.array(feedbackReasonSchema) }).nullable(),
+  })
+  .strict();
+export type ChatResponse = z.infer<typeof chatResponseSchema>;
+export const clinicFiltersSchema = z
+  .object({
+    city: z.string().trim().max(80).default(''),
+    insurance: z.string().trim().max(80).default(''),
+    specialty: z.union([idSchema, z.literal('')]).default(''),
+    q: z.string().trim().max(100).default(''),
+    page: z.coerce.number().int().min(1).max(1000).default(1),
+  })
+  .strict();
+export const clinicSearchSchema = clinicFiltersSchema.extend({
+  location: locationSchema.optional(),
+});
+export type ClinicFilters = Omit<z.infer<typeof clinicSearchSchema>, 'q'> & { q?: string };
+export interface CatalogMeta {
+  cities: string[];
+  insurances: string[];
+  specialties: Specialty[];
+  mode: 'demo' | 'openai' | 'ollama';
+  chatTimeoutMs?: number;
+  demoData: boolean;
+  requiresConsent: boolean;
+  knowledge: { indexedDocuments: number; demoDocuments: number; needsReindex: boolean };
+  directory: {
+    total: number;
+    realRecords: number;
+    sourceCount: number;
+    lastVerifiedAt: string | null;
+  };
+}
+export const clinicResultsSchema = z.object({
+  items: z.array(clinicResultSchema),
+  total: z.number(),
+  page: z.number(),
+  pageSize: z.number(),
+  order: z.enum(['name', 'proximity']),
+});
+export type ClinicResults = z.infer<typeof clinicResultsSchema>;
+
+export const visitFeedbackRequestSchema = z
+  .object({
+    responseId: z.uuid(),
+    token: z.string().regex(/^[a-f0-9]{64}$/),
+    clinicId: idSchema,
+    rating: z.number().int().min(1).max(5),
+    comment: z.string().trim().max(500).optional(),
+  })
+  .strict();
+export type VisitFeedbackRequest = z.infer<typeof visitFeedbackRequestSchema>;
+
+=================== server/db/evolution-migrations.ts ===================
+// Immutable migration snapshots, not a runtime list of allowed specialties.
+export const evolutionMigrations = [
+  {
+    version: 5,
+    sql: `
+      CREATE TABLE specialties (
+        id text PRIMARY KEY, name text NOT NULL, normalized_name text NOT NULL UNIQUE,
+        aliases text[] NOT NULL DEFAULT '{}', active boolean NOT NULL DEFAULT true,
+        created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+      );
+      INSERT INTO specialties(id,name,normalized_name,aliases) VALUES
+        ('clinica-medica','Clínica Médica','clinica medica',ARRAY['clinico geral','clinica geral','clinico']),
+        ('medicina-de-familia','Medicina de Família e Comunidade','medicina de familia e comunidade',ARRAY['medicina de familia','medico de familia']),
+        ('ortopedia','Ortopedia e Traumatologia','ortopedia e traumatologia',ARRAY['ortopedia','ortopedista']),
+        ('dermatologia','Dermatologia','dermatologia',ARRAY['dermatologista']),
+        ('neurologia','Neurologia','neurologia',ARRAY['neurologista']),
+        ('gastroenterologia','Gastroenterologia','gastroenterologia',ARRAY['gastroenterologista']),
+        ('otorrinolaringologia','Otorrinolaringologia','otorrinolaringologia',ARRAY['otorrino','otorrinolaringologista']),
+        ('oftalmologia','Oftalmologia','oftalmologia',ARRAY['oftalmologista']),
+        ('psicologia','Psicologia','psicologia',ARRAY['psicologo','psicologa']),
+        ('urologia','Urologia','urologia',ARRAY['urologista']),
+        ('cardiologia','Cardiologia','cardiologia',ARRAY['cardiologista']),
+        ('reumatologia','Reumatologia','reumatologia',ARRAY['reumatologista']),
+        ('endocrinologia','Endocrinologia e Metabologia','endocrinologia e metabologia',ARRAY['endocrinologia','endocrinologista']),
+        ('pneumologia','Pneumologia','pneumologia',ARRAY['pneumologista']),
+        ('nefrologia','Nefrologia','nefrologia',ARRAY['nefrologista']),
+        ('ginecologia','Ginecologia e Obstetrícia','ginecologia e obstetricia',ARRAY['ginecologia','ginecologista','obstetricia','obstetra']);
+      CREATE TABLE specialty_reference (
+        id text PRIMARY KEY, name text NOT NULL, normalized_name text NOT NULL UNIQUE,
+        aliases text[] NOT NULL DEFAULT '{}'
+      );
+      INSERT INTO specialty_reference SELECT id,name,normalized_name,aliases FROM specialties;
+      INSERT INTO specialty_reference VALUES
+        ('pediatria','Pediatria','pediatria',ARRAY['pediatra']),
+        ('geriatria','Geriatria','geriatria',ARRAY['geriatra']),
+        ('radiologia','Radiologia e Diagnóstico por Imagem','radiologia e diagnostico por imagem',ARRAY['radiologia','radiologista']);
+      CREATE TABLE clinic_specialties (
+        clinic_id text NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+        specialty_id text NOT NULL REFERENCES specialties(id),
+        PRIMARY KEY(clinic_id,specialty_id)
+      );
+      INSERT INTO clinic_specialties SELECT c.id,unnest(c.specialty_ids) FROM clinics c ON CONFLICT DO NOTHING;
+      CREATE INDEX clinic_specialties_specialty_idx ON clinic_specialties(specialty_id,clinic_id);
+      ALTER TABLE clinics DROP COLUMN specialty_ids;
+    `,
+  },
+  {
+    version: 6,
+    sql: `
+      ALTER TABLE clinics ADD COLUMN latitude double precision,
+        ADD COLUMN longitude double precision,
+        ADD COLUMN coordinates_verified_at timestamptz,
+        ADD COLUMN coordinates_source_url text,
+        ADD CONSTRAINT clinic_latitude_range CHECK (latitude BETWEEN -90 AND 90),
+        ADD CONSTRAINT clinic_longitude_range CHECK (longitude BETWEEN -180 AND 180),
+        ADD CONSTRAINT clinic_coordinate_pair CHECK ((latitude IS NULL)=(longitude IS NULL));
+      CREATE TABLE clinic_documents (
+        id text PRIMARY KEY, clinic_id text NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+        title text NOT NULL, content text NOT NULL, source_url text, verified_at timestamptz,
+        content_hash text NOT NULL, embedding_model text NOT NULL,
+        active boolean NOT NULL, is_demo boolean NOT NULL,
+        CHECK (is_demo OR (source_url IS NOT NULL AND verified_at IS NOT NULL))
+      );
+      CREATE INDEX clinic_documents_clinic_idx ON clinic_documents(clinic_id);
+      CREATE TABLE clinic_chunks (
+        id text PRIMARY KEY, document_id text NOT NULL REFERENCES clinic_documents(id) ON DELETE CASCADE,
+        content text NOT NULL, search_text text NOT NULL,
+        search_vector tsvector GENERATED ALWAYS AS (to_tsvector('portuguese',search_text)) STORED,
+        embedding vector NOT NULL
+      );
+      CREATE INDEX clinic_chunks_document_idx ON clinic_chunks(document_id);
+      CREATE INDEX clinic_chunks_search_idx ON clinic_chunks USING gin(search_vector);
+      -- Preserve operator data for audit, explicitly retire medical RAG from runtime.
+      ALTER TABLE documents RENAME TO legacy_medical_documents;
+      ALTER TABLE chunks RENAME TO legacy_medical_chunks;
+    `,
+  },
+  {
+    version: 7,
+    sql: `
+      CREATE TABLE response_receipts (
+        response_id uuid PRIMARY KEY, token_hash text NOT NULL,
+        mode text NOT NULL, prompt_version text NOT NULL, allowed_reasons text[] NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX response_receipts_created_idx ON response_receipts(created_at);
+      CREATE TABLE ai_feedback (
+        id uuid PRIMARY KEY, response_id uuid NOT NULL UNIQUE,
+        rating text NOT NULL CHECK (rating IN ('positive','negative')),
+        reason text CHECK (reason IN ('incorrect_specialty','unclear_answer','not_helpful','clinic_problem','location_problem','insurance_problem','too_slow','other')),
+        comment text CHECK (length(comment)<=500),
+        mode text NOT NULL, prompt_version text NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
+        CHECK ((rating='positive' AND reason IS NULL AND comment IS NULL) OR (rating='negative' AND reason IS NOT NULL))
+      );
+    `,
+  },
+  {
+    version: 8,
+    sql: `
+      -- Append explicit, unambiguous popular names; preserve operator aliases and activation.
+      WITH additions(id,terms) AS (VALUES
+        ('oftalmologia',ARRAY['oculista','oftalmo']),
+        ('dermatologia',ARRAY['dermato']), ('neurologia',ARRAY['neuro']),
+        ('cardiologia',ARRAY['cardio']), ('urologia',ARRAY['uro']),
+        ('reumatologia',ARRAY['reumato']), ('endocrinologia',ARRAY['endocrino']),
+        ('pneumologia',ARRAY['pneumo']), ('nefrologia',ARRAY['nefro']),
+        ('ginecologia',ARRAY['gineco']), ('gastroenterologia',ARRAY['gastro']),
+        ('ortopedia',ARRAY['traumatologia','traumatologista'])
+      )
+      UPDATE specialties s SET aliases=ARRAY(
+        SELECT DISTINCT term FROM unnest(s.aliases || a.terms) term
+        WHERE NOT EXISTS (SELECT 1 FROM specialty_reference r WHERE r.id<>s.id
+          AND (r.normalized_name=term OR term=ANY(r.aliases)))
+      ),updated_at=now() FROM additions a WHERE s.id=a.id;
+      UPDATE specialty_reference r SET aliases=s.aliases FROM specialties s WHERE s.id=r.id;
+    `,
+  },
+  {
+    version: 9,
+    sql: `
+      -- Product scope: retain history/relations, but exclude this area from active navigation.
+      UPDATE specialties SET active=false,updated_at=now() WHERE id='medicina-de-familia';
+    `,
+  },
+  {
+    version: 10,
+    sql: `
+      -- Enable the existing canonical reference for age-aware navigation.
+      -- Preserve a previously configured operator record, including its activity state.
+      INSERT INTO specialties(id,name,normalized_name,aliases)
+      SELECT id,name,normalized_name,aliases FROM specialty_reference WHERE id='pediatria'
+      ON CONFLICT(id) DO NOTHING;
+    `,
+  },
+    {
+    version: 11,
+    sql: `
+      -- O comprovante passa a lembrar quais clínicas foram indicadas naquela resposta.
+      ALTER TABLE response_receipts ADD COLUMN clinic_ids text[] NOT NULL DEFAULT '{}';
+      CREATE TABLE clinic_visit_feedback (
+        response_id uuid NOT NULL,
+        clinic_id text NOT NULL,
+        rating smallint NOT NULL CHECK (rating BETWEEN 1 AND 5),
+        comment text CHECK (length(comment)<=500),
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (response_id, clinic_id)
+      );
+    `,
+  },
+];
+
+=================== server/db/feedback.ts ===================
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import type { ChatResponse, FeedbackReason, FeedbackRequest } from '../../shared/contracts.js';
+import { PROMPT_VERSION } from '../ai/prompt.js';
+import { redactIdentifiers } from '../domain/text.js';
+import type { Database } from './database.js';
+
+const digest = (token: string) => createHash('sha256').update(token).digest('hex');
+export class FeedbackRepository {
+  constructor(private readonly db: Database) {}
+
+  async issue(
+    response: ChatResponse,
+    insuranceUsed: boolean,
+  ): Promise<NonNullable<ChatResponse['feedback']>> {
+    const reasons: FeedbackReason[] = ['unclear_answer', 'not_helpful', 'too_slow', 'other'];
+    if (response.specialty) reasons.unshift('incorrect_specialty');
+    if (response.clinics.length) reasons.push('clinic_problem');
+    if (response.locationUsed) reasons.push('location_problem');
+    if (insuranceUsed && (response.specialty || response.intent !== 'care_navigation'))
+      reasons.push('insurance_problem');
+    const token = randomBytes(32).toString('hex');
+    await this.db.query(
+      `INSERT INTO response_receipts(response_id,token_hash,mode,prompt_version,allowed_reasons,clinic_ids)
+      VALUES($1,$2,$3,$4,$5,$6)`,
+      [
+        response.id,
+        digest(token),
+        response.mode,
+        PROMPT_VERSION,
+        reasons,
+        response.clinics.map((clinic) => clinic.id),
+      ],
+    );
+    return { token, reasons };
+  }
+
+  async save(input: FeedbackRequest): Promise<boolean> {
+    // The receipt is a capability: clients cannot forge metadata or vote on arbitrary response IDs.
+    // Only metadata is stored; there is no chat body, location, prompt or answer here.
+    const comment =
+      input.rating === 'negative' && input.comment
+        ? redactIdentifiers(input.comment).slice(0, 500)
+        : null;
+    const result = await this.db.query(
+      `
+      INSERT INTO ai_feedback(id,response_id,rating,reason,comment,mode,prompt_version)
+      SELECT $1,r.response_id,$2,$3,$4,r.mode,r.prompt_version FROM response_receipts r
+      WHERE r.response_id=$5 AND r.token_hash=$6 AND r.created_at>now()-interval '7 days'
+        AND ($2='positive' OR $3=ANY(r.allowed_reasons))
+      ON CONFLICT(response_id) DO UPDATE SET rating=EXCLUDED.rating,reason=EXCLUDED.reason,
+        comment=EXCLUDED.comment,updated_at=now()
+      RETURNING id`,
+      [
+        randomUUID(),
+        input.rating,
+        input.reason ?? null,
+        comment,
+        input.responseId,
+        digest(input.token),
+      ],
+    );
+    return result.rows.length === 1;
+  }
+
+  async purgeExpiredReceipts() {
+    await this.db.query("DELETE FROM response_receipts WHERE created_at<=now()-interval '7 days'");
+  }
+}
+
+  async saveVisit(input: VisitFeedbackRequest): Promise<boolean> {
+    // Só aceita clínicas que aquela resposta realmente indicou e comprovantes ainda válidos.
+    const comment = input.comment ? redactIdentifiers(input.comment).slice(0, 500) : null;
+    const result = await this.db.query(
+      `INSERT INTO clinic_visit_feedback(response_id,clinic_id,rating,comment)
+      SELECT r.response_id,$2::text,$3::int,$4::text FROM response_receipts r
+      WHERE r.response_id=$1 AND r.token_hash=$5 AND r.created_at>now()-interval '7 days'
+        AND $2::text=ANY(r.clinic_ids)
+      ON CONFLICT(response_id,clinic_id) DO UPDATE SET rating=EXCLUDED.rating,
+        comment=EXCLUDED.comment,updated_at=now()
+      RETURNING response_id`,
+      [input.responseId, input.clinicId, input.rating, comment, digest(input.token)],
+    );
+    return result.rows.length === 1;
+  }
+=================== server/app.ts ===================
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+import Fastify, { LogController } from 'fastify';
+import helmet from '@fastify/helmet';
+import cors from '@fastify/cors';
+import rateLimit from '@fastify/rate-limit';
+import fastifyStatic from '@fastify/static';
+import { ZodError } from 'zod';
+import {
+  chatRequestSchema,
+  clinicFiltersSchema,
+  clinicSearchSchema,
+  feedbackRequestSchema,
+  visitFeedbackRequestSchema,
+} from '../shared/contracts.js';
+import type { AIProvider } from './ai/provider.js';
+import { createProvider } from './ai/factory.js';
+import type { Config } from './config.js';
+import { FeedbackRepository } from './db/feedback.js';
+import { SpecialtyRepository } from './db/specialties.js';
+import { SpecialtyResolver } from './services/specialty-resolver.js';
+import { CatalogRepository } from './db/catalog.js';
+import type { Database } from './db/database.js';
+import { Retriever } from './rag/retrieve.js';
+import { ChatService } from './services/chat.js';
+import { catalogStatus } from './services/readiness.js';
+
+function allowedWebOrigins(config: Config) {
+  const configured = new URL(config.WEB_ORIGIN);
+  if (
+    !['http:', 'https:'].includes(configured.protocol) ||
+    configured.username ||
+    configured.password ||
+    configured.pathname !== '/' ||
+    configured.search ||
+    configured.hash
+  )
+    throw new Error(
+      'WEB_ORIGIN deve conter somente protocolo, endereço e porta, por exemplo http://localhost:5173.',
+    );
+
+  // Browsers serialize Origin without a trailing slash. Keep protocol and port
+  // exact, accepting loopback aliases only in local development/test.
+  const origins = new Set([configured.origin]);
+  const loopbackHosts = ['localhost', '127.0.0.1', '[::1]'];
+  if (config.NODE_ENV !== 'production' && loopbackHosts.includes(configured.hostname)) {
+    for (const hostname of loopbackHosts) {
+      const alias = new URL(configured.origin);
+      alias.hostname = hostname;
+      origins.add(alias.origin);
+    }
+  }
+  return origins;
+}
+
+export async function buildApp(
+  config: Config,
+  db: Database,
+  provider: AIProvider = createProvider(config),
+) {
+  const webOrigins = allowedWebOrigins(config);
+  const app = Fastify({
+    logger: config.NODE_ENV === 'test' ? false : { level: 'info' },
+    logController: new LogController({ disableRequestLogging: true }),
+    bodyLimit: 24000,
+    requestTimeout: 60000,
+    trustProxy: config.TRUST_PROXY_HOPS ? (_address, hop) => hop < config.TRUST_PROXY_HOPS : false,
+  });
+  await app.register(helmet, {
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'"],
+        imgSrc: ["'self'", 'data:'],
+        connectSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+        upgradeInsecureRequests: config.NODE_ENV === 'production' ? [] : null,
+      },
+    },
+  });
+  await app.register(cors, {
+    origin: [...webOrigins],
+    methods: ['GET', 'POST'],
+    credentials: false,
+  });
+  await app.register(rateLimit, { max: config.HTTP_RATE_LIMIT, timeWindow: '1 minute' });
+  const catalog = new CatalogRepository(db, config.ALLOW_DEMO_DATA);
+  const feedback = new FeedbackRepository(db);
+  const chat = new ChatService(
+    new Retriever(db, provider, config.ALLOW_DEMO_DATA),
+    provider,
+    catalog,
+    new SpecialtyResolver(new SpecialtyRepository(db)),
+    config.AI_MAX_CONCURRENCY,
+    () => app.log.warn({ event: 'ai_unavailable' }, 'Consulta de IA indisponível'),
+  );
+
+  app.addHook('onRequest', async (request, reply) => {
+    if (request.url.startsWith('/api/')) reply.header('Cache-Control', 'no-store');
+    if (
+      request.method === 'POST' &&
+      request.headers.origin &&
+      !webOrigins.has(request.headers.origin)
+    ) {
+      return reply.code(403).send({
+        error:
+          config.NODE_ENV === 'production'
+            ? 'Origem não permitida.'
+            : `Origem não permitida. Abra o MedFinder em ${new URL(config.WEB_ORIGIN).origin}.`,
+      });
+    }
+  });
+  app.get('/api/health', async () => ({ status: 'ok' }));
+  app.get('/api/ready', async (_request, reply) => {
+    try {
+      await db.query('SELECT 1');
+      const status = await catalogStatus(db, config, provider);
+      const ready = status.directory.total > 0 && status.specialties.length > 0;
+      return reply
+        .code(ready ? 200 : 503)
+        .send({ status: ready ? 'ready' : 'catalog_unavailable' });
+    } catch {
+      return reply.code(503).send({ status: 'unavailable' });
+    }
+  });
+  app.get('/api/catalog', async () => catalogStatus(db, config, provider));
+  app.get('/api/clinics', async (request) =>
+    catalog.search(clinicFiltersSchema.parse(request.query)),
+  );
+  app.post('/api/clinics/search', async (request) =>
+    catalog.search(clinicSearchSchema.parse(request.body)),
+  );
+  app.post(
+    '/api/feedback',
+    { config: { rateLimit: { max: config.FEEDBACK_RATE_LIMIT, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const saved = await feedback.save(feedbackRequestSchema.parse(request.body));
+      return saved
+        ? { status: 'saved' }
+        : reply
+            .code(400)
+            .send({ error: 'Feedback inválido ou expirado. Confira o motivo e tente novamente.' });
+    },
+  );
+  app.post(
+    '/api/visit-feedback',
+    { config: { rateLimit: { max: config.FEEDBACK_RATE_LIMIT, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const saved = await feedback.saveVisit(visitFeedbackRequestSchema.parse(request.body));
+      return saved
+        ? { status: 'saved' }
+        : reply.code(400).send({ error: 'Avaliação inválida ou expirada.' });
+    },
+  );
+  app.post(
+    '/api/chat',
+    { config: { rateLimit: { max: config.CHAT_RATE_LIMIT, timeWindow: '1 minute' } } },
+    async (request) => {
+      const body = chatRequestSchema.parse(request.body);
+      const response = await chat.answer(body);
+      try {
+        response.feedback = await feedback.issue(
+          response,
+          Boolean(response.context?.insurance || body.insurance),
+        );
+      } catch {
+        app.log.warn(
+          { event: 'feedback_receipt_unavailable' },
+          'Feedback temporariamente indisponível',
+        );
+      }
+      return response;
+    },
+  );
+  app.setErrorHandler((error, _request, reply) => {
+    if (error instanceof ZodError)
+      return reply.code(400).send({
+        error: 'Revise os campos enviados e seus limites. A solicitação contém dados inválidos.',
+      });
+    const statusCode =
+      error instanceof Error && 'statusCode' in error && typeof error.statusCode === 'number'
+        ? error.statusCode
+        : 500;
+    if (statusCode < 500) {
+      const message =
+        statusCode === 429
+          ? 'Muitas solicitações. Aguarde um minuto e tente novamente.'
+          : 'Não foi possível processar a solicitação.';
+      return reply.code(statusCode).send({ error: message });
+    }
+    app.log.error({ event: 'request_failed' }, 'Falha interna na solicitação');
+    return reply.code(500).send({ error: 'Serviço indisponível. Tente novamente em instantes.' });
+  });
+
+  const dist = resolve('dist');
+  if (existsSync(resolve(dist, 'index.html'))) {
+    await app.register(fastifyStatic, { root: dist, wildcard: false });
+    app.setNotFoundHandler((request, reply) => {
+      if (request.url.startsWith('/api/') || request.url.includes('.') || request.method !== 'GET')
+        return reply.code(404).send({ error: 'Recurso não encontrado.' });
+      return reply.header('Cache-Control', 'no-cache').sendFile('index.html');
+    });
+  } else
+    app.setNotFoundHandler((_request, reply) =>
+      reply.code(404).send({ error: 'Recurso não encontrado.' }),
+    );
+  return app;
+}
+
+=================== src/lib/api.ts ===================
+import {
+  chatResponseSchema,
+  type CatalogMeta,
+  type ChatRequest,
+  clinicResultsSchema,
+  type FeedbackRequest,
+  type VisitFeedbackRequest;
+} from '../../shared/contracts';
+
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const response = await fetch(`/api${path}`, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...options.headers },
+  });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? 'Não foi possível conectar. Tente novamente.');
+  }
+  return response.json() as Promise<T>;
+}
+
+export const api = {
+  catalog: (signal: AbortSignal) => request<CatalogMeta>('/catalog', { signal }),
+  clinics: async (body: string, signal: AbortSignal) =>
+    clinicResultsSchema.parse(await request('/clinics/search', { method: 'POST', body, signal })),
+  visitFeedback: (body: VisitFeedbackRequest) =>
+    request<{ status: 'saved' }>('/visit-feedback', {
+      method: 'POST',
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(15000),
+    }),
+  feedback: (body: FeedbackRequest) =>
+    request<{ status: 'saved' }>('/feedback', {
+      method: 'POST',
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(15000),
+    }),
+  chat: async (body: ChatRequest, signal: AbortSignal) =>
+    chatResponseSchema.parse(
+      await request('/chat', { method: 'POST', body: JSON.stringify(body), signal }),
+    ),
+};
+
+=================== src/features/followup/storage.ts ===================
+import { z } from 'zod';
+import { idSchema, type ChatResponse } from '../../../shared/contracts';
+
+const KEY = 'medfinder.followup.v1';
+export const MIN_ABSENCE_MS = 6 * 60 * 60 * 1000; // quanto tempo fora conta como "voltou depois de um tempo"
+const MAX_AGE_MS = 6 * 24 * 60 * 60 * 1000; // o comprovante do servidor expira em 7 dias
+const MAX_ITEMS = 5;
+
+const itemSchema = z.object({
+  responseId: z.uuid(),
+  token: z.string().regex(/^[a-f0-9]{64}$/),
+  shownAt: z.number(),
+  clinics: z.array(z.object({ id: idSchema, name: z.string().max(120) })).min(1).max(3),
+});
+const stateSchema = z.object({ lastSeen: z.number(), items: z.array(itemSchema).max(MAX_ITEMS) });
+export type FollowUpItem = z.infer<typeof itemSchema>;
+type State = z.infer<typeof stateSchema>;
+
+const empty = (): State => ({ lastSeen: 0, items: [] });
+
+function read(): State {
+  try {
+    const raw = localStorage.getItem(KEY);
+    const parsed = raw ? stateSchema.safeParse(JSON.parse(raw)) : null;
+    if (!parsed?.success) return empty();
+    const now = Date.now();
+    return {
+      lastSeen: parsed.data.lastSeen,
+      items: parsed.data.items.filter((item) => now - item.shownAt < MAX_AGE_MS),
+    };
+  } catch {
+    return empty();
+  }
+}
+
+function write(state: State) {
+  try {
+    if (state.items.length) localStorage.setItem(KEY, JSON.stringify(state));
+    else localStorage.removeItem(KEY);
+  } catch {
+    // Armazenamento indisponível (modo privado, cota): o recurso apenas deixa de funcionar.
+  }
+}
+
+/** Chamado quando o chat indica clínicas. Só então algo é gravado no navegador. */
+export function rememberRecommendation(response: ChatResponse) {
+  if (!response.feedback || !response.clinics.length) return;
+  if (response.urgency === 'emergency' || response.urgency === 'prompt') return;
+  const state = read();
+  const item: FollowUpItem = {
+    responseId: response.id,
+    token: response.feedback.token,
+    shownAt: Date.now(),
+    clinics: response.clinics.map(({ id, name }) => ({ id, name })),
+  };
+  write({ lastSeen: Date.now(), items: [item, ...state.items].slice(0, MAX_ITEMS) });
+}
+
+/** Atualiza "visto por último" somente se houver indicações aguardando retorno. */
+export function touchLastSeen() {
+  const state = read();
+  if (state.items.length) write({ ...state, lastSeen: Date.now() });
+}
+
+export function dueItems(now = Date.now()): FollowUpItem[] {
+  const state = read();
+  if (!state.items.length || !state.lastSeen || now - state.lastSeen < MIN_ABSENCE_MS) return [];
+  return state.items;
+}
+
+export function discardItems(responseIds: string[]) {
+  const state = read();
+  write({ ...state, items: state.items.filter((item) => !responseIds.includes(item.responseId)) });
+}
+=================== src/features/followup/useReturnFollowUp.ts ===================
+import { useEffect, useRef, useState } from 'react';
+import { discardItems, dueItems, touchLastSeen, type FollowUpItem } from './storage';
+
+const HEARTBEAT_MS = 30_000;
+
+export function useReturnFollowUp() {
+  // Decide antes de qualquer atualização de "visto por último".
+  const [pending, setPending] = useState<FollowUpItem[]>(() => dueItems());
+  const open = useRef(pending.length > 0);
+
+  useEffect(() => {
+    // Com a pergunta na tela, não renovamos o horário: se a pessoa fechar sem responder, perguntamos de novo.
+    if (!open.current) touchLastSeen();
+    const onChange = () => {
+      if (open.current) return;
+      if (document.visibilityState === 'visible') {
+        // Celular: o app costuma ficar em segundo plano em vez de fechar de verdade.
+        const due = dueItems();
+        if (due.length) {
+          open.current = true;
+          setPending(due);
+        } else touchLastSeen();
+      } else touchLastSeen();
+    };
+    const onHide = () => {
+      if (!open.current) touchLastSeen();
+    };
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible' && !open.current) touchLastSeen();
+    }, HEARTBEAT_MS);
+    document.addEventListener('visibilitychange', onChange);
+    window.addEventListener('pagehide', onHide);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onChange);
+      window.removeEventListener('pagehide', onHide);
+    };
+  }, []);
+
+  function finish(responseIds: string[]) {
+    discardItems(responseIds);
+    open.current = false;
+    setPending([]);
+  }
+  return { pending, finish };
+}
+=================== src/features/followup/ReturnFeedbackDialog.tsx ===================
+import { useEffect, useId, useRef, useState } from 'react';
+import { Star } from 'lucide-react';
+import { api } from '../../lib/api';
+import type { FollowUpItem } from './storage';
+
+type Props = { items: FollowUpItem[]; onFinish: (responseIds: string[]) => void };
+
+export function ReturnFeedbackDialog({ items, onFinish }: Props) {
+  const id = useId();
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [selected, setSelected] = useState('');
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
+
+  // Itens vêm do mais novo para o mais antigo; mantém a indicação mais recente de cada clínica.
+  const options = [
+    ...new Map(
+      items.flatMap((item) => item.clinics.map((clinic) => [clinic.id, { clinic, item }] as const)).reverse(),
+    ).values(),
+  ].reverse();
+  const allIds = items.map((item) => item.responseId);
+
+  useEffect(() => {
+    const element = dialog.current;
+    if (element && !element.open) element.showModal();
+  }, []);
+
+  async function submit() {
+    const option = options.find((entry) => entry.clinic.id === selected);
+    if (!option || !rating || sending) return;
+    setSending(true);
+    setError('');
+    try {
+      await api.visitFeedback({
+        responseId: option.item.responseId,
+        token: option.item.token,
+        clinicId: option.clinic.id,
+        rating,
+        ...(comment.trim() ? { comment: comment.trim() } : {}),
+      });
+      onFinish(allIds);
+    } catch {
+      setError('Não foi possível enviar agora. Tente novamente ou feche esta janela.');
+      setSending(false);
+    }
+  }
+
+  return (
+    <dialog
+      ref={dialog}
+      className="return-dialog"
+      aria-labelledby={`${id}-title`}
+      onCancel={(event) => {
+        event.preventDefault();
+        onFinish(allIds);
+      }}
+    >
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void submit();
+        }}
+      >
+        <h2 id={`${id}-title`}>Que bom ver você de novo</h2>
+        <p>
+          Da última vez indicamos algumas clínicas. Você foi a alguma delas? Sua avaliação é anônima e
+          ajuda a melhorar as indicações.
+        </p>
+        <fieldset disabled={sending}>
+          <legend>Qual clínica você visitou?</legend>
+          {options.map(({ clinic }) => (
+            <label key={clinic.id}>
+              <input
+                type="radio"
+                name={`${id}-clinic`}
+                value={clinic.id}
+                checked={selected === clinic.id}
+                onChange={() => setSelected(clinic.id)}
+              />
+              {clinic.name}
+            </label>
+          ))}
+        </fieldset>
+        {selected && (
+          <>
+            <fieldset className="star-rating" disabled={sending}>
+              <legend>Como foi a experiência?</legend>
+              <div>
+                {[1, 2, 3, 4, 5].map((value) => (
+                  <label key={value}>
+                    <input
+                      className="sr-only"
+                      type="radio"
+                      name={`${id}-rating`}
+                      value={value}
+                      checked={rating === value}
+                      onChange={() => setRating(value)}
+                    />
+                    <Star size={30} className={value <= rating ? 'star filled' : 'star'} aria-hidden="true" />
+                    <span className="sr-only">
+                      {value} {value === 1 ? 'estrela' : 'estrelas'}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <label htmlFor={`${id}-comment`}>Comentário opcional</label>
+            <textarea
+              id={`${id}-comment`}
+              rows={3}
+              maxLength={500}
+              value={comment}
+              disabled={sending}
+              onChange={(event) => setComment(event.target.value)}
+            />
+            <small>Não inclua dados pessoais nem sintomas.</small>
+          </>
+        )}
+        {error && <p role="alert">{error}</p>}
+        <div className="return-actions">
+          <button className="primary-button" type="submit" disabled={!selected || !rating || sending}>
+            Enviar avaliação
+          </button>
+          <button className="text-button" type="button" disabled={sending} onClick={() => onFinish(allIds)}>
+            Não fui a nenhuma
+          </button>
+        </div>
+      </form>
+    </dialog>
+  );
+}
+=================== src/features/chat/useChat.ts ===================
+import { useEffect, useRef, useState } from 'react';
+import type { ChatRequest, ChatResponse } from '../../../shared/contracts';
+import { api } from '../../lib/api';
+import { rememberRecommendation } from '../followup/storage';
+
+export type Message =
+  | { id: string; role: 'user'; text: string }
+  | { id: string; role: 'assistant'; response: ChatResponse };
+
+export function useChat(timeoutMs = 60000) {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState('');
+  const lastFilters = useRef<{ city: string; insurance: string } | null>(null);
+  const controller = useRef<AbortController | null>(null);
+  useEffect(() => () => controller.current?.abort(), []);
+
+  async function send(input: Omit<ChatRequest, 'history' | 'context'>) {
+    if (controller.current) return false;
+    const current = new AbortController();
+    controller.current = current;
+    const userMessage: Message = { id: crypto.randomUUID(), role: 'user', text: input.message };
+    const history = messages
+      .filter((item) => item.role === 'user')
+      .map((item) => item.text)
+      .slice(-6);
+    setMessages((previous) => [...previous, userMessage]);
+    setError('');
+    setPending(true);
+    const timeout = window.setTimeout(() => current.abort(), timeoutMs);
+    try {
+      const previous = [...messages].reverse().find((item) => item.role === 'assistant');
+      const context =
+        previous?.role === 'assistant' && previous.response.context
+          ? {
+              ...previous.response.context,
+              city:
+                lastFilters.current?.city === input.city
+                  ? previous.response.context.city
+                  : input.city,
+              insurance:
+                lastFilters.current?.insurance === input.insurance
+                  ? previous.response.context.insurance
+                  : input.insurance,
+            }
+          : undefined;
+      const response = await api.chat({ ...input, history, context }, current.signal);
+      lastFilters.current = { city: input.city, insurance: input.insurance };
+      setMessages((previous) => [...previous, { id: response.id, role: 'assistant', response }]);
+      rememberRecommendation(response);
+      return true;
+    } catch (failure) {
+      setMessages((previous) => previous.filter((item) => item.id !== userMessage.id));
+      setError(
+        current.signal.aborted
+          ? 'Envio interrompido. Sua mensagem foi preservada para tentar novamente.'
+          : failure instanceof Error
+            ? failure.message
+            : 'Não foi possível enviar a mensagem.',
+      );
+      return false;
+    } finally {
+      clearTimeout(timeout);
+      controller.current = null;
+      setPending(false);
+    }
+  }
+  return { messages, pending, error, send, cancel: () => controller.current?.abort() };
+}
+
+=================== src/App.tsx ===================
+import { useState } from 'react';
+import {
+  ArrowRight,
+  BookOpen,
+  Building2,
+  ChevronRight,
+  HeartPulse,
+  LockKeyhole,
+  MessageCircle,
+  Plus,
+  ShieldCheck,
+  Sparkles,
+} from 'lucide-react';
+import { ChatPanel } from './features/chat/ChatPanel';
+import { ClinicDirectory } from './features/clinics/ClinicDirectory';
+import { useCatalog } from './hooks/useCatalog';
+import { useGeolocation } from './hooks/useGeolocation';
+import './App.css';
+import { ReturnFeedbackDialog } from './features/followup/ReturnFeedbackDialog';
+import { useReturnFollowUp } from './features/followup/useReturnFollowUp';
+
+type View = 'chat' | 'clinics' | 'about';
+const navigation = [
+  { id: 'chat' as const, label: 'Assistente de saúde', icon: MessageCircle },
+  { id: 'clinics' as const, label: 'Encontrar clínicas', icon: Building2 },
+  { id: 'about' as const, label: 'Como funciona', icon: BookOpen },
+];
+
+export default function App() {
+  const followUp = useReturnFollowUp();
+  const geolocation = useGeolocation();
+  const [view, setView] = useState<View>('chat');
+  const [session, setSession] = useState(0);
+  const [city, setCity] = useState('');
+  const [insurance, setInsurance] = useState('');
+  const { data: catalog, error, retry } = useCatalog();
+  function newConversation() {
+    setSession((value) => value + 1);
+    setView('chat');
+  }
+
+  return (
+    <div className="app-shell">
+      <a className="skip-link" href="#main">
+        Pular para o conteúdo
+      </a>
+      <aside className="sidebar" aria-label="Menu principal">
+        <a
+          className="brand"
+          href="#main"
+          onClick={() => setView('chat')}
+          aria-label="MedFinder, início"
+        >
+          <span className="brand-icon">
+            <HeartPulse size={23} strokeWidth={2.2} />
+          </span>
+          <span>
+            med<span className="brand-light">finder</span>
+            <span className="brand-dot">.</span>
+          </span>
+        </a>
+        <p className="sidebar-label">SEU ESPAÇO DE CUIDADO</p>
+        <nav>
+          {navigation.map(({ id, label, icon: Icon }) => (
+            <button
+              type="button"
+              key={id}
+              onClick={() => setView(id)}
+              className={`nav-item ${view === id ? 'active' : ''}`}
+              aria-current={view === id ? 'page' : undefined}
+            >
+              <Icon size={19} />
+              <span>{label}</span>
+              {view === id && <ChevronRight size={15} />}
+            </button>
+          ))}
+        </nav>
+        <button type="button" className="new-chat" onClick={newConversation}>
+          <Plus size={18} /> Nova conversa
+        </button>
+        <div className="sidebar-bottom">
+          <div className="sidebar-care">
+            <span className="care-symbol">
+              <HeartPulse size={25} />
+            </span>
+            <h3>Um passo de cada vez.</h3>
+            <p>Encontrar o cuidado certo começa por entender o que você precisa.</p>
+          </div>
+        </div>
+      </aside>
+      <div className="main-shell">
+        <header className="topbar">
+          <span className="breadcrumb">
+            Seu cuidado <ChevronRight size={14} />{' '}
+            <strong>{navigation.find((item) => item.id === view)?.label}</strong>
+          </span>
+        </header>
+        <main id="main" tabIndex={-1}>
+          <div className="page-intro">
+            <div>
+              <p className="eyebrow">
+                <span /> CUIDADO QUE COMEÇA COM UMA CONVERSA
+              </p>
+              <h1>
+                {view === 'chat' ? (
+                  <>
+                    Vamos encontrar seu
+                    <br />
+                    <span>próximo passo.</span>
+                  </>
+                ) : view === 'clinics' ? (
+                  <>
+                    Encontre um lugar
+                    <br />
+                    <span>para cuidar de você.</span>
+                  </>
+                ) : (
+                  <>
+                    Informação clara.
+                    <br />
+                    <span>Escolhas com contexto.</span>
+                  </>
+                )}
+              </h1>
+              <p className="intro-description">
+                {view === 'chat'
+                  ? 'Conte o que você está sentindo. A gente ajuda a encontrar por onde começar.'
+                  : view === 'clinics'
+                    ? 'Consulte especialidades, localização e convênios no nosso catálogo.'
+                    : 'Entenda como seu relato se transforma em uma orientação de atendimento.'}
+              </p>
+            </div>
+            <div className="intro-mark" aria-hidden="true">
+              <div className="orbit orbit-one" />
+              <div className="orbit orbit-two" />
+              <HeartPulse size={58} strokeWidth={1.35} />
+              <span className="orbit-dot" />
+            </div>
+          </div>
+          {error && (
+            <div className="notice error-notice" role="alert">
+              <span>Não foi possível conectar ao serviço.</span>
+              <button type="button" className="text-button" onClick={retry}>
+                Tentar novamente
+              </button>
+            </div>
+          )}
+          {catalog &&
+            (catalog.demoData ||
+              catalog.knowledge.demoDocuments > 0 ||
+              catalog.mode === 'demo') && (
+              <div className="demo-banner">
+                <span className="demo-tag">DEMONSTRAÇÃO</span>
+                <p>
+                  {catalog.demoData
+                    ? 'O catálogo inclui clínicas fictícias. '
+                    : 'Catálogo com fontes públicas ou cadastros importados. '}
+                  {catalog.mode === 'demo'
+                    ? 'Respostas locais para testar o fluxo, sem IA generativa.'
+                    : catalog.knowledge.demoDocuments > 0
+                      ? 'Inclui textos fictícios de clínicas para demonstração.'
+                      : 'Confira as fontes dos cadastros.'}
+                </p>
+              </div>
+            )}
+          <div hidden={view !== 'chat'}>
+            <div className="workspace-grid">
+              <ChatPanel
+                key={session}
+                catalog={catalog}
+                geolocation={geolocation}
+                city={city}
+                insurance={insurance}
+                onCityChange={setCity}
+                onInsuranceChange={setInsurance}
+              />
+              <aside className="context-column" aria-label="Orientações para a conversa">
+                <section className="journey-card">
+                  <div className="card-heading">
+                    <span className="icon-tile">
+                      <Sparkles size={19} />
+                    </span>
+                    <span>COM VOCÊ, EM CADA PASSO</span>
+                  </div>
+                  <h2>
+                    Do que você sente
+                    <br />
+                    ao cuidado que precisa.
+                  </h2>
+                  <ol className="journey-steps">
+                    <li>
+                      <span>01</span>
+                      <div>
+                        <h3>Conte com suas palavras</h3>
+                        <p>Onde é o desconforto, quando começou e o que mudou.</p>
+                      </div>
+                    </li>
+                    <li>
+                      <span>02</span>
+                      <div>
+                        <h3>Entenda as possibilidades</h3>
+                        <p>Uma sugestão de especialidade para avaliação profissional.</p>
+                      </div>
+                    </li>
+                    <li>
+                      <span>03</span>
+                      <div>
+                        <h3>Encontre atendimento</h3>
+                        <p>Veja opções do catálogo para sua cidade e seu convênio.</p>
+                      </div>
+                    </li>
+                  </ol>
+                  <button type="button" className="text-button" onClick={() => setView('about')}>
+                    Conheça o MedFinder <ArrowRight size={16} />
+                  </button>
+                </section>
+                <section className="safety-card">
+                  <ShieldCheck size={20} />
+                  <div>
+                    <h3>Orientação, com responsabilidade</h3>
+                    <p>
+                      O chat não faz diagnóstico nem substitui uma consulta. Em uma emergência no
+                      Brasil, ligue <a href="tel:192">192</a>.
+                    </p>
+                  </div>
+                </section>
+                <div className="small-note">
+                  <LockKeyhole size={15} />
+                  <p>
+                    As mensagens ficam nesta aba e não são salvas no banco do MedFinder. Evite nome
+                    completo, CPF e outros dados pessoais.
+                  </p>
+                </div>
+              </aside>
+            </div>
+          </div>
+          {view === 'clinics' && (
+            <ClinicDirectory
+              catalog={catalog}
+              geolocation={geolocation}
+              city={city}
+              insurance={insurance}
+              onCityChange={setCity}
+              onInsuranceChange={setInsurance}
+            />
+          )}
+          {view === 'about' && (
+            <section className="about-panel">
+              <span className="icon-tile">
+                <BookOpen size={22} />
+              </span>
+              <h2>Uma ponte até o atendimento.</h2>
+              <p>
+                A IA sugere uma especialidade a partir do relato. O sistema valida essa sugestão e
+                busca clínicas com os filtros que você escolheu. Textos disponíveis das clínicas
+                complementam a resposta com fontes consultáveis.
+              </p>
+              <div className="about-grid">
+                <article>
+                  <span>01 / CONTEXTO</span>
+                  <h3>Você conta, a conversa continua</h3>
+                  <p>
+                    Descreva o desconforto e responda às perguntas. Selecione cidade e convênio para
+                    filtrar o catálogo.
+                  </p>
+                </article>
+                <article>
+                  <span>02 / INFORMAÇÃO</span>
+                  <h3>Fontes para consultar</h3>
+                  <p>
+                    Quando não há informação suficiente, o assistente pede mais contexto. Uma
+                    indicação não confirma uma doença.
+                  </p>
+                </article>
+                <article>
+                  <span>03 / ATENDIMENTO</span>
+                  <h3>Você escolhe o próximo passo</h3>
+                  <p>
+                    Confirme diretamente com a clínica a cobertura do seu plano, valores e horários.
+                    O MedFinder não realiza agendamentos.
+                  </p>
+                </article>
+              </div>
+              <details className="privacy-details">
+                <summary>Como suas informações são utilizadas</summary>
+                <p>
+                  Não é necessário criar uma conta. O texto é processado para responder à conversa,
+                  sem histórico no banco do MedFinder. Ao recarregar a página ou iniciar uma nova
+                  conversa, as mensagens são removidas desta aba. No modo Ollama, a geração e a
+                  busca na base são processadas no computador que executa o servidor MedFinder, sem
+                  envio à OpenAI. No modo OpenAI, após sua autorização, o relato e mensagens
+                  recentes são enviados à OpenAI para gerar a resposta. Esse provedor tem suas
+                  próprias regras de tratamento e retenção de dados. A remoção da conversa nesta aba
+                  não apaga eventuais registros do provedor. A localização é opcional, usada apenas
+                  para ordenar clínicas e não é salva nem enviada à IA. O feedback salva apenas o
+                  voto, o motivo, o comentário opcional e identificadores técnicos; não inclui a
+                  conversa e não treina a IA automaticamente.
+                </p>
+              </details>
+              <p className="about-disclaimer">
+                Esta versão não é um dispositivo de diagnóstico ou triagem validada. A detecção de
+                alertas é limitada e pode falhar. Os resumos de orientação precisam de revisão
+                clínica antes do uso com pacientes. Confirme os dados de atendimento com a clínica.
+              </p>
+              <button className="primary-button" type="button" onClick={() => setView('chat')}>
+                Iniciar conversa <ArrowRight size={17} />
+              </button>
+            </section>
+          )}
+          <footer className="page-footer">
+            <span>
+              MedFinder <span aria-hidden="true">·</span> Cuidar começa por encontrar.
+            </span>
+            <button type="button" onClick={() => setView('about')}>
+              Sobre e privacidade
+            </button>
+          </footer>
+        </main>
+        {followUp.pending.length > 0 && (
+        <ReturnFeedbackDialog items={followUp.pending} onFinish={followUp.finish} />
+      </div>
+    </div>
+  );
+}
+
+=================== src/App.css ===================
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 15.25rem minmax(0, 1fr);
+}
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  min-height: 690px;
+  background: #054c43;
+  color: #d8e9e2;
+  padding: 38px 20px 22px;
+  display: flex;
+  flex-direction: column;
+}
+.brand {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  gap: 10px;
+  align-items: center;
+  padding: 0 8px;
+  color: white;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -1.1px;
+}
+.brand-light {
+  font-weight: 400;
+}
+.brand-dot {
+  color: #73d8b5;
+}
+.brand-icon {
+  flex-shrink: 0;
+  width: 37px;
+  height: 38px;
+  border-radius: 11px;
+  background: #187163;
+  display: grid;
+  place-items: center;
+  color: #b9f0d9;
+}
+.sidebar-label {
+  font-size: var(--text-xs);
+  letter-spacing: 1.7px;
+  color: #a1c4b9;
+  margin: 57px 11px 17px;
+  font-weight: 600;
+}
+.sidebar nav {
+  display: grid;
+  gap: 7px;
+}
+.nav-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 15px 13px;
+  background: transparent;
+  color: #c7ded5;
+  border-radius: 9px;
+  font-size: var(--text-base);
+  text-align: left;
+}
+.nav-item span {
+  flex: 1;
+}
+.nav-item.active {
+  background: #e7f4e8;
+  color: #14594a;
+  font-weight: 600;
+}
+.nav-item:not(.active):hover {
+  background: #125b50;
+}
+.new-chat {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 9px;
+  margin-top: 28px;
+  padding: 12px 10px;
+  background: transparent;
+  color: #dceee7;
+  border: 1px solid #3c7769;
+  border-radius: 8px;
+  font-size: var(--text-base);
+}
+.new-chat:hover {
+  background: #176457;
+}
+.sidebar-bottom {
+  margin-top: auto;
+  padding-top: 35px;
+}
+.sidebar-care {
+  padding: 23px 16px;
+  border: 1px solid #367361;
+  background: linear-gradient(140deg, #175e4f, #0b5147);
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+}
+.sidebar-care::after {
+  content: '';
+  position: absolute;
+  width: 105px;
+  height: 105px;
+  border: 1px solid #39776a;
+  border-radius: 50%;
+  right: -60px;
+  top: -32px;
+}
+.care-symbol {
+  display: inline-flex;
+  color: #b1dcc4;
+  margin-bottom: 15px;
+}
+.sidebar-care h3 {
+  font-size: var(--text-lg);
+  font-weight: 500;
+  color: #eff9ee;
+  margin-bottom: 8px;
+}
+.sidebar-care p {
+  font-size: var(--text-base);
+  line-height: 1.8;
+  color: #b7d1c7;
+}
+.main-shell {
+  min-width: 0;
+}
+.topbar {
+  min-height: 78px;
+  border-bottom: 1px solid #e2e9e3;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 43px;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: #fcfdfb;
+}
+.breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 13px;
+  font-size: var(--text-base);
+  color: #73817a;
+}
+.breadcrumb strong {
+  font-weight: 500;
+  color: #29473c;
+}
+main {
+  overflow-wrap: anywhere;
+  max-width: 1420px;
+  margin: 0 auto;
+  padding: 36px 43px 0;
+  outline: none;
+}
+.page-intro {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 4px 30px;
+}
+.page-intro > div {
+  min-width: 0;
+}
+.eyebrow {
+  font-size: var(--text-base);
+  font-weight: 600;
+  letter-spacing: 1.8px;
+  color: #557966;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 15px;
+}
+.eyebrow > span {
+  width: 5px;
+  height: 5px;
+  background: #399273;
+  border-radius: 50%;
+}
+h1 {
+  font-size: clamp(2rem, 2.85vw, 2.8125rem);
+  line-height: 1.16;
+  font-weight: 450;
+  letter-spacing: -1.5px;
+  color: #1f3b31;
+}
+h1 > span {
+  color: #498575;
+}
+.intro-description {
+  font-size: var(--text-base);
+  color: #6a7b72;
+  margin-top: 15px;
+  line-height: 1.6;
+  max-width: 510px;
+}
+.intro-mark {
+  width: 175px;
+  height: 150px;
+  position: relative;
+  margin-right: 30px;
+  display: grid;
+  place-items: center;
+  color: #78a692;
+  flex-shrink: 0;
+}
+.intro-mark > svg {
+  transform: rotate(-10deg);
+}
+.orbit {
+  position: absolute;
+  border: 1px solid #dce7da;
+  border-radius: 50%;
+}
+.orbit-one {
+  width: 120px;
+  height: 120px;
+  background: #eaf0e7;
+}
+.orbit-two {
+  width: 150px;
+  height: 150px;
+}
+.orbit-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 4px solid #f6f8f6;
+  background: #8eb89b;
+  position: absolute;
+  right: 7px;
+  bottom: 40px;
+}
+.demo-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  color: #706045;
+  background: #f4f0e6;
+  border: 1px solid #eae4d7;
+  border-radius: 7px;
+  padding: 9px 12px;
+}
+.demo-tag {
+  letter-spacing: 0.8px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  white-space: nowrap;
+  border-right: 1px solid #dcd3bf;
+  padding-right: 10px;
+}
+.demo-banner p {
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+.workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 23px;
+  align-items: start;
+}
+.chat-panel {
+  border: 1px solid #dde6df;
+  border-radius: 15px;
+  background: white;
+  overflow: hidden;
+  box-shadow: 0 5px 24px #244e3411;
+  min-width: 0;
+}
+.chat-header {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  padding: 20px 22px;
+  border-bottom: 1px solid #ecf0ec;
+}
+.assistant-avatar {
+  height: 39px;
+  width: 39px;
+  display: grid;
+  place-items: center;
+  background: #075648;
+  color: #e4f4e8;
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+.chat-header h2 {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: #213f35;
+}
+.chat-header p {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--text-sm);
+  color: #627c6c;
+  margin-top: 4px;
+}
+.status-dot {
+  height: 5px;
+  width: 5px;
+  border-radius: 50%;
+  background: #298b68;
+}
+.status-dot.offline {
+  background: #b99b6b;
+}
+.care-filters {
+  display: flex;
+  gap: 12px;
+  padding: 11px 22px;
+  background: #fbfcfa;
+  border-bottom: 1px solid #ecf0ea;
+}
+.filter-control {
+  display: grid;
+  grid-template-columns: 18px auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  color: #6c8376;
+}
+.filter-control label {
+  font-size: var(--text-sm);
+}
+.filter-control select {
+  border: 0;
+  outline-offset: 1px;
+  border-radius: 4px;
+  background: transparent;
+  width: 100%;
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: #324f40;
+  padding: 6px 0;
+}
+.conversation {
+  height: 375px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #cbdcd1 transparent;
+  background: #fff;
+  padding: 25px;
+}
+.chat-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 4px 0 9px;
+}
+.welcome-icon {
+  border-radius: 19px;
+  background: #f0f6ee;
+  color: #39745e;
+  width: 62px;
+  height: 62px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 18px;
+  box-shadow: 0 0 0 7px #f9fbf7;
+}
+.welcome-eyebrow {
+  font-size: var(--text-xs);
+  letter-spacing: 1.5px;
+  color: #5d806b;
+  margin-bottom: 9px;
+  font-weight: 600;
+}
+.chat-welcome h3 {
+  font-size: 1.75rem;
+  letter-spacing: -0.7px;
+  font-weight: 450;
+  color: #244735;
+}
+.chat-welcome > p {
+  font-size: var(--text-base);
+  color: #708177;
+  line-height: 1.8;
+  margin-top: 10px;
+}
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 22px;
+  max-width: 450px;
+}
+.suggestions button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 10px;
+  border: 1px solid #dfe8df;
+  border-radius: 7px;
+  background: #fff;
+  color: #4c6a57;
+  font-size: var(--text-sm);
+}
+.suggestions button:hover {
+  background: #f0f6ee;
+  border-color: #99b79f;
+}
+.suggestions button > span {
+  color: #8fa696;
+  margin-left: 2px;
+}
+.welcome-footnote {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: var(--text-xs);
+  color: #728479;
+  margin-top: 18px;
+}
+.welcome-footnote > span {
+  padding: 0 5px;
+  color: #b1c3b5;
+}
+.composer-area {
+  border-top: 1px solid #eef1ec;
+  padding: 17px 20px 14px;
+  background: #fdfefb;
+}
+.composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  border: 1px solid #cfdcd1;
+  border-radius: 10px;
+  background: #fff;
+  padding: 11px 10px 10px 14px;
+}
+.composer:focus-within {
+  border-color: #659b7e;
+  box-shadow: 0 0 0 3px #0f8b6010;
+}
+.composer textarea {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  resize: vertical;
+  max-height: 150px;
+  min-height: 40px;
+  outline: none;
+  padding: 2px 0;
+  font-size: var(--text-base);
+  line-height: 1.6;
+  color: #314a39;
+}
+.composer textarea::placeholder {
+  color: #859589;
+}
+.send-button {
+  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  background: #165e48;
+  color: white;
+  flex-shrink: 0;
+}
+.send-button:hover:not(:disabled) {
+  background: #227659;
+}
+.send-button:disabled {
+  background: #93b1a1;
+  opacity: 0.7;
+}
+.composer-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: #76877a;
+  font-size: var(--text-xs);
+  margin-top: 9px;
+}
+.composer-footer span:first-child {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.chat-disclaimer {
+  font-size: var(--text-xs);
+  color: #7e8c82;
+  text-align: center;
+  margin-top: 15px;
+}
+.chat-disclaimer a {
+  color: #5b7262;
+  font-weight: 600;
+  text-decoration: underline;
+}
+.journey-card {
+  padding: 22px;
+  background: #edf3e8;
+  border: 1px solid #dee7d7;
+  border-radius: 12px;
+}
+.card-heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.card-heading > span:last-child {
+  font-size: var(--text-xs);
+  color: #627b59;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+.icon-tile {
+  display: inline-grid;
+  place-items: center;
+  border-radius: 9px;
+  color: #4a7250;
+  background: #e0ead8;
+  width: 35px;
+  height: 35px;
+  flex-shrink: 0;
+}
+.journey-card h2 {
+  font-size: 1.625rem;
+  color: #324f34;
+  font-weight: 450;
+  letter-spacing: -0.5px;
+  line-height: 1.35;
+  margin-top: 20px;
+}
+.journey-steps {
+  list-style: none;
+  padding: 0;
+  margin: 24px 0 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 23px;
+}
+.journey-steps li {
+  display: flex;
+  gap: 12px;
+  position: relative;
+}
+.journey-steps li:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  width: 1px;
+  background: #cfddc6;
+  top: 29px;
+  bottom: -17px;
+  left: 13px;
+}
+.journey-steps li > span {
+  height: 28px;
+  width: 28px;
+  border-radius: 50%;
+  border: 1px solid #cddbc4;
+  display: grid;
+  place-items: center;
+  background: #eaf1e5;
+  color: #607d51;
+  font-size: var(--text-xs);
+  flex-shrink: 0;
+}
+.journey-steps h3 {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: #3b563b;
+  padding: 4px 0 6px;
+}
+.journey-steps p {
+  font-size: var(--text-sm);
+  line-height: 1.8;
+  color: #697e60;
+}
+.text-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: #386647;
+  background: transparent;
+}
+.text-button:hover {
+  text-decoration: underline;
+}
+.journey-card > .text-button {
+  border-top: 1px solid #dce5d3;
+  padding-top: 16px;
+  width: 100%;
+  justify-content: space-between;
+}
+.safety-card {
+  display: flex;
+  gap: 11px;
+  background: #fff;
+  border: 1px solid #e1e7de;
+  border-radius: 10px;
+  padding: 17px 16px;
+  margin-top: 15px;
+  color: #647b60;
+}
+.safety-card > svg {
+  flex-shrink: 0;
+}
+.safety-card h3 {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: #445d42;
+  line-height: 1.6;
+  margin-bottom: 5px;
+}
+.safety-card p {
+  font-size: var(--text-sm);
+  line-height: 1.8;
+  color: #71816b;
+}
+.safety-card a {
+  text-decoration: underline;
+  font-weight: 600;
+}
+.small-note {
+  display: flex;
+  gap: 8px;
+  padding: 15px 5px;
+  font-size: var(--text-xs);
+  line-height: 1.7;
+  color: #6d806e;
+}
+.small-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.page-footer {
+  padding: 27px 0 23px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: var(--text-xs);
+  color: #7c8b7e;
+}
+.page-footer span > span {
+  padding: 0 8px;
+}
+.page-footer button {
+  background: transparent;
+  color: #677d69;
+  font-size: var(--text-xs);
+}
+.has-messages {
+  padding: 20px;
+}
+.message-author {
+  font-size: var(--text-sm);
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  color: #55755e;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+.message-author > span {
+  font-weight: 500;
+  font-size: var(--text-xs);
+  letter-spacing: 0.6px;
+  margin-left: auto;
+  color: #657866;
+}
+.user-message {
+  margin: 0 0 22px auto;
+  width: fit-content;
+  max-width: 85%;
+}
+.user-message .message-author {
+  justify-content: flex-end;
+}
+.user-message p {
+  color: #25513b;
+  background: #e5f0e4;
+  padding: 12px 16px;
+  border-radius: 12px 12px 3px 12px;
+  font-size: var(--text-base);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.assistant-message {
+  margin-bottom: 25px;
+  padding: 16px;
+  border: 1px solid #e1e8df;
+  border-radius: 3px 12px 12px 12px;
+  background: #fcfdfb;
+}
+.answer-text {
+  font-size: var(--text-base);
+  line-height: 1.9;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.specialty-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 13px;
+}
+.specialty-tags span {
+  background: #e8f2e5;
+  border: 1px solid #d2e1ca;
+  border-radius: 5px;
+  padding: 5px 9px;
+  font-size: var(--text-sm);
+  color: #3a6243;
+}
+.follow-up {
+  margin-top: 15px;
+  padding-top: 12px;
+  border-top: 1px solid #e3e9df;
+  font-size: var(--text-base);
+  line-height: 1.8;
+}
+.follow-up strong {
+  font-weight: 600;
+}
+.follow-up ul {
+  padding-left: 17px;
+  margin: 7px 0 0;
+}
+.chat-clinics {
+  margin-top: 18px;
+}
+.chat-clinics > h3 {
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+.result-note {
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  color: #6e7e6c;
+  margin: 5px 0 10px;
+}
+.empty-inline {
+  font-size: var(--text-base);
+  color: #6f7968;
+  border: 1px dashed #d2ddca;
+  padding: 12px;
+  border-radius: 6px;
+  line-height: 1.7;
+}
+.source-details {
+  font-size: var(--text-sm);
+  margin-top: 15px;
+  padding-top: 12px;
+  border-top: 1px solid #dfe7da;
+}
+.source-details summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #527252;
+  font-weight: 600;
+}
+.source-details summary::after {
+  content: '+';
+  margin-left: auto;
+}
+.source-details[open] summary::after {
+  content: '−';
+}
+.source-details ul {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+.source-details li {
+  padding: 9px 0;
+}
+.source-details a {
+  display: flex;
+  gap: 6px;
+  text-decoration: underline;
+}
+.source-details small {
+  display: block;
+  color: #77836e;
+  margin: 5px 0;
+  font-size: var(--text-xs);
+}
+.source-details li p {
+  line-height: 1.7;
+}
+.response-notice {
+  font-size: var(--text-xs);
+  color: #7b8474;
+  margin-top: 12px;
+  line-height: 1.7;
+}
+.urgent-message {
+  background: #fff8f2;
+  border-color: #e5c7ac;
+}
+.urgent-title {
+  display: flex;
+  gap: 8px;
+  color: #9a482b;
+  align-items: center;
+  font-size: var(--text-xl);
+  font-weight: 600;
+  margin: 10px 0;
+}
+.emergency-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-base);
+  color: white;
+  background: #a14f32;
+  padding: 11px 14px;
+  border-radius: 7px;
+  margin-top: 13px;
+}
+.pending-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #628166;
+  padding: 8px;
+  font-size: var(--text-base);
+}
+.spin {
+  animation: spin 1.2s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.composer-error {
+  padding: 9px;
+  margin-bottom: 10px;
+  background: #fff1eb;
+  color: #993f24;
+  border-radius: 6px;
+  font-size: var(--text-base);
+}
+.consent-control {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: #4f6754;
+  margin-bottom: 12px;
+}
+.consent-control input {
+  flex-shrink: 0;
+  margin-top: 3px;
+  accent-color: #0b6144;
+}
+.clinic-card {
+  border: 1px solid #dee6db;
+  padding: 21px;
+  border-radius: 12px;
+  background: white;
+}
+.clinic-title-row {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+}
+.clinic-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  color: #547d5b;
+  background: #eff4e9;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+.clinic-badge {
+  font-size: var(--text-xs);
+  letter-spacing: 0.7px;
+  color: #467b4b;
+}
+.clinic-badge.is-demo {
+  color: #876c40;
+}
+.clinic-title-row h3 {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: #36593d;
+  margin-top: 4px;
+}
+.clinic-location {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  font-size: var(--text-base);
+  color: #6c7c66;
+  margin-top: 18px;
+}
+.clinic-specialties {
+  margin-top: 12px;
+  font-size: var(--text-base);
+  color: #63735a;
+  line-height: 1.7;
+}
+.insurance-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 12px;
+}
+.insurance-tags span {
+  font-size: var(--text-xs);
+  background: #f2f5ed;
+  border: 1px solid #e7edde;
+  border-radius: 4px;
+  padding: 4px 7px;
+  color: #647756;
+}
+.clinic-address {
+  font-size: var(--text-sm);
+  color: #78836f;
+  margin-top: 17px;
+}
+.clinic-demo-note,
+.clinic-verification {
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  color: #827861;
+  border-top: 1px solid #eeeae0;
+  padding-top: 12px;
+  margin-top: 15px;
+}
+.clinic-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 13px;
+  font-size: var(--text-base);
+  color: #487149;
+  margin-top: 16px;
+}
+.clinic-links a {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.clinic-links a:hover {
+  text-decoration: underline;
+}
+.clinic-card.compact {
+  padding: 13px;
+  margin-top: 9px;
+  border-radius: 8px;
+}
+.compact .clinic-title-row h3 {
+  font-size: var(--text-base);
+}
+.compact .clinic-badge {
+  font-size: var(--text-xs);
+}
+.compact .clinic-icon {
+  width: 30px;
+  height: 30px;
+}
+.compact .clinic-location {
+  margin-top: 9px;
+  font-size: var(--text-sm);
+}
+.compact .clinic-specialties {
+  margin-top: 5px;
+  font-size: var(--text-sm);
+}
+.compact .insurance-tags {
+  margin-top: 7px;
+}
+.compact .clinic-demo-note {
+  margin-top: 9px;
+  padding-top: 7px;
+  font-size: var(--text-xs);
+}
+.directory-filters {
+  background: #fff;
+  border: 1px solid #dfe6db;
+  border-radius: 10px;
+  display: flex;
+  padding: 5px;
+  gap: 15px;
+}
+.directory-filters .care-filters {
+  flex: 2;
+  border: 0;
+  background: transparent;
+}
+.specialty-filter {
+  flex: 1;
+  padding-right: 15px;
+}
+.directory-count {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  margin: 28px 0 17px;
+}
+.directory-count h2 {
+  font-size: var(--text-xl);
+  font-weight: 500;
+}
+.directory-count > span {
+  font-size: var(--text-sm);
+  color: #728269;
+}
+.clinic-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 17px;
+}
+.directory-status {
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: #6b805f;
+  text-align: center;
+  padding: 25px;
+}
+.directory-status p {
+  font-size: var(--text-lg);
+}
+.directory-status h3 {
+  font-size: var(--text-xl);
+}
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 20px;
+  font-size: var(--text-base);
+}
+.pagination button {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 8px;
+}
+.about-panel {
+  padding: 32px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+.about-panel > h2 {
+  font-size: 2rem;
+  font-weight: 450;
+  margin: 17px 0 12px;
+}
+.about-panel > p {
+  font-size: var(--text-lg);
+  line-height: 1.9;
+  color: #61755b;
+  max-width: 750px;
+}
+.about-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  margin: 30px 0;
+}
+.about-grid article {
+  background: #f5f8f1;
+  border-radius: 8px;
+  padding: 20px;
+}
+.about-grid article > span {
+  font-size: var(--text-xs);
+  color: #668353;
+  letter-spacing: 1px;
+}
+.about-grid h3 {
+  font-size: var(--text-xl);
+  font-weight: 500;
+  margin: 12px 0 8px;
+}
+.about-grid p {
+  font-size: var(--text-base);
+  line-height: 1.9;
+  color: #6d7c62;
+}
+.privacy-details {
+  border-top: 1px solid #e0e8d9;
+  padding-top: 20px;
+  margin-bottom: 20px;
+  font-size: var(--text-lg);
+}
+.privacy-details p {
+  font-size: var(--text-base);
+  line-height: 1.9;
+  color: #66765b;
+  padding-top: 14px;
+}
+.about-panel > p.about-disclaimer {
+  font-size: var(--text-base);
+  margin: 20px 0;
+}
+.primary-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: #125c45;
+  color: white;
+  padding: 13px 18px;
+  border-radius: 8px;
+  font-size: var(--text-base);
+}
+.primary-button:hover {
+  background: #1c7354;
+}
+.notice {
+  padding: 15px;
+  border-radius: 8px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  font-size: var(--text-base);
+}
+.error-notice {
+  color: #8b4b2e;
+  background: #fff2e9;
+  border: 1px solid #eed0b8;
+}
+@media (min-width: 1550px) {
+  main {
+    padding-top: 48px;
+  }
+  .workspace-grid {
+    grid-template-columns: minmax(0, 1fr) 310px;
+    gap: 28px;
+  }
+  .conversation {
+    height: 435px;
+  }
+  .chat-welcome {
+    padding-top: 32px;
+  }
+  .page-intro {
+    padding-bottom: 35px;
+  }
+}
+@media (max-width: 1200px) {
+  .app-shell {
+    grid-template-columns: 13.4375rem minmax(0, 1fr);
+  }
+  .sidebar {
+    padding: 32px 14px 20px;
+  }
+  .brand {
+    font-size: 1.75rem;
+  }
+  .topbar {
+    padding: 12px 27px;
+  }
+  main {
+    padding: 29px 27px 0;
+  }
+  .workspace-grid {
+    grid-template-columns: minmax(0, 1fr) 238px;
+    gap: 17px;
+  }
+  .journey-card {
+    padding: 18px;
+  }
+  .journey-card h2 {
+    font-size: 1.5rem;
+  }
+  .care-filters {
+    padding: 10px 16px;
+    gap: 8px;
+  }
+  .filter-control {
+    grid-template-columns: 15px minmax(0, 1fr);
+    gap: 4px;
+  }
+  .filter-control label {
+    display: none;
+  }
+  .chat-welcome h3 {
+    font-size: 1.5rem;
+  }
+  .intro-mark {
+    margin-right: 5px;
+    width: 140px;
+  }
+  .conversation {
+    padding: 23px 15px;
+  }
+  .composer-footer span:nth-child(2) {
+    font-size: var(--text-xs);
+  }
+  .directory-filters .care-filters {
+    padding: 10px;
+  }
+  .specialty-filter {
+    padding-right: 7px;
+  }
+}
+@media (max-width: 1020px) {
+  .workspace-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .context-column {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+  }
+  .journey-card {
+    grid-row: span 2;
+  }
+  .safety-card {
+    margin-top: 0;
+    align-self: start;
+  }
+  .small-note {
+    align-self: start;
+  }
+  .conversation {
+    height: 390px;
+  }
+  .chat-welcome {
+    padding-top: 25px;
+  }
+  .composer-footer span:nth-child(2) {
+    font-size: var(--text-xs);
+  }
+  .about-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .intro-mark {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .app-shell {
+    display: block;
+  }
+  .sidebar {
+    position: relative;
+    height: auto;
+    min-height: 0;
+    padding: 20px 19px 13px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+  }
+  .brand {
+    padding: 0;
+    font-size: 1.75rem;
+  }
+  .sidebar-label,
+  .sidebar-bottom {
+    display: none;
+  }
+  .sidebar nav {
+    width: 100%;
+    display: flex;
+    order: 3;
+    gap: 5px;
+  }
+  .nav-item {
+    padding: 11px 9px;
+    gap: 6px;
+    flex: 1;
+    font-size: var(--text-sm);
+    justify-content: center;
+    white-space: nowrap;
+  }
+  .nav-item span {
+    flex: none;
+  }
+  .nav-item > svg:first-child {
+    width: 16px;
+  }
+  .nav-item > svg:last-child:not(:first-child) {
+    display: none;
+  }
+  .new-chat {
+    margin: 0;
+    padding: 9px 10px;
+    font-size: var(--text-sm);
+  }
+  .topbar {
+    min-height: 51px;
+    padding: 12px 20px;
+  }
+  .breadcrumb {
+    font-size: var(--text-sm);
+    gap: 8px;
+  }
+  main {
+    padding: 27px 18px 0;
+  }
+  .eyebrow {
+    font-size: var(--text-xs);
+    letter-spacing: 1.2px;
+  }
+  h1 {
+    font-size: 2.25rem;
+    letter-spacing: -1.3px;
+  }
+  .intro-description {
+    font-size: var(--text-base);
+    max-width: 340px;
+  }
+  .page-intro {
+    padding: 0 2px 23px;
+  }
+  .demo-banner {
+    align-items: flex-start;
+    padding: 10px;
+    gap: 8px;
+    margin-bottom: 15px;
+  }
+  .demo-tag {
+    margin-top: 2px;
+    font-size: var(--text-xs);
+    padding-right: 7px;
+  }
+  .demo-banner p {
+    font-size: var(--text-xs);
+  }
+  .chat-header {
+    padding: 16px;
+  }
+  .care-filters {
+    padding: 9px 13px;
+  }
+  .filter-control select {
+    font-size: var(--text-sm);
+  }
+  .conversation {
+    height: 355px;
+    padding: 22px 16px;
+  }
+  .chat-welcome {
+    padding-top: 12px;
+  }
+  .chat-welcome h3 {
+    font-size: 1.625rem;
+  }
+  .chat-welcome > p {
+    font-size: var(--text-base);
+  }
+  .suggestions {
+    margin-top: 18px;
+    gap: 6px;
+  }
+  .suggestions button {
+    font-size: var(--text-xs);
+    padding: 8px;
+  }
+  .welcome-footnote {
+    margin-top: 15px;
+  }
+  .composer-area {
+    padding: 13px;
+  }
+  .composer textarea {
+    font-size: var(--text-base);
+  }
+  .composer-footer {
+    font-size: var(--text-xs);
+  }
+  .composer-footer span:nth-child(2) {
+    font-size: var(--text-xs);
+    max-width: 135px;
+    text-align: right;
+  }
+  .chat-disclaimer {
+    font-size: var(--text-xs);
+  }
+  .context-column {
+    display: block;
+  }
+  .journey-card {
+    margin-top: 3px;
+    padding: 23px;
+  }
+  .journey-card h2 {
+    font-size: 1.75rem;
+  }
+  .journey-steps h3 {
+    font-size: var(--text-base);
+  }
+  .journey-steps p {
+    font-size: var(--text-base);
+  }
+  .safety-card {
+    margin-top: 14px;
+  }
+  .safety-card p {
+    font-size: var(--text-base);
+  }
+  .safety-card h3 {
+    font-size: var(--text-base);
+  }
+  .small-note {
+    font-size: var(--text-sm);
+  }
+  .page-footer {
+    font-size: var(--text-xs);
+    padding: 22px 0;
+    flex-wrap: wrap;
+  }
+  .clinic-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .directory-filters {
+    flex-direction: column;
+    gap: 0;
+  }
+  .specialty-filter {
+    padding: 9px 10px;
+    border-top: 1px solid #e9eee3;
+  }
+  .directory-count {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .about-panel {
+    padding: 22px;
+  }
+  .about-panel > h2 {
+    font-size: 1.75rem;
+  }
+  .has-messages {
+    padding: 15px;
+  }
+  .assistant-message {
+    padding: 13px;
+  }
+  .answer-text {
+    font-size: var(--text-lg);
+  }
+  .follow-up {
+    font-size: var(--text-base);
+  }
+  .user-message p {
+    font-size: var(--text-lg);
+  }
+  .source-details {
+    font-size: var(--text-base);
+  }
+  .source-details summary {
+    min-height: 28px;
+  }
+}
+@media (max-width: 370px) {
+  .nav-item {
+    font-size: var(--text-xs);
+    padding: 10px 6px;
+  }
+  .nav-item > svg:first-child {
+    display: none;
+  }
+  main {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+  .chat-welcome h3 {
+    font-size: 1.5rem;
+  }
+}
+
+/* Keep the welcome complete and mobile navigation within the device width. */
+.conversation:not(.has-messages) {
+  height: auto;
+  min-height: 375px;
+}
+@media (max-width: 760px) {
+  .sidebar nav {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 6rem), 1fr));
+  }
+  .nav-item {
+    min-width: 0;
+    flex-direction: column;
+    gap: 5px;
+    font-size: var(--text-xs);
+    white-space: normal;
+    text-align: center;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+  .nav-item > svg:first-child {
+    display: block;
+    width: 17px;
+    height: 17px;
+  }
+  .conversation:not(.has-messages) {
+    min-height: 355px;
+  }
+}
+.catalog-context {
+  color: #52665f;
+  background: #f0f7f3;
+  border: 1px solid #dcebe3;
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  font-size: var(--text-sm);
+  line-height: 1.65;
+}
+.catalog-context p {
+  margin: 0;
+}
+.clinic-professional {
+  margin: 5px 0 0;
+  color: #52665f;
+  font-size: var(--text-sm);
+}
+
+.directory-search {
+  margin: 1rem 0;
+}
+.directory-search label {
+  display: block;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+.directory-search > div {
+  display: flex;
+  gap: 0.6rem;
+}
+.directory-search input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid #d8e3dc;
+  border-radius: 10px;
+  padding: 0.75rem;
+  background: #fff;
+  font: inherit;
+  color: inherit;
+}
+.directory-search button {
+  flex-shrink: 0;
+}
+@media (max-width: 480px) {
+  .directory-search > div {
+    flex-wrap: wrap;
+  }
+  .directory-search input {
+    width: 100%;
+    flex-basis: 100%;
+  }
+}
+
+/* Optional location and response evaluation follow the existing card/typography system. */
+.location-control {
+  padding: 12px 22px;
+  border-bottom: 1px solid var(--border);
+  background: #f9fbf9;
+}
+.location-actions,
+.feedback-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.location-control p,
+.response-feedback > p,
+.feedback-panel small {
+  font-size: var(--text-base);
+  line-height: 1.6;
+  color: var(--muted);
+  margin-top: 8px;
+}
+.clinic-distance {
+  color: var(--green);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  margin: 9px 0;
+}
+.specialty-suggestions {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+}
+.specialty-suggestions section {
+  background: #f4f8f4;
+  border-left: 3px solid #8cb8a2;
+  border-radius: 6px;
+  padding: 12px 14px;
+}
+.specialty-suggestions small {
+  color: var(--muted);
+  font-size: var(--text-base);
+}
+.specialty-suggestions h3 {
+  font-size: var(--text-xl);
+  margin: 4px 0 8px;
+}
+.specialty-suggestions p {
+  font-size: var(--text-lg);
+  line-height: 1.65;
+}
+.response-feedback {
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.feedback-actions {
+  margin-top: 8px;
+}
+.feedback-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 15px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--green);
+  background: white;
+  min-height: 40px;
+}
+.feedback-actions button[aria-pressed='true'] {
+  background: #e6f2e9;
+  border-color: #719b87;
+}
+.feedback-panel {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: #f8faf8;
+  border-radius: 8px;
+}
+.feedback-panel fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.feedback-panel legend {
+  font-weight: 600;
+  margin-bottom: 10px;
+  font-size: var(--text-lg);
+}
+.feedback-panel label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: var(--text-base);
+  line-height: 1.65;
+  padding: 5px 0;
+}
+.feedback-panel input {
+  margin-top: 4px;
+  accent-color: var(--green);
+}
+.feedback-panel textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px;
+  resize: vertical;
+  background: white;
+}
+.feedback-panel button {
+  align-self: flex-start;
+}
+@media (max-width: 600px) {
+  .location-control {
+    padding: 12px 14px;
+  }
+  .feedback-panel {
+    padding: 10px;
+  }
+}
+
+/* Reading scale: 16px default, 14–15px auxiliary, 18–20px card headings. */
+.chat-header h2,
+.clinic-title-row h3,
+.compact .clinic-title-row h3 {
+  font-size: var(--text-lg);
+  line-height: 1.4;
+}
+.filter-control label,
+.filter-control select,
+.specialty-filter select,
+.directory-search input,
+.suggestions button,
+.response-feedback button,
+.specialty-suggestions p,
+.clinic-distance,
+.answer-text,
+.user-message p {
+  font-size: var(--text-base);
+}
+.message-author,
+.clinic-badge,
+.compact .clinic-badge,
+.insurance-tags span,
+.result-note,
+.response-notice,
+.composer-footer,
+.chat-disclaimer {
+  font-size: var(--text-xs);
+}
+.specialty-suggestions h3,
+.chat-clinics > h3 {
+  font-size: var(--text-xl);
+}
+.clinic-card,
+.assistant-message {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.clinic-title-row > div:last-child {
+  min-width: 0;
+}
+.nav-item svg,
+.clinic-links svg,
+.message-author svg {
+  flex-shrink: 0;
+}
+.conversation {
+  height: clamp(32rem, 65vh, 48rem);
+}
+.composer textarea {
+  min-height: 3.5rem;
+}
+.send-button {
+  width: 2.75rem;
+  height: 2.75rem;
+}
+.care-filters {
+  flex-wrap: wrap;
+}
+.filter-control {
+  flex-basis: 14rem;
+}
+.composer-footer {
+  flex-wrap: wrap;
+}
+.directory-filters {
+  flex-wrap: wrap;
+}
+@media (max-width: 760px) {
+  .care-filters {
+    gap: 0.5rem;
+  }
+  .filter-control {
+    flex-basis: 100%;
+  }
+  .conversation {
+    height: 65dvh;
+    min-height: 30rem;
+    padding: 1rem 0.75rem;
+  }
+  .assistant-message {
+    padding: 0.875rem;
+  }
+  .chat-welcome {
+    padding-top: 1.25rem;
+  }
+  .suggestions button {
+    text-align: left;
+  }
+}
+.return-dialog {
+  width: min(32rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.5rem;
+  color: inherit;
+  background: #fff;
+  box-shadow: 0 20px 60px #0b2a2133;
+}
+.return-dialog::backdrop {
+  background: #0b2a2166;
+}
+.return-dialog form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.return-dialog h2 {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: var(--green);
+}
+.return-dialog p,
+.return-dialog small {
+  font-size: var(--text-base);
+  line-height: 1.6;
+  color: var(--muted);
+}
+.return-dialog fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.return-dialog legend {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+.return-dialog fieldset > label {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  padding: 0.4rem 0;
+}
+.return-dialog textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.6rem;
+  resize: vertical;
+}
+.star-rating > div {
+  display: flex;
+  gap: 0.25rem;
+}
+.star-rating label {
+  display: inline-flex;
+  cursor: pointer;
+  color: #b8a878;
+}
+.star-rating .star.filled {
+  fill: currentColor;
+}
+.star-rating label:focus-within {
+  outline: 3px solid #27a88e;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.return-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+=================== tests/visit-feedback.test.ts ===================
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { buildApp } from '../server/app.js';
+import { readConfig } from '../server/config.js';
+import { connectDatabase, type Database } from '../server/db/database.js';
+import { migrate } from '../server/db/migrations.js';
+import { CatalogRepository } from '../server/db/catalog.js';
+import { demoProvider } from '../server/ai/demo.js';
+import { chatResponseSchema } from '../shared/contracts.js';
+import { clinic, suggestion } from './fixtures.js';
+
+const config = readConfig({
+  NODE_ENV: 'test',
+  DATA_DIR: 'memory://',
+  CHAT_RATE_LIMIT: '120',
+  FEEDBACK_RATE_LIMIT: '120',
+});
+const provider = { ...demoProvider, generate: vi.fn(async () => suggestion()) };
+let db: Database;
+let app: Awaited<ReturnType<typeof buildApp>>;
+
+beforeAll(async () => {
+  db = await connectDatabase(config);
+  await migrate(db);
+  await new CatalogRepository(db, true).import([clinic({ id: 'demo-visita', name: 'Clínica Visita' })]);
+  app = await buildApp(config, db, provider);
+});
+afterAll(async () => {
+  await app?.close();
+  await db?.close();
+});
+
+async function receipt() {
+  const response = chatResponseSchema.parse(
+    (
+      await app.inject({
+        method: 'POST',
+        url: '/api/chat',
+        payload: { message: 'ardência ao urinar desde ontem, sem febre' },
+      })
+    ).json(),
+  );
+  return { responseId: response.id, token: response.feedback!.token, clinicId: response.clinics[0].id };
+}
+const send = (payload: unknown) =>
+  app.inject({ method: 'POST', url: '/api/visit-feedback', payload: payload as Record<string, unknown> });
+
+describe('Avaliação de visita à clínica indicada', () => {
+  it('salva, atualiza por UPSERT e redige identificadores', async () => {
+    const r = await receipt();
+    expect((await send({ ...r, rating: 5 })).json()).toEqual({ status: 'saved' });
+    expect(
+      (await send({ ...r, rating: 3, comment: ' Bom. pessoa@example.com (85) 99999-1234 ' })).statusCode,
+    ).toBe(200);
+    const { rows } = await db.query<{ rating: number; comment: string }>(
+      'SELECT rating,comment FROM clinic_visit_feedback WHERE response_id=$1',
+      [r.responseId],
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].rating).toBe(3);
+    expect(rows[0].comment).not.toMatch(/pessoa@|99999/);
+  });
+  it('rejeita clínica não indicada, token errado, nota inválida, campos extras e comprovante expirado', async () => {
+    const r = await receipt();
+    for (const extra of [
+      { clinicId: 'demo-outra-clinica' },
+      { token: 'f'.repeat(64) },
+      { rating: 0 },
+      { rating: 6 },
+      { rating: 4.5 },
+      { comment: 'x'.repeat(501) },
+      { visitorId: 'abc' },
+    ])
+      expect((await send({ ...r, rating: 4, ...extra })).statusCode).toBe(400);
+    await db.query(
+      "UPDATE response_receipts SET created_at=now()-interval '8 days' WHERE response_id=$1",
+      [r.responseId],
+    );
+    expect((await send({ ...r, rating: 4 })).statusCode).toBe(400);
+  });
+});
+=================== tests/migrations.test.ts ===================
+import { describe, expect, it } from 'vitest';
+import { connectDatabase } from '../server/db/database.js';
+import { readConfig } from '../server/config.js';
+import { migrate } from '../server/db/migrations.js';
+import { CatalogRepository } from '../server/db/catalog.js';
+import { clinic } from './fixtures.js';
+import { SpecialtyRepository } from '../server/db/specialties.js';
+
+// Minimal installed v1.3 schema fixture. Upgrade must preserve rows, not recreate the database.
+const legacySchema = `
+CREATE EXTENSION vector;
+CREATE TABLE schema_migrations(version integer PRIMARY KEY,applied_at timestamptz DEFAULT now());
+INSERT INTO schema_migrations(version) VALUES(1),(2),(3),(4);
+CREATE TABLE clinics(id text PRIMARY KEY,city_key text NOT NULL,insurance_keys text[] NOT NULL,specialty_ids text[] NOT NULL,data jsonb NOT NULL);
+CREATE TABLE documents(id text PRIMARY KEY,content_hash text NOT NULL,embedding_model text NOT NULL,data jsonb NOT NULL);
+CREATE TABLE chunks(id text PRIMARY KEY,document_id text REFERENCES documents(id),content text,search_text text,embedding vector);
+CREATE TABLE catalog_collections(id text PRIMARY KEY,clinic_ids text[] NOT NULL,imported_at timestamptz DEFAULT now());
+CREATE TABLE integration_state(provider text PRIMARY KEY,status text,last_attempt_at timestamptz,last_success_at timestamptz,summary jsonb);
+`;
+describe('Upgrade de instalação existente', () => {
+  it('migração 10 habilita Pediatria sem reativar Medicina de Família ou registros desativados pelo operador', async () => {
+    const db = await connectDatabase(readConfig({ NODE_ENV: 'test', DATA_DIR: 'memory://' }));
+    try {
+      await migrate(db);
+      await db.exec(
+        "DELETE FROM schema_migrations WHERE version=10; DELETE FROM specialties WHERE id='pediatria'",
+      );
+      const specialties = new SpecialtyRepository(db);
+      expect((await specialties.resolve('Pediatra')).status).toBe('not_registered');
+      await migrate(db);
+      expect((await specialties.resolve('Pediatra')).status).toBe('resolved');
+      expect((await specialties.resolve('Médico de família')).status).toBe('not_registered');
+      await db.exec(
+        "DELETE FROM schema_migrations WHERE version=10; UPDATE specialties SET active=false WHERE id='pediatria'",
+      );
+      await migrate(db);
+      await migrate(db);
+      expect((await specialties.resolve('Pediatra')).status).toBe('not_registered');
+    } finally {
+      await db.close();
+    }
+  });
+  it('migração 9 desativa Medicina de Família sem apagar a unidade nem as relações existentes', async () => {
+    const db = await connectDatabase(readConfig({ NODE_ENV: 'test', DATA_DIR: 'memory://' }));
+    try {
+      await migrate(db);
+      await db.exec(
+        "DELETE FROM schema_migrations WHERE version=9; UPDATE specialties SET active=true WHERE id='medicina-de-familia'",
+      );
+      const catalog = new CatalogRepository(db, true);
+      await catalog.import([
+        clinic({ id: 'demo-before-nine', specialties: ['medicina-de-familia', 'ortopedia'] }),
+      ]);
+      await migrate(db);
+      await migrate(db);
+      expect((await new SpecialtyRepository(db).resolve('Médico de família')).status).toBe(
+        'not_registered',
+      );
+      expect((await db.query('SELECT * FROM clinic_specialties')).rows).toHaveLength(2);
+      const result = await catalog.search({
+        city: '',
+        insurance: '',
+        specialty: 'ortopedia',
+        page: 1,
+      });
+      expect(result.items[0].specialties).toEqual(['ortopedia']);
+      expect(
+        (
+          await catalog.search({
+            city: '',
+            insurance: '',
+            specialty: 'medicina-de-familia',
+            page: 1,
+          })
+        ).total,
+      ).toBe(0);
+    } finally {
+      await db.close();
+    }
+  });
+  it('migra relações, preserva fontes médicas legadas e é idempotente', async () => {
+    const db = await connectDatabase(readConfig({ NODE_ENV: 'test', DATA_DIR: 'memory://' }));
+    try {
+      await db.exec(legacySchema);
+      const previous = clinic({ id: 'demo-existing', specialties: ['ortopedia'] });
+      await db.query('INSERT INTO clinics VALUES($1,$2,$3,$4,$5::jsonb)', [
+        previous.id,
+        'fortaleza',
+        ['plano exemplo a'],
+        ['ortopedia'],
+        JSON.stringify(previous),
+      ]);
+      await db.query("INSERT INTO documents VALUES('legacy-doc','hash','old-model','{}'::jsonb)");
+      await migrate(db);
+      await migrate(db);
+      expect((await db.query('SELECT * FROM clinic_specialties')).rows).toEqual([
+        { clinic_id: previous.id, specialty_id: 'ortopedia' },
+      ]);
+      expect((await db.query('SELECT id FROM legacy_medical_documents')).rows).toEqual([
+        { id: 'legacy-doc' },
+      ]);
+      expect((await db.query('SELECT id FROM clinic_documents')).rows).toEqual([]);
+      expect(
+        (await db.query('SELECT version FROM schema_migrations ORDER BY version')).rows,
+      ).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((version) => ({ version })));
+      const result = await new CatalogRepository(db, true).search({
+        city: 'Fortaleza',
+        insurance: 'Plano Exemplo A',
+        specialty: 'ortopedia',
+        page: 1,
+      });
+      expect(result.items[0]).toMatchObject({
+        id: previous.id,
+        distanceKm: null,
+        latitude: null,
+        longitude: null,
+      });
+    } finally {
+      await db.close();
+    }
+  });
+});
+
+=================== e2e/followup.spec.ts ===================
+import { expect, test } from '@playwright/test';
+
+test('retorno após ausência pergunta qual clínica foi e envia a avaliação', async ({ page }) => {
+  const old = Date.now() - 8 * 60 * 60 * 1000;
+  await page.addInitScript((time) => {
+    localStorage.setItem(
+      'medfinder.followup.v1',
+      JSON.stringify({
+        lastSeen: time,
+        items: [
+          {
+            responseId: 'd5358b14-5d54-4d16-9d97-81aa2d757572',
+            token: 'a'.repeat(64),
+            shownAt: time,
+            clinics: [{ id: 'demo-visita', name: 'Clínica Visita' }],
+          },
+        ],
+      }),
+    );
+  }, old);
+  let body: Record<string, unknown> | undefined;
+  await page.route('**/api/visit-feedback', async (route) => {
+    body = route.request().postDataJSON();
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '{"status":"saved"}' });
+  });
+  await page.goto('/');
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByText('Qual clínica você visitou?')).toBeVisible();
+  await dialog.getByLabel('Clínica Visita').check();
+  await dialog.getByText('4 estrelas').click();
+  await dialog.getByRole('button', { name: 'Enviar avaliação' }).click();
+  await expect(dialog).toBeHidden();
+  expect(body).toMatchObject({ clinicId: 'demo-visita', rating: 4 });
+  expect(await page.evaluate(() => localStorage.length)).toBe(0);
+});
+=================== docs/API.md ===================
+# API HTTP — versão 2.3
+
+Base local: `http://localhost:3001/api`. JSON UTF-8. Respostas da API usam `Cache-Control: no-store`. Contratos completos: `shared/contracts.ts`.
+
+| Método | Caminho           | Função                                                                           |
+| ------ | ----------------- | -------------------------------------------------------------------------------- |
+| GET    | `/health`         | Processo ativo                                                                   |
+| GET    | `/ready`          | Banco, taxonomia ativa e catálogo disponíveis; RAG opcional                      |
+| GET    | `/catalog`        | Especialidades dinâmicas, cidades, convênios, modo e estado do índice textual    |
+| GET    | `/clinics`        | Busca compatível sem localização                                                 |
+| POST   | `/clinics/search` | Busca com filtros e posição opcional somente no corpo                            |
+| POST   | `/chat`           | Navegação, especialidades validadas, clínicas, trechos e comprovante de feedback |
+| POST   | `/feedback`       | Gravar/alterar avaliação de uma resposta                                         |
+
+## Catálogo
+
+`GET /catalog` retorna `specialties: [{"id":"urologia","name":"Urologia"}]`, além de `cities`, `insurances`, `mode`, `requiresConsent`, `chatTimeoutMs`, `demoData`, `directory` e `knowledge`. Este último campo foi mantido como metadado de compatibilidade: agora conta **documentos de clínicas**, não fontes médicas para escolher especialidade.
+
+## Busca de clínicas
+
+```json
+{
+  "city": "",
+  "insurance": "Plano Exemplo A",
+  "specialty": "urologia",
+  "q": "",
+  "page": 1,
+  "location": { "latitude": -3.7319, "longitude": -38.5267 }
+}
+```
+
+Envie para `POST /clinics/search`. Todos os filtros são opcionais; cidade/convênio até 80 caracteres, termo até 100 e página 1–1000. `specialty` é um ID de formato slug; a busca só encontra vínculos com especialidades ativas. `location`, se presente, exige dois números finitos: latitude -90..90 e longitude -180..180. Strings numéricas, pares incompletos, campos extras e coordenadas inválidas são rejeitados.
+
+```json
+{ "items": [], "total": 0, "page": 1, "pageSize": 6, "order": "proximity" }
+```
+
+Cada item mantém os campos de `Clinic`, com `specialtyDetails: [{id,name}]`, `accessNote: string|null` para regras de acesso publicadas e `distanceKm: number|null` computada. `order` é `name` ou `proximity`. Ordenação precede paginação sobre o conjunto completo filtrado. Cidade vazia permite todas as cidades; cidade selecionada é exata, ignorando acentos/caixa. Convênio também é exato. Não há substituições automáticas.
+
+`GET /clinics?city=Fortaleza&insurance=CASSI&specialty=ortopedia&page=1` continua disponível, mas rejeita parâmetros de coordenadas. Não envie posição em URLs.
+
+## Chat
+
+```json
+{
+  "message": "Estou sentindo ardência ao urinar",
+  "history": [],
+  "city": "",
+  "insurance": "",
+  "consent": false,
+  "location": { "latitude": -3.7319, "longitude": -38.5267 }
+}
+```
+
+`message`: 1–2000 caracteres após trim; histórico: até seis mensagens do usuário, 1–2000 cada. A posição é opcional e só vai para o catálogo. `consent=true` é exigido antes de enviar textos à OpenAI. Respostas de segurança e consultas estruturadas ao catálogo funcionam sem consentimento; nesse caso o RAG com embeddings externos também é pulado. O gerador recebe mensagem/histórico redigidos, as perguntas anteriores reconstruídas pelo backend a lista dinâmica `{id,name}` de especialidades ativas e `reportedPatient`, um perfil derivado com parentesco, idade em anos quando identificada e necessidade de confirmar idade. O perfil não contém nome, nascimento ou posição e não é persistido.
+
+Para continuidade, devolva opcionalmente o `context` recebido na resposta anterior:
+
+```json
+{
+  "message": "e qual dessas fica mais perto?",
+  "context": {
+    "specialtyId": "oftalmologia",
+    "clinicIds": ["public-cldo-aldeota"],
+    "city": "",
+    "insurance": ""
+  },
+  "location": { "latitude": -3.7319, "longitude": -38.5267 }
+}
+```
+
+Use IDs efetivamente retornados pelo servidor; o exemplo ilustra o formato. Contexto não contém relato nem posição, é limitado a seis IDs e fica apenas na memória da aba/requisição. O backend revalida especialidade ativa, visibilidade e filtros das clínicas. Mudança manual dos filtros prevalece sobre o contexto anterior; “dessas” restringe aos IDs anteriores, enquanto “e que aceite Unimed?” refina a especialidade.
+
+A resposta inclui:
+
+- `id`: UUID emitido pelo servidor; `answer`, `urgency`, `questions`, `mode`, `notice`.
+- `specialty`: **um** objeto canônico `{id,name,reason?}` ou `null`. Não há array de sugestões nem prioridades. A lista de serviços de cada clínica continua sendo uma lista.
+- `intent`: `care_navigation`, `clinic_search` ou `clinic_information`; `mode=catalog` identifica consultas diretas ao catálogo, sem geração médica.
+- `context`: `{specialtyId,clinicIds,city,insurance,care?}` ou `null`, para a próxima mensagem. `care` contém somente metadados dos esclarecimentos, descritos abaixo.
+- `status` da resposta: `ok`, `llm_unavailable`, `invalid_output`, `needs_information`, `specialty_unrecognized`, `specialty_not_registered` ou `no_matching_clinics`.
+- `clinics`: até três resultados do catálogo; `sources`: trechos textuais associados a seus `clinicId` e, quando aplicável, fontes editoriais de explicação/segurança sem `clinicId`. Essas referências gerais não integram o RAG de clínicas.
+- `ragStatus`: `skipped`, `not_indexed`, `available`, `no_matches` ou `unavailable`.
+- `locationUsed`: booleano, sem devolver a posição enviada.
+- `feedback`: `{token,reasons}` ou `null` quando emissão indisponível. `reasons` contém apenas os motivos aplicáveis àquela resposta.
+
+O LLM retorna `{answer,urgency,specialty:{name,reason}|null,questions}`. O contrato antigo de múltiplas sugestões é rejeitado pelo schema estrito. A aplicação resolve a candidata no banco e publica textos controlados pelo backend; nenhum texto livre do modelo chega à interface. Atualize backend e frontend juntos. `routine` não significa ausência de urgência. Fallbacks de orientação usam HTTP 200 com estado explícito; erros de transporte/banco são HTTP 4xx/5xx.
+
+## Esclarecimento de relato genérico
+
+Quando falta contexto, `status=needs_information`, `specialty=null`, `clinics=[]` e `ragStatus=skipped`. `questions` da resposta pública contém até duas perguntas em PT-BR. Reenvie `context` completo com a próxima resposta; o hook da interface já faz isso.
+
+```json
+{
+  "specialtyId": null,
+  "clinicIds": [],
+  "city": "",
+  "insurance": "",
+  "care": {
+    "questions": ["onset_duration", "pattern"],
+    "askedTopics": ["onset_duration", "pattern"],
+    "round": 1
+  }
+}
+```
+
+`care.questions` e `care.askedTopics` são códigos, não dados clínicos. Aceitam `location`, `onset_duration`, `pattern`, `associated_symptoms`, `trigger`, `impact` e `age_group`. Limites: duas perguntas atuais, sete tópicos distintos possíveis, rodada de 1 a 3. O backend reavalia os textos: adulterar o contexto não autoriza uma recomendação. Os metadados não são persistidos e deixam de acompanhar o contexto após a recomendação.
+
+No **contrato interno do LLM**, `questions` passou a aceitar somente esses códigos. Perguntas livres são rejeitadas; no contrato público continuam sendo textos apresentados pelo backend. Não é necessário mudar o modelo instalado: os adaptadores enviam o schema atualizado em cada chamada. Atualize frontend e backend juntos.
+
+Relatos detalhados com uma candidata válida não são bloqueados por perguntas opcionais ou pela incerteza sobre a causa do sintoma. A urgência `uncertain` é preservada quando retornada pelo modelo; não equivale a um diagnóstico nem é convertida em garantia de segurança. Uma candidata ausente continua impedindo recomendação automática.
+
+Quando a idade pode mudar o encaminhamento, `care.questions` inclui `age_group`. Aceita-se resposta de um caractere, como `5`; o histórico permite vinculá-la à pessoa atendida. A idade do responsável não deve ser aplicada à criança. Uma descrição detalhada pode precisar apenas da idade. Pediatria está ativa pela migração 10.
+
+Queixa no ouvido após introdução de um objeto pontiagudo aciona avaliação presencial no mesmo dia: sem perguntas, clínicas eletivas ou RAG. Pode mostrar a área relacionada Otorrinolaringologia, somente se estiver ativa, sem adiar o atendimento. Emergências detectadas anteriormente continuam tendo prioridade.
+
+## Feedback
+
+```json
+{
+  "responseId": "UUID retornado pelo chat",
+  "token": "token retornado em feedback.token",
+  "rating": "negative",
+  "reason": "unclear_answer",
+  "comment": "A explicação poderia ser mais direta."
+}
+```
+
+Retorno: `{"status":"saved"}`. `rating` aceita `positive` ou `negative`. Positivo não inclui motivo/comentário; negativo exige um motivo permitido pelo comprovante da resposta. Comentário opcional é trimado, limitado a 500 caracteres e redigido antes de salvar. O token é necessário para impedir votos por IDs arbitrários. Não envie modo, versão do prompt, relato, histórico ou coordenadas: campos extras são rejeitados.
+
+Motivos possíveis: `incorrect_specialty`, `unclear_answer`, `not_helpful`, `clinic_problem`, `location_problem`, `insurance_problem`, `too_slow`, `other`. O mesmo `responseId` atualiza o voto por UPSERT. O comprovante expira em sete dias. Não há endpoint público de listagem.
+
+## Controles HTTP
+
+400: dados/consentimento/comprovante inválidos. 403: origem POST não autorizada. 404: rota ausente. 413: corpo acima de 24 KB. 429: limite de uso. 500: falha interna sem expor conteúdo do erro. Erros usam `{"error":"mensagem"}`.
+
+Limite global: `HTTP_RATE_LIMIT` (padrão 120/minuto/IP). O teste de navegador configura 1000 porque executa dezenas de jornadas usando o mesmo IP; o padrão da aplicação permanece 120. Chat: `CHAT_RATE_LIMIT` (padrão 12); feedback: `FEEDBACK_RATE_LIMIT` (padrão 20). Em desenvolvimento, `localhost`, `127.0.0.1` e `[::1]` são aceitos para o mesmo protocolo/porta configurados. Produção exige a origem HTTPS exata. CORS não substitui autenticação ou controle de abuso.
+
+=================== docs/ARQUITETURA.md ===================
+# Arquitetura MedFinder 2.3
+
+## Responsabilidades
+
+1. **Guardrails:** `detectUrgency` avalia relato e histórico antes da IA. Um alerta determinístico não pode ser reduzido pelo modelo, pela localização ou por feedback. Emergência e avaliação no mesmo dia não listam clínicas eletivas.
+2. **Intenção e LLM:** após guardrails, `chat-intent.ts` identifica sintomas, pesquisas de clínicas e pedidos de informação. Nomes/aliases de especialidades, clínicas, cidades e convênios vêm do banco. Consultas ao catálogo dispensam geração. Para sintomas, o LLM recebe mensagem/histórico redigidos, perguntas anteriores controladas e a taxonomia ativa; sugere uma candidata ou `null`. Não recebe clínicas, coordenadas ou feedback. JSON Schema e Zod controlam a estrutura.
+3. **SpecialtyResolver:** resolve nomes e aliases normalizados por acento/caixa usando `SpecialtyRepository`. Não usa similaridade vetorial nem fuzzy matching. A taxonomia é administrativa, no banco.
+4. **CatalogRepository:** fonte de verdade de clínicas, convênios, cidades, endereços, serviços cadastrados e coordenadas. SQL parametrizado filtra atividade, especialidade ativa, convênio exato, cidade exata e palavras opcionais. Não recebe texto arbitrário da IA como SQL.
+5. **Proximidade:** Haversine calcula quilômetros em linha reta somente para registros com coordenadas. Ordena todos os candidatos antes de paginar. Sem coordenadas ficam por último; desempate estável por nome e ID. Sem localização, cadastros reais primeiro e nome/ID.
+6. **RAG de clínicas:** complementa a resposta com trechos e fontes dos candidatos já selecionados. Não escolhe a especialidade nem amplia filtros. Os trechos são exibidos separadamente, sem uma segunda síntese clínica pelo modelo.
+7. **FeedbackRepository:** emite comprovantes e grava avaliações. Não lê nem grava conversas. Não se conecta à IA ou altera os guardrails.
+
+## Especialidades
+
+`specialties` armazena ID, nome, nome normalizado, aliases, atividade e datas. `clinic_specialties` mantém a relação com integridade referencial. A API monta `{id,name}` diretamente do banco; filtros e cards não importam uma lista fixa do frontend.
+
+`specialty_reference` é um vocabulário administrativo separado para reconhecer um nome válido ainda não habilitado. Inicialmente contém a taxonomia cadastrada e Pediatria, Geriatria e Radiologia. A migração 10 promove Pediatria para a taxonomia ativa. Referência de nomenclatura: [CFM, Resolução 2.380/2024](https://sistemas.cfm.org.br/normas/visualizar/resolucoes/BR/2024/2380). Não se trata de uma lista exaustiva nem de validação automática da pertinência clínica da indicação. Psicologia é uma área de cuidado preservada do catálogo anterior.
+
+Resolução ativa retorna `resolved`. Nome só na referência, ou cadastro inativo, retorna `not_registered`. Nome sem correspondência exata/alias explícito retorna `unrecognized`: o LLM não pode declarar sozinho que uma especialidade desconhecida é válida. O comando administrativo `data:import -- specialties` adiciona/atualiza nome, aliases, referência e atividade; conflitos entre nomes/aliases são rejeitados em transação.
+
+Apenas **uma especialidade canônica ou nenhuma** determina a busca de cuidado. A migração 8 acrescenta aliases explícitos, incluindo “oculista”, “oftalmo”, “dermato”, “neuro”, “cardio” e “uro”. Não cria especialidades por saída de IA e não reativa cadastros. Um rótulo desconhecido, inativo ou insuficiente produz fallback sem clínicas, sem o nome original e sem alternativas.
+
+A defesa tem quatro camadas: taxonomia ativa fornecida ao modelo, Structured Output singular, resolução exata no banco e apresentação controlada. `answer` e `reason` gerados continuam sujeitos aos guardrails, mas **não são publicados**; `questions` aceita apenas códigos de tópicos: o backend apresenta mensagens próprias e a entidade resolvida. Isso impede que um alias ou uma especialidade inventada escape pelo texto livre, mesmo quando a candidata principal é válida.
+
+A migração 9 desativa `medicina-de-familia`. O registro e as relações históricas permanecem no banco, mas a área sai da lista fornecida ao modelo, da resolução ativa, dos filtros e dos cards. O snapshot e o texto público da Clínica FAM mantêm somente Ortopedia e Dermatologia dentro do escopo do produto. A clínica permanece no catálogo. Isso é uma escolha de escopo do MedFinder, não uma afirmação sobre o reconhecimento profissional dessa especialidade.
+
+## Esclarecimento condicional
+
+`server/domain/clarification.ts` reconhece relatos claramente genéricos, como dor de cabeça/pescoço sem características, e identifica dados já fornecidos. Isso não é um formulário obrigatório: duração e todas as outras categorias não precisam estar preenchidas. Características, circunstâncias, sintomas associados ou uma descrição mais rica podem permitir uma orientação. Descrições não cobertas pelos padrões linguísticos ficam a cargo do modelo. Trata-se de heurística de linguagem, não validação clínica.
+
+Um relato não genérico com candidata válida segue para resolução no banco. Perguntas opcionais e `urgency=uncertain` não anulam essa candidata; a incerteza é preservada na resposta. Se não houver candidata, não se inventa uma especialidade ou uma nova lista de perguntas para um relato detalhado. Relatos genéricos e idade necessária podem gerar até duas perguntas por rodada, com limite de três rodadas.
+
+`patient.ts` identifica a idade de quem apresenta o sintoma, separando-a da idade do responsável. Filha/filho não implica menor de idade. Idade desconhecida numa possível criança é perguntada antes de recomendar; anos, meses, números por extenso e uma resposta curta como “5” são aceitos. Duração de sintomas não é idade. Nova pessoa reinicia o contexto. A API e o frontend aceitam mensagens a partir de um caractere não vazio.
+
+O perfil derivado (`relationship`, `ageYears`, `adultReported`, `needsAge`) vai ao modelo junto do relato redigido; não contém nome ou nascimento. O prompt instrui a considerar Pediatria para a avaliação inicial de queixas inespecíficas de crianças/adolescentes, sem encaminhar toda criança obrigatoriamente para essa área. Uma filha explicitamente adulta ou com 20 anos ou mais não recebe Pediatria neste MVP. Esse limite conservador do produto não substitui a política etária de cada serviço. Faixa etária efetivamente atendida deve ser confirmada com a unidade.
+
+`care.questions`, `care.askedTopics` e `care.round` ficam em memória. O histórico recente e as perguntas anteriores acompanham a resposta seguinte. A idade também é reconstruída a partir das mensagens, sem tabela de pacientes ou persistência da conversa. Guardrails continuam examinando todo o histórico antes do recorte de contexto. Após três rodadas sem conseguir orientar, não se força indicação.
+
+## Explicação e prioridade presencial
+
+`care-explanation.ts` apresenta uma descrição breve controlada, vinculada ao relato e à área validada. Ouvido e coceira na pele têm descrições específicas de possibilidades, com referências públicas; outras situações usam uma explicação geral de investigação do desconforto. Não são diagnóstico, prescrição ou resumo clínico obtido do RAG. `answer` e `reason` livres do LLM continuam sem ser publicados.
+
+Fontes editoriais de orientação aparecem em `sources` sem `clinicId` e se somam às fontes cadastrais recuperadas pelo RAG. `ragStatus` continua descrevendo apenas o índice de clínicas. Referências de orientação não são prova de validação médica do motor de indicação.
+
+O caso reproduzido da imagem — desconforto no ouvido após uso de lápis — aciona um sinal conservador de possível lesão: avaliação presencial no mesmo dia, sem perguntas, geração ou clínicas eletivas. A área relacionada Otorrinolaringologia aparece apenas se estiver ativa no banco. Alertas de emergência já detectados continuam prevalecendo; não se reduz uma emergência para esse fluxo.
+
+Fontes consultadas em 18/10/2026: [NHS — Earache](https://www.nhs.uk/symptoms/earache/), [NHS — Perforated eardrum](https://www.nhs.uk/conditions/perforated-eardrum/), [NHS — Itchy skin](https://www.nhs.uk/symptoms/itchy-skin/) e [SBP — Pediatria e adolescência](https://www.sbp.com.br/sbp-destaca-papel-do-pediatra-nos-cuidados-com-os-adolescentes/). Não foi criado um protocolo clínico validado.
+
+## Contrato e falhas
+
+O modelo retorna `answer`, `urgency`, `specialty:{name,reason}|null` e `questions`. Limites: zero ou uma candidata, dois tópicos de pergunta, resposta até 1800 caracteres e justificativa até 240. Campos extras e o antigo array são rejeitados. O prompt tem versão `care-navigation-2.3.0`.
+
+`care_navigation` cobre relatos; `clinic_search` consulta especialidade/convênio/cidade/proximidade; `clinic_information` busca fatos de uma unidade. Não há dedução de endereço, contato, plano, horário, serviço ou distância pela memória do LLM. Quando faltam convênio ou unidade identificável, pede esclarecimento. Múltiplas especialidades na mesma consulta também pedem uma escolha.
+
+O frontend devolve contexto curto `{specialtyId,clinicIds,city,insurance}` para continuidades como “dessas” ou “e que aceite Unimed?”. O backend trata-o como não confiável: valida IDs, atividade e filtros novamente. Nada é persistido, nem incluído na entrada do LLM. A história continua limitada a seis mensagens do usuário. Segurança é avaliada antes de toda intenção. Consultas OpenAI sem consentimento usam somente o catálogo e pulam embeddings externos.
+
+`status` distingue `llm_unavailable`, `invalid_output`, `needs_information`, `specialty_unrecognized`, `specialty_not_registered` e `no_matching_clinics`. `ragStatus` é separado: `skipped`, `not_indexed`, `available`, `no_matches`, `unavailable`. Uma falha de embedding não descarta especialidade e clínicas já encontradas. Falhas de banco são erros HTTP de serviço; não são rotuladas como falha da IA.
+
+O modo demo usa casos sintéticos fixos para testar navegação, não inferência clínica. Ollama e OpenAI usam o mesmo contrato. Ollama verifica modelo local antes de enviar texto; OpenAI usa Responses, Structured Outputs e `store:false`. Nenhum erro bruto de SDK é registrado.
+
+## Localização e minimização
+
+`useGeolocation` pertence ao App e é compartilhado entre chat e diretório. Só chama `getCurrentPosition` após clique, com baixa precisão, timeout de 10 segundos e cache do navegador de até 5 minutos. Negação não dispara nova solicitação automática. Cancelar/remover invalida callbacks pendentes.
+
+O frontend envia apenas latitude/longitude arredondadas a quatro casas, em corpos POST; `accuracy` fica no hook. O servidor valida valores finitos e limites. `AIProvider.generate` recebe uma allowlist explícita de campos; o Retriever recebe consulta textual e IDs de clínicas, sem posição do usuário. `locationUsed` é um booleano da resposta, sem guardar coordenadas.
+
+As coordenadas da clínica são dados administrativos persistentes; a posição do usuário e `distanceKm` calculada nunca são persistidas. O bug de distância indisponível vinha do snapshot com **20 pares nulos**, não da permissão do navegador: Haversine corretamente não calculava sem o segundo ponto. O snapshot 2.1 tem **36 pares verificados por unidade**, com auditoria em `data/coordinates.provenance.json`. Importação preserva coordenadas administrativas mais recentes. Não há geocodificação durante o chat. Cidade vazia permite cidades vizinhas; cidade selecionada permanece um filtro exato. Geolocalização não determina urgência, tempo de viagem ou qualidade médica.
+
+## Feedback e proteção contra falsificação
+
+Cada resposta tem UUID aleatório e um token aleatório de 256 bits. Só o hash do token é persistido em `response_receipts`, junto do modo, versão do prompt, motivos permitidos e data. O navegador mantém o token apenas na memória da conversa. O servidor não aceita modo/versão/motivos fora do comprovante.
+
+`POST /api/feedback` faz UPSERT por `response_id`. Negativo exige motivo contextual; comentário opcional tem até 500 caracteres e passa por `redactIdentifiers`. Positivo limpa motivo/comentário anteriores. Não há endpoint público de leitura das avaliações. Comprovantes expiram em 7 dias; a CLI de limpeza remove os vencidos sem apagar os votos existentes. Configure uma política administrativa de retenção do feedback conforme o uso real.
+
+A conversa não depende do feedback: erro na emissão ou no envio não impede o chat. Não há treinamento, fine-tuning, mudança de prompt ou uso de votos no próximo contexto. A redação de identificadores é limitada e não impede que o usuário inclua voluntariamente informações sensíveis num comentário; a UI orienta a evitar isso.
+
+## Migrations e compatibilidade
+
+Migrações 1–9 não foram alteradas nesta atualização. Histórico de `evolution-migrations.ts`:
+
+| Versão | Mudança                                                                                                                            |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 5      | Taxonomia, referência, `clinic_specialties`; migra os IDs existentes e remove o antigo array SQL                                   |
+| 6      | Coordenadas nullable, `clinic_documents`, `clinic_chunks` com pgvector; renomeia documentos/chunks médicos para `legacy_medical_*` |
+| 7      | `response_receipts` e `ai_feedback`                                                                                                |
+| 8      | Acrescenta aliases explícitos na taxonomia e referência existentes, preservando atividade e evitando colisões                      |
+
+A migração **9** desativa Medicina de Família e Comunidade. A **10** insere Pediatria a partir da referência já existente, sem substituir um cadastro do operador nem reativar registros desativados por ele.
+
+As tabelas médicas anteriores são preservadas para auditoria/migração administrativa, sem leitores no fluxo ativo. O antigo arquivo `knowledge.demo.json` foi removido. `integration_state` continua apenas como registro legado da integração antiga. Não se cria PostGIS. A mesma SQL usa PostgreSQL/PGlite e a extensão pgvector.
+
+## Limites de escala e validação
+
+O catálogo do MVP é pequeno: distância é calculada em memória sobre todos os registros já filtrados no SQL, depois ordenação e paginação. Antes de ampliar muito o volume, medir memória/latência e adaptar a estratégia. Busca vetorial é exata e restrita por modelo/dimensão em CTE materializada. Veja [RAG.md](RAG.md).
+
+Rate limits são por processo, não uma autorização de identidade. O acesso ao CLI/banco é administrativo. Proxy/APM não devem capturar corpos de saúde, comentários ou localização. Prontidão não comprova conectividade do modelo, revisão clínica ou qualidade dos cadastros; `integrations:check` faz teste técnico sintético explícito.
+
