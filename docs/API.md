@@ -1,76 +1,136 @@
-# API HTTP
+# API HTTP — versão 2.3
 
-Base local: `http://localhost:3001/api`. JSON em UTF-8. A API pública não oferece escrita no catálogo nem recebe credenciais administrativas. Toda manutenção usa CLI.
+Base local: `http://localhost:3001/api`. JSON UTF-8. Respostas da API usam `Cache-Control: no-store`. Contratos completos: `shared/contracts.ts`.
 
-| Método e caminho | Função                                                                |
-| ---------------- | --------------------------------------------------------------------- |
-| `GET /health`    | Liveness, `{"status":"ok"}`                                           |
-| `GET /ready`     | Banco, catálogo e documentos indexados; 200 ready ou 503              |
-| `GET /catalog`   | Filtros, modo, consentimento, estado do RAG e cobertura do catálogo   |
-| `GET /clinics`   | Busca paginada; filtros `city`, `insurance`, `specialty`, `q`, `page` |
-| `POST /chat`     | Orientação fundamentada, fontes e clínicas filtradas                  |
+| Método | Caminho           | Função                                                                           |
+| ------ | ----------------- | -------------------------------------------------------------------------------- |
+| GET    | `/health`         | Processo ativo                                                                   |
+| GET    | `/ready`          | Banco, taxonomia ativa e catálogo disponíveis; RAG opcional                      |
+| GET    | `/catalog`        | Especialidades dinâmicas, cidades, convênios, modo e estado do índice textual    |
+| GET    | `/clinics`        | Busca compatível sem localização                                                 |
+| POST   | `/clinics/search` | Busca com filtros e posição opcional somente no corpo                            |
+| POST   | `/chat`           | Navegação, especialidades validadas, clínicas, trechos e comprovante de feedback |
+| POST   | `/feedback`       | Gravar/alterar avaliação de uma resposta                                         |
 
-## POST /chat
+## Catálogo
+
+`GET /catalog` retorna `specialties: [{"id":"urologia","name":"Urologia"}]`, além de `cities`, `insurances`, `mode`, `requiresConsent`, `chatTimeoutMs`, `demoData`, `directory` e `knowledge`. Este último campo foi mantido como metadado de compatibilidade: agora conta **documentos de clínicas**, não fontes médicas para escolher especialidade.
+
+## Busca de clínicas
 
 ```json
 {
-  "message": "Estou com dor no pescoço",
-  "history": [],
-  "city": "Fortaleza",
-  "insurance": "CASSI",
-  "consent": false
+  "city": "",
+  "insurance": "Plano Exemplo A",
+  "specialty": "urologia",
+  "q": "",
+  "page": 1,
+  "location": { "latitude": -3.7319, "longitude": -38.5267 }
 }
 ```
 
-`message`: 3–2000 caracteres depois de trim. `history`: até 6 relatos anteriores, no máximo 2000 caracteres cada, apenas strings de mensagens do usuário. Filtros: até 80 caracteres. `consent=true` é obrigatório para envio à OpenAI; uma resposta determinística de urgência pode ser produzida sem essa autorização. Campos desconhecidos são rejeitados.
-
-Formato de resposta:
-
-```typescript
-interface ChatResponse {
-  id: string;
-  answer: string;
-  urgency: 'emergency' | 'prompt' | 'routine' | 'uncertain';
-  specialtyIds: Specialty[];
-  questions: string[];
-  sources: Array<{
-    id: string;
-    title: string;
-    url: string;
-    publisher: string;
-    excerpt: string;
-    reviewStatus: 'draft' | 'approved';
-  }>;
-  clinics: Clinic[];
-  mode: 'demo' | 'openai' | 'ollama' | 'safety' | 'fallback';
-  notice: string;
-}
-```
-
-Os tipos completos, campos do cadastro e validações estão em `shared/contracts.ts`. `routine` é uma categoria de navegação, não uma confirmação de ausência de urgência. `fallback` também usa HTTP 200 porque contém uma resposta utilizável de incerteza/indisponibilidade; o consumidor deve inspecionar `mode`.
-
-## GET /clinics
-
-Exemplo: `/api/clinics?city=Fortaleza&insurance=CASSI&specialty=ortopedia&page=1`.
+Envie para `POST /clinics/search`. Todos os filtros são opcionais; cidade/convênio até 80 caracteres, termo até 100 e página 1–1000. `specialty` é um ID de formato slug; a busca só encontra vínculos com especialidades ativas. `location`, se presente, exige dois números finitos: latitude -90..90 e longitude -180..180. Strings numéricas, pares incompletos, campos extras e coordenadas inválidas são rejeitados.
 
 ```json
-{ "items": [], "total": 0, "page": 1, "pageSize": 6 }
+{ "items": [], "total": 0, "page": 1, "pageSize": 6, "order": "proximity" }
 ```
 
-Resultado vazio é válido. A busca não relaxa convênio/cidade silenciosamente e não acrescenta dados externos. `total` conta todos os resultados; `items` contém no máximo seis. Ordenação alfabética, primeiro os cadastros reais. `specialty` aceita IDs da taxonomia; `page` vai de 1 a 1000. `q` é opcional, tem até 100 caracteres e procura todas as palavras no nome, bairro e endereço, ignorando acentos e caixa. Não relaxa os outros filtros.
+Cada item mantém os campos de `Clinic`, com `specialtyDetails: [{id,name}]`, `accessNote: string|null` para regras de acesso publicadas e `distanceKm: number|null` computada. `order` é `name` ou `proximity`. Ordenação precede paginação sobre o conjunto completo filtrado. Cidade vazia permite todas as cidades; cidade selecionada é exata, ignorando acentos/caixa. Convênio também é exato. Não há substituições automáticas.
 
-## Erros e limites
+`GET /clinics?city=Fortaleza&insurance=CASSI&specialty=ortopedia&page=1` continua disponível, mas rejeita parâmetros de coordenadas. Não envie posição em URLs.
 
-Erros de transporte usam `{"error":"mensagem"}`. 400 para entrada/consentimento inválidos, 403 para origem de POST divergente, 404 para rota ausente, 413 para corpo maior que 24 KB, 429 para limite de uso e 500 para falhas inesperadas. Respostas da API têm `Cache-Control: no-store`.
+## Chat
 
-Por padrão: 120 requisições/minuto por IP; chat 12/minuto. Até quatro solicitações de IA simultâneas por processo. O limite de chat é configurável por `CHAT_RATE_LIMIT`; concorrência por `AI_MAX_CONCURRENCY`. Em saturação de IA o chat retorna `mode=fallback`. CORS restringe a origem permitida pelo navegador, mas não impede clientes diretos: proteja a aplicação pública com limites de infraestrutura e de gastos.
+```json
+{
+  "message": "Estou sentindo ardência ao urinar",
+  "history": [],
+  "city": "",
+  "insurance": "",
+  "consent": false,
+  "location": { "latitude": -3.7319, "longitude": -38.5267 }
+}
+```
 
-## Estado do catálogo e do RAG (v1.2)
+`message`: 1–2000 caracteres após trim; histórico: até seis mensagens do usuário, 1–2000 cada. A posição é opcional e só vai para o catálogo. `consent=true` é exigido antes de enviar textos à OpenAI. Respostas de segurança e consultas estruturadas ao catálogo funcionam sem consentimento; nesse caso o RAG com embeddings externos também é pulado. O gerador recebe mensagem/histórico redigidos, as perguntas anteriores reconstruídas pelo backend a lista dinâmica `{id,name}` de especialidades ativas e `reportedPatient`, um perfil derivado com parentesco, idade em anos quando identificada e necessidade de confirmar idade. O perfil não contém nome, nascimento ou posição e não é persistido.
 
-`GET /api/catalog` inclui `knowledge: { indexedDocuments, demoDocuments, needsReindex }` e `directory: { total, realRecords, sourceCount, lastVerifiedAt }`. `sourceCount` conta domínios distintos das fontes reais visíveis; `lastVerifiedAt` é a data mais recente declarada nesses registros, não uma consulta automática às fontes. `demoData` descreve clínicas fictícias visíveis. Nenhum desses campos contém chaves ou relatos.
+Para continuidade, devolva opcionalmente o `context` recebido na resposta anterior:
 
-`GET /api/ready` retorna 503 com `reindex_required`, `knowledge_unavailable` ou `catalog_unavailable`. Não faz chamadas pagas nem prova disponibilidade externa; use `integrations:check` para testar o provedor de IA selecionado.
+```json
+{
+  "message": "e qual dessas fica mais perto?",
+  "context": {
+    "specialtyId": "oftalmologia",
+    "clinicIds": ["public-cldo-aldeota"],
+    "city": "",
+    "insurance": ""
+  },
+  "location": { "latitude": -3.7319, "longitude": -38.5267 }
+}
+```
 
-Clínicas podem ter `state=null`, `neighborhood=null` e `insurances=[]` quando a fonte não informou. `provenance` aceita `official-website`, `public-directory` e `manual`. O formato antigo com `integration` foi retirado: registros legados da API são desativados pela migração e não são retornados. `professionalName` continua opcional para importações com vínculo documentado a um profissional.
+Use IDs efetivamente retornados pelo servidor; o exemplo ilustra o formato. Contexto não contém relato nem posição, é limitado a seis IDs e fica apenas na memória da aba/requisição. O backend revalida especialidade ativa, visibilidade e filtros das clínicas. Mudança manual dos filtros prevalece sobre o contexto anterior; “dessas” restringe aos IDs anteriores, enquanto “e que aceite Unimed?” refina a especialidade.
 
-No modo `ollama`, `requiresConsent=false` porque o texto é processado no servidor local. `mode=ollama` distingue a resposta generativa local do modo `demo`. `chatTimeoutMs` informa a espera máxima recomendada ao cliente: 60000 ms nos modos anteriores; duas vezes `OLLAMA_TIMEOUT_MS` mais 30000 ms no modo local. O endpoint de prontidão não verifica se o Ollama está aberto.
+A resposta inclui:
+
+- `id`: UUID emitido pelo servidor; `answer`, `urgency`, `questions`, `mode`, `notice`.
+- `specialty`: **um** objeto canônico `{id,name,reason?}` ou `null`. Não há array de sugestões nem prioridades. A lista de serviços de cada clínica continua sendo uma lista.
+- `intent`: `care_navigation`, `clinic_search` ou `clinic_information`; `mode=catalog` identifica consultas diretas ao catálogo, sem geração médica.
+- `context`: `{specialtyId,clinicIds,city,insurance,care?}` ou `null`, para a próxima mensagem. `care` contém somente metadados dos esclarecimentos, descritos abaixo.
+- `status` da resposta: `ok`, `llm_unavailable`, `invalid_output`, `needs_information`, `specialty_unrecognized`, `specialty_not_registered` ou `no_matching_clinics`.
+- `clinics`: até três resultados do catálogo; `sources`: trechos textuais associados a seus `clinicId` e, quando aplicável, fontes editoriais de explicação/segurança sem `clinicId`. Essas referências gerais não integram o RAG de clínicas.
+- `ragStatus`: `skipped`, `not_indexed`, `available`, `no_matches` ou `unavailable`.
+- `locationUsed`: booleano, sem devolver a posição enviada.
+- `feedback`: `{token,reasons}` ou `null` quando emissão indisponível. `reasons` contém apenas os motivos aplicáveis àquela resposta.
+
+O LLM retorna `{answer,urgency,specialty:{name,reason}|null,questions}`. O contrato antigo de múltiplas sugestões é rejeitado pelo schema estrito. A aplicação resolve a candidata no banco e publica textos controlados pelo backend; nenhum texto livre do modelo chega à interface. Atualize backend e frontend juntos. `routine` não significa ausência de urgência. Fallbacks de orientação usam HTTP 200 com estado explícito; erros de transporte/banco são HTTP 4xx/5xx.
+
+## Esclarecimento de relato genérico
+
+Quando falta contexto, `status=needs_information`, `specialty=null`, `clinics=[]` e `ragStatus=skipped`. `questions` da resposta pública contém até duas perguntas em PT-BR. Reenvie `context` completo com a próxima resposta; o hook da interface já faz isso.
+
+```json
+{
+  "specialtyId": null,
+  "clinicIds": [],
+  "city": "",
+  "insurance": "",
+  "care": {
+    "questions": ["onset_duration", "pattern"],
+    "askedTopics": ["onset_duration", "pattern"],
+    "round": 1
+  }
+}
+```
+
+`care.questions` e `care.askedTopics` são códigos, não dados clínicos. Aceitam `location`, `onset_duration`, `pattern`, `associated_symptoms`, `trigger`, `impact` e `age_group`. Limites: duas perguntas atuais, sete tópicos distintos possíveis, rodada de 1 a 3. O backend reavalia os textos: adulterar o contexto não autoriza uma recomendação. Os metadados não são persistidos e deixam de acompanhar o contexto após a recomendação.
+
+No **contrato interno do LLM**, `questions` passou a aceitar somente esses códigos. Perguntas livres são rejeitadas; no contrato público continuam sendo textos apresentados pelo backend. Não é necessário mudar o modelo instalado: os adaptadores enviam o schema atualizado em cada chamada. Atualize frontend e backend juntos.
+
+Relatos detalhados com uma candidata válida não são bloqueados por perguntas opcionais ou pela incerteza sobre a causa do sintoma. A urgência `uncertain` é preservada quando retornada pelo modelo; não equivale a um diagnóstico nem é convertida em garantia de segurança. Uma candidata ausente continua impedindo recomendação automática.
+
+Quando a idade pode mudar o encaminhamento, `care.questions` inclui `age_group`. Aceita-se resposta de um caractere, como `5`; o histórico permite vinculá-la à pessoa atendida. A idade do responsável não deve ser aplicada à criança. Uma descrição detalhada pode precisar apenas da idade. Pediatria está ativa pela migração 10.
+
+Queixa no ouvido após introdução de um objeto pontiagudo aciona avaliação presencial no mesmo dia: sem perguntas, clínicas eletivas ou RAG. Pode mostrar a área relacionada Otorrinolaringologia, somente se estiver ativa, sem adiar o atendimento. Emergências detectadas anteriormente continuam tendo prioridade.
+
+## Feedback
+
+```json
+{
+  "responseId": "UUID retornado pelo chat",
+  "token": "token retornado em feedback.token",
+  "rating": "negative",
+  "reason": "unclear_answer",
+  "comment": "A explicação poderia ser mais direta."
+}
+```
+
+Retorno: `{"status":"saved"}`. `rating` aceita `positive` ou `negative`. Positivo não inclui motivo/comentário; negativo exige um motivo permitido pelo comprovante da resposta. Comentário opcional é trimado, limitado a 500 caracteres e redigido antes de salvar. O token é necessário para impedir votos por IDs arbitrários. Não envie modo, versão do prompt, relato, histórico ou coordenadas: campos extras são rejeitados.
+
+Motivos possíveis: `incorrect_specialty`, `unclear_answer`, `not_helpful`, `clinic_problem`, `location_problem`, `insurance_problem`, `too_slow`, `other`. O mesmo `responseId` atualiza o voto por UPSERT. O comprovante expira em sete dias. Não há endpoint público de listagem.
+
+## Controles HTTP
+
+400: dados/consentimento/comprovante inválidos. 403: origem POST não autorizada. 404: rota ausente. 413: corpo acima de 24 KB. 429: limite de uso. 500: falha interna sem expor conteúdo do erro. Erros usam `{"error":"mensagem"}`.
+
+Limite global: `HTTP_RATE_LIMIT` (padrão 120/minuto/IP). O teste de navegador configura 1000 porque executa dezenas de jornadas usando o mesmo IP; o padrão da aplicação permanece 120. Chat: `CHAT_RATE_LIMIT` (padrão 12); feedback: `FEEDBACK_RATE_LIMIT` (padrão 20). Em desenvolvimento, `localhost`, `127.0.0.1` e `[::1]` são aceitos para o mesmo protocolo/porta configurados. Produção exige a origem HTTPS exata. CORS não substitui autenticação ou controle de abuso.

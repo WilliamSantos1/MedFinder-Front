@@ -1,21 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createOpenAIProvider } from '../server/ai/openai.js';
 import { readConfig } from '../server/config.js';
-import type { Evidence } from '../server/ai/provider.js';
 
 const config = readConfig({ AI_PROVIDER: 'openai', OPENAI_API_KEY: 'test-only-not-a-real-key' });
-const evidence: Evidence = {
-  id: 'doc:1',
-  title: 'Avaliação inicial',
-  url: 'https://example.org/source',
-  publisher: 'Fixture',
-  excerpt: 'Clínica médica',
-  content: 'Clínica médica pode iniciar a avaliação.',
-  reviewStatus: 'approved',
-  score: 0.8,
-  specialties: ['clinica-medica'],
-};
-
 describe('Contrato HTTP do adaptador OpenAI (sem chamadas pagas)', () => {
   it('envia parâmetros de embedding e ordena vetores pelo índice', async () => {
     let sent: Record<string, unknown> = {};
@@ -48,9 +35,8 @@ describe('Contrato HTTP do adaptador OpenAI (sem chamadas pagas)', () => {
     const answer = {
       answer: 'Clínica médica pode iniciar a avaliação.',
       urgency: 'routine',
-      specialtyIds: ['clinica-medica'],
+      specialty: { name: 'Clínica Médica', reason: 'Avaliação inicial.' },
       questions: [],
-      sourceIds: ['doc:1'],
     };
     let sent: Record<string, unknown> = {};
     const provider = createOpenAIProvider(config, async (_url, init) => {
@@ -80,12 +66,11 @@ describe('Contrato HTTP do adaptador OpenAI (sem chamadas pagas)', () => {
         { headers: { 'Content-Type': 'application/json' } },
       );
     });
-    expect(
-      await provider.generate({ message: 'dor no pescoço', history: [], evidence: [evidence] }),
-    ).toEqual(answer);
+    expect(await provider.generate({ message: 'dor no pescoço', history: [] })).toEqual(answer);
     expect(sent.store).toBe(false);
     expect(sent.text).toMatchObject({ format: { type: 'json_schema', strict: true } });
-    expect(JSON.stringify(sent.input)).toContain('retrievedEvidence');
+    expect(JSON.stringify(sent.input)).toContain('currentMessage');
+    expect(JSON.stringify(sent.input)).not.toContain('retrievedEvidence');
   });
   it('recusa resposta incompleta ou recusada pelo provedor', async () => {
     const provider = createOpenAIProvider(
@@ -109,8 +94,6 @@ describe('Contrato HTTP do adaptador OpenAI (sem chamadas pagas)', () => {
           { headers: { 'Content-Type': 'application/json' } },
         ),
     );
-    await expect(
-      provider.generate({ message: 'relato', history: [], evidence: [evidence] }),
-    ).rejects.toThrow();
+    await expect(provider.generate({ message: 'relato', history: [] })).rejects.toThrow();
   });
 });

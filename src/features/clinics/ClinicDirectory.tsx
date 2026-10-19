@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Building2, ChevronLeft, ChevronRight, LoaderCircle, Search } from 'lucide-react';
-import { specialties, type ClinicResults } from '../../../shared/contracts';
+import { type ClinicResults } from '../../../shared/contracts';
 import { CareFilters, type CareFilterProps } from '../../components/CareFilters';
 import { api } from '../../lib/api';
+import { LocationControl } from '../../components/LocationControl';
+import { searchLocation } from '../../hooks/useGeolocation';
 import { ClinicCard } from './ClinicCard';
 
 export function ClinicDirectory(props: CareFilterProps) {
@@ -11,13 +13,19 @@ export function ClinicDirectory(props: CareFilterProps) {
   const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(1);
   const [attempt, setAttempt] = useState(0);
-  const query = new URLSearchParams({
+  const [previousLocation, setPreviousLocation] = useState(props.geolocation.location);
+  if (previousLocation !== props.geolocation.location) {
+    setPreviousLocation(props.geolocation.location);
+    setPage(1);
+  }
+  const query = JSON.stringify({
     city: props.city,
     insurance: props.insurance,
     specialty,
     q: search,
-    page: String(page),
-  }).toString();
+    page,
+    location: searchLocation(props.geolocation.location),
+  });
   const key = `${query}|${attempt}`;
   const [result, setResult] = useState<{ key: string; data?: ClinicResults; error?: string }>();
   const loading = result?.key !== key;
@@ -100,7 +108,7 @@ export function ClinicDirectory(props: CareFilterProps) {
             }}
           >
             <option value="">Todas as especialidades</option>
-            {Object.entries(specialties).map(([id, name]) => (
+            {(props.catalog?.specialties ?? []).map(({ id, name }) => (
               <option key={id} value={id}>
                 {name}
               </option>
@@ -108,6 +116,7 @@ export function ClinicDirectory(props: CareFilterProps) {
           </select>
         </div>
       </div>
+      <LocationControl geolocation={props.geolocation} />
       {loading ? (
         <div className="directory-status" role="status">
           <LoaderCircle size={24} className="spin" />
@@ -131,7 +140,11 @@ export function ClinicDirectory(props: CareFilterProps) {
               {result?.data?.total ?? 0}{' '}
               {(result?.data?.total ?? 0) === 1 ? 'opção encontrada' : 'opções encontradas'}
             </h2>
-            <span>Ordenação por nome · sem ranking médico</span>
+            <span>
+              {result?.data?.order === 'proximity'
+                ? 'Ordenado por proximidade · distância em linha reta'
+                : 'Ordenação por nome · sem ranking médico'}
+            </span>
           </div>
           {!result?.data?.items.length ? (
             <div className="directory-status">
@@ -156,7 +169,11 @@ export function ClinicDirectory(props: CareFilterProps) {
           ) : (
             <div className="clinic-grid">
               {result.data.items.map((clinic) => (
-                <ClinicCard key={clinic.id} clinic={clinic} />
+                <ClinicCard
+                  key={clinic.id}
+                  clinic={clinic}
+                  showDistance={result.data?.order === 'proximity'}
+                />
               ))}
             </div>
           )}

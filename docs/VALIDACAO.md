@@ -1,57 +1,58 @@
-# Validação da entrega 1.3
+# Validação da versão 2.3.1
 
-Validação em 24/09/2026. As versões de dependências da entrega anterior foram preservadas; mudou a versão do projeto para 1.3.0. Não há pacote ou credencial Docplanner na execução.
+Validação técnica em 18/10/2026 UTC. Testes usam relatos de exemplo, incluindo a reprodução desidentificada do caso da captura enviada, geolocalização mockada e comentários de teste. A imagem original não foi incluída no repositório.
 
-## Verificações desta versão
+As duas suítes foram executadas novamente após integrar os commits `c15dc8d` e `9682928`. A configuração Vitest já inclui os plugins React e Tailwind recebidos da equipe. A cobertura de comportamento da versão 2.3 foi preservada.
 
-| Verificação                                        | Resultado                                           |
-| -------------------------------------------------- | --------------------------------------------------- |
-| ESLint, TypeScript estrito, build frontend/backend | Aprovados                                           |
-| Vitest                                             | 69 testes aprovados em 6 arquivos                   |
-| Playwright                                         | 2 novos fluxos Ollama aprovados: desktop e celular  |
-| CLI `setup:ollama`                                 | Criação automática do `.env` e teste real aprovados |
+## Resultado
 
-A validação de interface desta atualização cobre identificação do modo local, envio sem consentimento OpenAI, resposta com fontes e largura em desktop/celular, usando fixture HTTP de IA. Os 12 fluxos de navegador da versão 1.2 foram aprovados naquela entrega e não foram repetidos integralmente nesta versão.
+- `npm run check`: aprovado — lint, typecheck, build e **146 testes** em 12 arquivos.
+- `npm run test:e2e`: aprovado — **42 testes**, 21 cenários em desktop e mobile.
+- Migrações 1–10, backend, contratos da API e catálogo preservados nesta integração. A migração 10 foi introduzida na versão 2.3.
+- Dependências idênticas à versão 2.3; somente a versão do projeto mudou no `package-lock.json`.
 
-O Chromium precisou ser instalado novamente neste ambiente. A configuração de fontes do navegador de teste foi corrigida antes da execução aprovada; isso não exigiu alteração no CSS da aplicação.
+## Execução
 
-## Escopo automatizado
+```bash
+npm run check
+npm run test:e2e
+```
 
-- TypeScript estrito, ESLint, build Vite e compilação do servidor Node.
-- PostgreSQL real em memória via PGlite, com pgvector e SQL parametrizado.
-- Relato → trecho de orientação → especialidade validada → clínica real com cidade/convênio respeitados.
-- Recuperação dos oito temas: pescoço, pele, cabeça, abdômen, ouvido, olhos, costas e ansiedade.
-- Catálogo de 20 unidades, três cidades, nove especialidades e onze domínios de fontes; IDs únicos, fonte e data obrigatórias.
-- Busca sem diferenciar acentos e caixa, paginação sem repetição, filtros e resultados vazios sem invenção de convênios.
-- Importação idempotente, substituição da coleção preservando registros manuais, desativação de exemplos e rejeição de lote inválido antes da gravação.
-- Migração da versão anterior desativando o snapshot da API retirada sem apagar os registros.
-- Cadastros vencidos ocultos; reimportação não inventa uma nova verificação.
-- Ingestão de documentos por hash, reindexação preservando a versão anterior em falha e isolamento entre modelos de embeddings.
-- Consentimento, limites HTTP, origem, ausência de tabelas de relatos, referências inventadas rejeitadas e erros externos sem vazamento de conteúdo.
-- SDK OpenAI real com transporte HTTP simulado: embeddings + Responses + pgvector + catálogo. O teste de conexão sintético foi exercitado em sucesso e falha; o relatório separa `allPassed`, `clinicalReviewComplete` e `liveVerified`.
-- Ollama: HTTP nativo, formato estruturado e referências limitadas às fontes recuperadas; vetores de 1024 dimensões, isolamento entre modelos, lote incompleto, timeout, rejeição de alias remoto/cloud e ausência de cabeçalho de autorização.
-- Configuração automática: criação do `.env`, backup privado da configuração anterior, preservação das opções Ollama existentes e proteção de configurações de servidor.
-- Reindexação explícita força novo cálculo mesmo quando a etiqueta do modelo não mudou.
-- Playwright da atualização: modo local e fontes em desktop e celular; os testes de interface não executam o modelo real.
+`check` inclui ESLint, TypeScript estrito, build Vite/backend e Vitest. Os testes de banco usam PGlite com pgvector real. A sintaxe de migrations e queries permanece compatível com PostgreSQL; não foi executado nesta entrega um servidor PostgreSQL externo separado.
 
-## Teste com modelos locais reais
+Playwright exercita Chromium em desktop (1440 × 1080) e viewport móvel. Neste ambiente foi usado um executável Chromium 138 externo via `PLAYWRIGHT_CHROMIUM_EXECUTABLE`, sem alterar a configuração padrão que baixa o navegador suportado pelo Playwright. O viewport móvel não equivale a testar Safari num iPhone físico.
 
-Foi executada inferência em **Ollama 0.34.4, Linux, CPU, sem chave OpenAI**, com `OLLAMA_NO_CLOUD=1`, `qwen3:4b-instruct-2507-q4_K_M` e `bge-m3`. O BGE-M3 indexou os oito documentos em pgvector; o teste de conexão confirmou embeddings e geração.
+Durante a preparação da versão 2.3, a primeira execução ampliada do navegador encontrou um HTTP 429 ao carregar o catálogo: as jornadas compartilham o mesmo IP e ultrapassavam 120 requisições/minuto. Desde aquela versão, o fixture E2E configura `HTTP_RATE_LIMIT=1000`. O padrão operacional permanece 120; um teste de integração verifica que o limite configurado continua emitindo 429. A execução da versão 2.3.1 passou nos 42 testes sem nova alteração nesses limites.
 
-No caso sintético “Estou com dor no pescoço há três dias. Quero encontrar uma consulta.”, com cidade Fortaleza e sem filtro de convênio, a API retornou HTTP 200, `mode=ollama`, uma fonte válida de pescoço e três clínicas reais: CTI, FAM e Mário de Assis. O catálogo veio do banco; não foi escrito pelo modelo. A chamada de chat levou aproximadamente **51 segundos nesta CPU**. Isso não é benchmark nem previsão para o computador do usuário.
+## Cobertura
 
-Durante o ajuste, respostas do modelo foram rejeitadas pelas validações por incerteza ou afirmação indevida sobre ausência de emergência. A versão final fornece definições e exemplo de formato no prompt e restringe IDs de fontes pelo esquema. O teste técnico aprovado não significa que todas as respostas futuras passarão: a aplicação mantém a abstenção quando faltam evidências ou a resposta viola as regras.
+- Contrato singular estrito, taxonomia dinâmica, Urologia, resolução de nome/alias, ausência de fuzzy agressivo, cadastro sem rebuild e rejeição de aliases ambíguos.
+- “Oculista”, “oftalmo” e “oftalmologista” resolvem para Oftalmologia; regressão do pai de 60 anos com dor no olho. Rótulo inventado é rejeitado e não aparece em resposta, justificativa ou perguntas; texto livre do modelo não é publicado.
+- Regressão do questionário excessivo: candidata válida com relato detalhado não é bloqueada por perguntas opcionais ou incerteza sobre diagnóstico. Não se exige duração se já há outros detalhes relevantes. Sem candidata, não se inventa indicação ou uma lista de perguntas adicionais.
+- Caso exato da captura: ouvido após uso de lápis gera prioridade presencial, explicação breve e área relacionada ativa, sem perguntas, IA ou clínicas eletivas. Menções negadas ou uso de lápis para desenhar não acionam essa regra.
+- Idade da filha separada da idade da mãe; anos, meses, dias de vida, números por extenso, resposta “5” e filha adulta. Não confunde duração de coceira com idade, não repete idade fornecida e não herda idade ao mudar a pessoa. Pediatria não é obrigatória para toda criança.
+- Descrições controladas de possibilidades, sem publicar áreas extras ou diagnósticos inventados no texto do modelo. Fontes editoriais de orientação acompanham as fontes do RAG, quando aplicáveis.
+- Estado de referência não habilitada separado de especialidade desconhecida e de ausência de clínicas; nenhuma alternativa é apresentada.
+- Relatos genéricos de cabeça e pescoço pedem até duas perguntas sem recomendar especialidade ou buscar clínicas, mesmo quando o modelo tenta recomendar prematuramente. Respostas parciais complementam o histórico; detalhes já fornecidos não são perguntados novamente. Um relato inicial detalhado pode seguir diretamente à recomendação.
+- Contexto com tópicos de perguntas e limite de três rodadas; esgotar perguntas não força uma especialidade. Nova queixa não herda detalhes do relato anterior. Alertas determinísticos e do modelo interrompem o esclarecimento. Perguntas em texto livre do modelo são rejeitadas pelo contrato interno.
+- Medicina de Família e Comunidade desativada no catálogo, filtros, resolução e lista enviada ao modelo. A Clínica FAM mantém suas demais áreas. Consultar a área desativada não resulta numa lista de clínicas sem filtro.
+- Consultas diretas por área, proximidade, Unimed e endereço/especialidades da CTI; continuidade por “dessas” e refinamento por convênio; ausência de geração nessas consultas e de embeddings externos sem consentimento.
+- Guardrails antes da IA, histórico com alerta, bloqueio de prescrição, diagnóstico explícito, garantia de ausência de risco e dados de clínicas gerados pelo modelo.
+- Structured Outputs/OpenAI e Ollama com HTTP simulado; retenção `store:false`, validação de JSON, timeout, proibição de aliases cloud e verificação local antes do envio.
+- Filtros exatos e parametrizados de cidade, convênio e especialidade; SQL injection não amplia resultados.
+- Haversine, mesmo ponto e distância conhecida, valores inválidos, municípios vizinhos, paginação após ordenação completa, ausência de coordenadas e não persistência da posição.
+- RAG limitado a IDs candidatos, hash idempotente, atualização transacional, isolamento por modelo e falha de embedding sem apagar os resultados do catálogo.
+- Upgrade de banco da versão 1.3 para migrations 5–8 preserva clínicas, relações e documentos médicos arquivados; reaplicação idempotente.
+- Upgrade de 8 para 9 desativa a área solicitada sem apagar unidades ou relações históricas. A migração 10 habilita Pediatria quando ainda não cadastrada, preservando uma desativação explícita feita pelo operador. Reaplicação idempotente.
+- Feedback positivo/negativo, motivo contextual, comprimento, redação de identificadores, UPSERT, expiração/token, rate limit e ausência de chamada à IA.
+- Navegador: permissão de GPS somente após clique, localização negada sem loop, distância nos cards, estado compartilhado chat/diretório, votos e falha de feedback sem quebrar conversa, rascunho preservado durante falha de resposta, responsividade e ausência de armazenamento local.
+- Catálogo: 36 IDs e endereços únicos, fontes HTTPS, procedência, datas, 16 especialidades ativas e correspondência com a auditoria de 36 pares de coordenadas. Distâncias do catálogo real ordenadas em seis páginas; município vizinho permitido sem filtro e cidade exata preservada.
+- Tipografia: raiz/corpo/mensagem/input computados em 16px, títulos de cards a partir de 18px, sem overflow horizontal em desktop/mobile e com texto ampliado a 200% no chat, diretório e página explicativa.
 
-A integração Windows foi implementada com Node e comandos compatíveis com PowerShell, mas **não foi executada no computador do usuário nem em um Windows real**. A instalação do Ollama e os downloads precisam ocorrer no computador em que ele será usado.
+## Limites da evidência
 
-## O que não foi comprovado
+Não foi executada inferência real com os pesos Ollama nesta atualização, nem uma chamada paga à OpenAI. Os adaptadores foram validados com transportes simulados. A execução de inferência registrada na documentação da versão anterior usava outro prompt e outro fluxo RAG; não foi reutilizada como prova desta versão. Execute `npm.cmd run integrations:check` no computador com seu Ollama para verificar os modelos instalados.
 
-A entrega não contém uma chave OpenAI real. Os testes do provedor substituem apenas o transporte HTTP; **não** comprovam saldo, acesso aos modelos, qualidade clínica de gerações reais ou disponibilidade da API na sua conta. Execute `npm.cmd run integrations:check` após configurar sua chave. Uma resposta `liveVerified=true` só confirma o teste técnico de embeddings e geração realizado naquele momento.
+O catálogo real contém 36 unidades com coordenadas conferidas por endereço/ponto de mapa na preparação dos dados; fontes, método e datas estão em `data/coordinates.provenance.json`. Apenas a Clínica Angellus e seu resumo cadastral foram reconferidos em 18/10/2026 para acrescentar Pediatria. Coordenadas e demais cadastros mantêm suas datas anteriores. Testes exercitam tanto esse catálogo quanto fixtures identificadas, com posição do usuário simulada. Conferência documental não equivale a vistoria, garantia de precisão de entrada do prédio ou disponibilidade do serviço. Os 36 textos públicos são resumos cadastrais de abrangência limitada.
 
-As fontes cadastrais foram consultadas na web. Isso não é confirmação por telefone, disponibilidade de agenda ou garantia de cobertura por convênio. `docs/CATALOGO.md` documenta as fontes e os limites. Não há API de clínicas nem busca em tempo real neste pacote.
-
-A base médica tem oito resumos de homologação. Nenhum recebeu aprovação clínica fictícia. Testes de software não medem sensibilidade, especificidade, acurácia médica ou conformidade regulatória. Regras de urgência e Structured Outputs não substituem avaliação clínica independente. Os casos de teste são sintéticos, sem dados de pacientes.
-
-O navegador usado é Chromium headless. Docker não está disponível neste ambiente: imagem e Compose não foram executados nesta entrega. PGlite testa SQL e pgvector reais, mas a implantação no PostgreSQL de produção ainda precisa de validação de extensão, migrações, TLS, permissões e restauração de backup no ambiente de destino.
-
-As capturas em `docs/images/` são do aplicativo local. As capturas de catálogo usam a API local e o arquivo real, sem mock da listagem. Elas não mostram uma sessão paga ou uma geração ao vivo da OpenAI.
+Esses testes demonstram comportamento de software, não sensibilidade, especificidade, acurácia médica ou conformidade regulatória. O reconhecimento de relatos genéricos, de idade e de relação entre pessoas usa heurísticas de linguagem e pode não cobrir toda forma de expressão. Uma candidata validada no vocabulário não prova pertinência clínica. As descrições específicas nesta versão cobrem ouvido e coceira na pele; os demais casos usam uma explicação geral. O feedback mede percepção de utilidade; não torna a orientação clinicamente correta. Guardrails são heurísticos e requerem avaliação independente antes de uso assistencial.

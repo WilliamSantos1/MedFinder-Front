@@ -16,7 +16,7 @@ describe('OpenAI + RAG + catálogo público sem API de diretório', () => {
     await migrate(db);
   });
   beforeEach(async () => {
-    await db.exec('TRUNCATE clinics, catalog_collections, documents CASCADE');
+    await db.exec('TRUNCATE clinics, catalog_collections, clinic_documents CASCADE');
   });
   afterAll(async () => {
     await db?.close();
@@ -38,7 +38,7 @@ describe('OpenAI + RAG + catálogo público sem API de diretório', () => {
         });
       }
       expect(body.store).toBe(false);
-      const evidence = JSON.parse(body.input[0].content).retrievedEvidence;
+      expect(JSON.parse(body.input[0].content)).toHaveProperty('currentMessage');
       return json({
         id: 'resp_fixture',
         object: 'response',
@@ -53,18 +53,9 @@ describe('OpenAI + RAG + catálogo público sem API de diretório', () => {
               {
                 type: 'output_text',
                 text: JSON.stringify({
-                  answer: evidence.length
-                    ? 'Uma avaliação em ortopedia pode ajudar a orientar o próximo passo.'
-                    : 'Faltam informações para orientar.',
-                  urgency: evidence.length ? 'routine' : 'uncertain',
-                  specialtyIds: evidence.length ? ['ortopedia'] : [],
-                  sourceIds: evidence.length
-                    ? [
-                        evidence.find((item: { specialtyIds: string[] }) =>
-                          item.specialtyIds.includes('ortopedia'),
-                        ).id,
-                      ]
-                    : [],
+                  answer: 'Uma avaliação em ortopedia pode ajudar a orientar o próximo passo.',
+                  urgency: 'routine',
+                  specialty: { name: 'Ortopedia', reason: 'Avaliação possível.' },
                   questions: [],
                 }),
                 annotations: [],
@@ -77,41 +68,40 @@ describe('OpenAI + RAG + catálogo público sem API de diretório', () => {
     });
     const provider = createOpenAIProvider(connectedConfig, transport);
     const result = await setupConnected(db, connectedConfig, provider);
-    expect(result).toMatchObject({ publicClinics: 20, knowledgeRequiresClinicalReview: true });
+    expect(result).toMatchObject({ publicClinics: 36, clinicRagOptional: true });
     const app = await buildApp(connectedConfig, db, provider);
     try {
       const meta = (await app.inject('/api/catalog')).json();
       expect(meta.demoData).toBe(false);
-      expect(meta.knowledge.demoDocuments).toBe(8);
+      expect(meta.knowledge.demoDocuments).toBe(0);
       const response = await app.inject({
         method: 'POST',
         url: '/api/chat',
         payload: {
-          message: 'Estou com dor no pescoço',
+          message: 'Estou com dor no pescoço desde ontem, piora ao movimentar, sem outros sintomas',
           city: 'Fortaleza',
           insurance: 'CASSI',
           consent: true,
         },
       });
-      expect(response.json()).toMatchObject({ mode: 'openai', specialtyIds: ['ortopedia'] });
+      expect(response.json()).toMatchObject({ mode: 'openai', status: 'ok' });
+      expect(response.json().specialty.id).toBe('ortopedia');
       expect(response.json().clinics[0].id).toBe('public-cti');
       expect(response.json().sources).toHaveLength(1);
       expect(transport).toHaveBeenCalled();
       const checks = await checkSetup(db, connectedConfig, provider);
       expect(checks).toMatchObject({
         allPassed: true,
-        clinicalReviewComplete: false,
         liveVerified: false,
       });
       expect(checks.checks.map((check) => check.name)).not.toContain('doctoralia');
       expect(await checkSetup(db, connectedConfig, provider, true)).toMatchObject({
         allPassed: true,
         liveVerified: true,
-        clinicalReviewComplete: false,
       });
       const offlineProvider = {
         ...provider,
-        embed: async () => {
+        generate: async () => {
           throw new Error('secret-upstream-content');
         },
       };

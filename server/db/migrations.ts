@@ -1,3 +1,4 @@
+import { evolutionMigrations } from './evolution-migrations.js';
 import type { Database } from './database.js';
 
 const migrations = [
@@ -66,7 +67,7 @@ export async function migrate(db: Database) {
   await db.exec(
     'CREATE TABLE IF NOT EXISTS schema_migrations (version integer PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())',
   );
-  for (const migration of migrations) {
+  for (const migration of [...migrations, ...evolutionMigrations]) {
     await db.transaction(async (tx) => {
       await tx.exec('LOCK TABLE schema_migrations IN EXCLUSIVE MODE');
       const { rows } = await tx.query('SELECT version FROM schema_migrations WHERE version=$1', [

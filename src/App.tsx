@@ -14,6 +14,7 @@ import {
 import { ChatPanel } from './features/chat/ChatPanel';
 import { ClinicDirectory } from './features/clinics/ClinicDirectory';
 import { useCatalog } from './hooks/useCatalog';
+import { useGeolocation } from './hooks/useGeolocation';
 import './App.css';
 
 type View = 'chat' | 'clinics' | 'about';
@@ -24,6 +25,7 @@ const navigation = [
 ];
 
 export default function App() {
+  const geolocation = useGeolocation();
   const [view, setView] = useState<View>('chat');
   const [session, setSession] = useState(0);
   const [city, setCity] = useState('');
@@ -81,11 +83,6 @@ export default function App() {
             <h3>Um passo de cada vez.</h3>
             <p>Encontrar o cuidado certo começa por entender o que você precisa.</p>
           </div>
-          <div className="privacy-caption">
-            <LockKeyhole size={14} />
-            <span>Seu relato merece cuidado</span>
-          </div>
-          <p className="sidebar-version">MedFinder · orientação de atendimento</p>
         </div>
       </aside>
       <div className="main-shell">
@@ -93,9 +90,6 @@ export default function App() {
           <span className="breadcrumb">
             Seu cuidado <ChevronRight size={14} />{' '}
             <strong>{navigation.find((item) => item.id === view)?.label}</strong>
-          </span>
-          <span className="privacy-pill">
-            <ShieldCheck size={15} /> Sem cadastro
           </span>
         </header>
         <main id="main" tabIndex={-1}>
@@ -161,22 +155,17 @@ export default function App() {
                   {catalog.mode === 'demo'
                     ? 'Respostas locais para testar o fluxo, sem IA generativa.'
                     : catalog.knowledge.demoDocuments > 0
-                      ? 'IA generativa com base de homologação, ainda sem revisão clínica.'
-                      : 'Confira as fontes da orientação.'}
+                      ? 'Inclui textos fictícios de clínicas para demonstração.'
+                      : 'Confira as fontes dos cadastros.'}
                 </p>
               </div>
             )}
-          {catalog && (!catalog.knowledge.indexedDocuments || catalog.knowledge.needsReindex) && (
-            <div className="notice error-notice" role="status">
-              A base de orientação está sendo preparada. O catálogo continua disponível para
-              consulta.
-            </div>
-          )}
           <div hidden={view !== 'chat'}>
             <div className="workspace-grid">
               <ChatPanel
                 key={session}
                 catalog={catalog}
+                geolocation={geolocation}
                 city={city}
                 insurance={insurance}
                 onCityChange={setCity}
@@ -207,7 +196,7 @@ export default function App() {
                       <span>02</span>
                       <div>
                         <h3>Entenda as possibilidades</h3>
-                        <p>Uma orientação de especialidade, com as fontes utilizadas.</p>
+                        <p>Uma sugestão de especialidade para avaliação profissional.</p>
                       </div>
                     </li>
                     <li>
@@ -245,6 +234,7 @@ export default function App() {
           {view === 'clinics' && (
             <ClinicDirectory
               catalog={catalog}
+              geolocation={geolocation}
               city={city}
               insurance={insurance}
               onCityChange={setCity}
@@ -258,9 +248,9 @@ export default function App() {
               </span>
               <h2>Uma ponte até o atendimento.</h2>
               <p>
-                O MedFinder usa seu relato para consultar uma base de informações e explicar quais
-                especialidades podem ajudar na avaliação. As fontes da orientação ficam disponíveis
-                em cada resposta.
+                A IA sugere uma especialidade a partir do relato. O sistema valida essa sugestão e
+                busca clínicas com os filtros que você escolheu. Textos disponíveis das clínicas
+                complementam a resposta com fontes consultáveis.
               </p>
               <div className="about-grid">
                 <article>
@@ -298,7 +288,10 @@ export default function App() {
                   envio à OpenAI. No modo OpenAI, após sua autorização, o relato e mensagens
                   recentes são enviados à OpenAI para gerar a resposta. Esse provedor tem suas
                   próprias regras de tratamento e retenção de dados. A remoção da conversa nesta aba
-                  não apaga eventuais registros do provedor.
+                  não apaga eventuais registros do provedor. A localização é opcional, usada apenas
+                  para ordenar clínicas e não é salva nem enviada à IA. O feedback salva apenas o
+                  voto, o motivo, o comentário opcional e identificadores técnicos; não inclui a
+                  conversa e não treina a IA automaticamente.
                 </p>
               </details>
               <p className="about-disclaimer">

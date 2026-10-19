@@ -1,19 +1,24 @@
 import { expect, test } from '@playwright/test';
 
-test('relato → fonte → especialidade → clínica filtrada', async ({ page }) => {
+test('relato → especialidade → clínica filtrada → texto da clínica', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText('Modo demonstração', { exact: true })).toBeVisible();
   await page.getByLabel('Cidade', { exact: true }).selectOption('Fortaleza');
   await page.getByLabel('Convênio', { exact: true }).selectOption('CASSI');
   await page.getByRole('button', { name: /Estou com dor no pescoço/ }).click();
   await page.getByRole('button', { name: 'Enviar mensagem' }).click();
-  await expect(page.getByText('Ortopedia', { exact: true }).first()).toBeVisible();
+  await expect(page.locator('.assistant-message').first().locator('.follow-up li')).toHaveCount(2);
+  await expect(page.locator('.specialty-suggestions')).toHaveCount(0);
+  await page
+    .getByLabel('Descreva o que você está sentindo')
+    .fill('Desde ontem, piora ao movimentar o pescoço, sem outros sintomas.');
+  await page.getByRole('button', { name: 'Enviar mensagem' }).click();
+  await expect(page.getByText('Ortopedia e Traumatologia', { exact: true }).first()).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Clínica CTI' })).toBeVisible();
   await page.getByText('1 fonte consultada', { exact: true }).click();
-  await expect(page.getByRole('link', { name: /Dor no pescoço: onde começar/ })).toHaveAttribute(
-    'href',
-    /nhs.uk/,
-  );
+  await expect(
+    page.getByRole('link', { name: /Clínica CTI: ortopedia e reabilitação/ }),
+  ).toHaveAttribute('href', /cticlinica.com.br/);
   await page.getByRole('button', { name: 'Nova conversa' }).click();
   await expect(page.getByRole('heading', { name: 'Como você está se sentindo?' })).toBeVisible();
 });
@@ -39,8 +44,9 @@ test('catálogo filtra e informa quando não há resultados', async ({ page }) =
   await directory.getByLabel('Cidade', { exact: true }).selectOption('Fortaleza');
   await directory.getByLabel('Especialidade', { exact: true }).selectOption('dermatologia');
   await expect(directory.getByRole('heading', { name: 'AVA Clínica Médica' })).toBeVisible();
-  await expect(directory.getByRole('heading', { name: '3 opções encontradas' })).toBeVisible();
+  await expect(directory.getByRole('heading', { name: '5 opções encontradas' })).toBeVisible();
   await directory.getByLabel('Cidade', { exact: true }).selectOption('Maracanaú');
+  await directory.getByLabel('Convênio', { exact: true }).selectOption('CASSI');
   await expect(
     directory.getByRole('heading', { name: 'Nenhuma opção para esses filtros' }),
   ).toBeVisible();

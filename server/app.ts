@@ -6,15 +6,22 @@ import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import { ZodError } from 'zod';
-import { chatRequestSchema, clinicFiltersSchema } from '../shared/contracts.js';
+import {
+  chatRequestSchema,
+  clinicFiltersSchema,
+  clinicSearchSchema,
+  feedbackRequestSchema,
+} from '../shared/contracts.js';
 import type { AIProvider } from './ai/provider.js';
 import { createProvider } from './ai/factory.js';
 import type { Config } from './config.js';
+import { FeedbackRepository } from './db/feedback.js';
+import { SpecialtyRepository } from './db/specialties.js';
+import { SpecialtyResolver } from './services/specialty-resolver.js';
 import { CatalogRepository } from './db/catalog.js';
 import type { Database } from './db/database.js';
 import { Retriever } from './rag/retrieve.js';
 import { ChatService } from './services/chat.js';
-import { detectUrgency } from './domain/safety.js';
 import { catalogStatus } from './services/readiness.js';
 
 function allowedWebOrigins(config: Config) {
@@ -77,12 +84,14 @@ export async function buildApp(
     methods: ['GET', 'POST'],
     credentials: false,
   });
-  await app.register(rateLimit, { max: 120, timeWindow: '1 minute' });
+  await app.register(rateLimit, { max: config.HTTP_RATE_LIMIT, timeWindow: '1 minute' });
   const catalog = new CatalogRepository(db, config.ALLOW_DEMO_DATA);
+  const feedback = new FeedbackRepository(db);
   const chat = new ChatService(
     new Retriever(db, provider, config.ALLOW_DEMO_DATA),
     provider,
     catalog,
+    new SpecialtyResolver(new SpecialtyRepository(db)),
     config.AI_MAX_CONCURRENCY,
     () => app.log.warn({ event: 'ai_unavailable' }, 'Consulta de IA indisponível'),
   );
@@ -107,19 +116,10 @@ export async function buildApp(
     try {
       await db.query('SELECT 1');
       const status = await catalogStatus(db, config, provider);
-      const ready =
-        status.knowledge.indexedDocuments > 0 &&
-        !status.knowledge.needsReindex &&
-        status.directory.total > 0;
-      return reply.code(ready ? 200 : 503).send({
-        status: ready
-          ? 'ready'
-          : status.knowledge.needsReindex
-            ? 'reindex_required'
-            : !status.knowledge.indexedDocuments
-              ? 'knowledge_unavailable'
-              : 'catalog_unavailable',
-      });
+      const ready = status.directory.total > 0 && status.specialties.length > 0;
+      return reply
+        .code(ready ? 200 : 503)
+        .send({ status: ready ? 'ready' : 'catalog_unavailable' });
     } catch {
       return reply.code(503).send({ status: 'unavailable' });
     }
@@ -128,25 +128,45 @@ export async function buildApp(
   app.get('/api/clinics', async (request) =>
     catalog.search(clinicFiltersSchema.parse(request.query)),
   );
+  app.post('/api/clinics/search', async (request) =>
+    catalog.search(clinicSearchSchema.parse(request.body)),
+  );
+  app.post(
+    '/api/feedback',
+    { config: { rateLimit: { max: config.FEEDBACK_RATE_LIMIT, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const saved = await feedback.save(feedbackRequestSchema.parse(request.body));
+      return saved
+        ? { status: 'saved' }
+        : reply
+            .code(400)
+            .send({ error: 'Feedback inválido ou expirado. Confira o motivo e tente novamente.' });
+    },
+  );
   app.post(
     '/api/chat',
     { config: { rateLimit: { max: config.CHAT_RATE_LIMIT, timeWindow: '1 minute' } } },
-    async (request, reply) => {
+    async (request) => {
       const body = chatRequestSchema.parse(request.body);
-      if (
-        provider.mode === 'openai' &&
-        !body.consent &&
-        !detectUrgency([...body.history, body.message])
-      ) {
-        return reply.code(400).send({ error: 'Autorize o envio à OpenAI antes de continuar.' });
+      const response = await chat.answer(body);
+      try {
+        response.feedback = await feedback.issue(
+          response,
+          Boolean(response.context?.insurance || body.insurance),
+        );
+      } catch {
+        app.log.warn(
+          { event: 'feedback_receipt_unavailable' },
+          'Feedback temporariamente indisponível',
+        );
       }
-      return chat.answer(body);
+      return response;
     },
   );
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError)
       return reply.code(400).send({
-        error: 'Revise os campos enviados. A mensagem deve ter entre 3 e 2.000 caracteres.',
+        error: 'Revise os campos enviados e seus limites. A solicitação contém dados inválidos.',
       });
     const statusCode =
       error instanceof Error && 'statusCode' in error && typeof error.statusCode === 'number'

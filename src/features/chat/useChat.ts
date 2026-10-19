@@ -10,10 +10,11 @@ export function useChat(timeoutMs = 60000) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
+  const lastFilters = useRef<{ city: string; insurance: string } | null>(null);
   const controller = useRef<AbortController | null>(null);
   useEffect(() => () => controller.current?.abort(), []);
 
-  async function send(input: Omit<ChatRequest, 'history'>) {
+  async function send(input: Omit<ChatRequest, 'history' | 'context'>) {
     if (controller.current) return false;
     const current = new AbortController();
     controller.current = current;
@@ -27,7 +28,23 @@ export function useChat(timeoutMs = 60000) {
     setPending(true);
     const timeout = window.setTimeout(() => current.abort(), timeoutMs);
     try {
-      const response = await api.chat({ ...input, history }, current.signal);
+      const previous = [...messages].reverse().find((item) => item.role === 'assistant');
+      const context =
+        previous?.role === 'assistant' && previous.response.context
+          ? {
+              ...previous.response.context,
+              city:
+                lastFilters.current?.city === input.city
+                  ? previous.response.context.city
+                  : input.city,
+              insurance:
+                lastFilters.current?.insurance === input.insurance
+                  ? previous.response.context.insurance
+                  : input.insurance,
+            }
+          : undefined;
+      const response = await api.chat({ ...input, history, context }, current.signal);
+      lastFilters.current = { city: input.city, insurance: input.insurance };
       setMessages((previous) => [...previous, { id: response.id, role: 'assistant', response }]);
       return true;
     } catch (failure) {

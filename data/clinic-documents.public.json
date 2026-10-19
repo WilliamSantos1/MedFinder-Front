@@ -1,0 +1,362 @@
+[
+  {
+    "id": "public-cti-servicos",
+    "clinicId": "public-cti",
+    "title": "Clínica CTI: ortopedia e reabilitação",
+    "content": "A página institucional apresenta serviços de reabilitação e um setor voltado ao acompanhamento após cirurgias. Entre as atividades divulgadas estão fisioterapia, exercícios terapêuticos em piscina e trabalho de recuperação funcional da mão e da musculatura. O texto descreve atuação de várias áreas no mesmo estabelecimento. Este resumo descreve o conteúdo publicado, sem afirmar adequação de tratamentos ao caso do usuário.",
+    "sourceUrl": "https://cticlinica.com.br/",
+    "verifiedAt": "2026-09-28T01:55:29Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-angellus-cadastro",
+    "clinicId": "public-angellus",
+    "title": "Clínica Angellus: cadastro institucional",
+    "content": "Clínica Angellus, Caucaia: Cardiologia, Clínica Médica, Dermatologia, Ginecologia e Obstetrícia, Ortopedia e Traumatologia e Pediatria. Endereço publicado: Avenida São Vicente de Paula, 108. A página de serviços lista Pediatria; confirme diretamente a faixa etária atendida e a disponibilidade.",
+    "sourceUrl": "https://clinicaangellus.com.br/servicos/",
+    "verifiedAt": "2026-10-18T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-ava-cadastro",
+    "clinicId": "public-ava",
+    "title": "AVA Clínica Médica: cadastro institucional",
+    "content": "AVA Clínica Médica, Fortaleza: Dermatologia. Endereço publicado: Rua Padre Luis Figueira, 231.",
+    "sourceUrl": "https://avaclinica.com/especialidades/",
+    "verifiedAt": "2026-09-24T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-campos-elisios-cadastro",
+    "clinicId": "public-campos-elisios",
+    "title": "Hospital Campos Elísios — Consultas: cadastro institucional",
+    "content": "Hospital Campos Elísios — Consultas, Maracanaú: Clínica Médica, Dermatologia, Endocrinologia e Metabologia, Ginecologia e Obstetrícia, Neurologia, Ortopedia e Traumatologia, Otorrinolaringologia, Reumatologia, Urologia. Endereço publicado: Avenida Antônio Alves de Lacerda, 315.",
+    "sourceUrl": "https://www.hospitalcamposelisios.com.br/",
+    "verifiedAt": "2026-09-28T10:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-centro-pneumologia-cadastro",
+    "clinicId": "public-centro-pneumologia",
+    "title": "Centro de Pneumologia e Alergia do Ceará: cadastro institucional",
+    "content": "Centro de Pneumologia e Alergia do Ceará, Fortaleza: Pneumologia. Endereço publicado: Avenida Rui Barbosa, 1349.",
+    "sourceUrl": "https://cnes2.datasus.gov.br/Mod_Conjunto.asp?VCo_Unidade=2304403148726",
+    "verifiedAt": "2026-09-28T10:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-cldo-aldeota-cadastro",
+    "clinicId": "public-cldo-aldeota",
+    "title": "CLDO / CCO — Aldeota: cadastro institucional",
+    "content": "CLDO / CCO — Aldeota, Fortaleza: Oftalmologia. Endereço publicado: Rua Ildefonso Albano, 1373.",
+    "sourceUrl": "https://cldo.com.br/unidades/",
+    "verifiedAt": "2026-09-24T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-cldo-ico-cadastro",
+    "clinicId": "public-cldo-ico",
+    "title": "ICO — Instituto Cearense de Oftalmologia: cadastro institucional",
+    "content": "ICO — Instituto Cearense de Oftalmologia, Fortaleza: Oftalmologia. Endereço publicado: Rua Barão de Aracati, 1280.",
+    "sourceUrl": "https://cldo.com.br/unidades/",
+    "verifiedAt": "2026-09-24T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-cldo-inovi-cadastro",
+    "clinicId": "public-cldo-inovi",
+    "title": "CLDO Inovi — Shopping Iguatemi: cadastro institucional",
+    "content": "CLDO Inovi — Shopping Iguatemi, Fortaleza: Oftalmologia. Endereço publicado: Avenida Washington Soares, 85, Lojas 805/806.",
+    "sourceUrl": "https://cldo.com.br/unidades/",
+    "verifiedAt": "2026-09-24T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-cldo-maracanau-cadastro",
+    "clinicId": "public-cldo-maracanau",
+    "title": "CLDO — Maracanaú: cadastro institucional",
+    "content": "CLDO — Maracanaú, Maracanaú: Oftalmologia. Endereço publicado: Avenida Quarenta e Cinco, 500, Ponto Shopping.",
+    "sourceUrl": "https://cldo.com.br/unidades/",
+    "verifiedAt": "2026-09-24T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-cldo-reserva-cadastro",
+    "clinicId": "public-cldo-reserva",
+    "title": "CLDO — Reserva Open Mall: cadastro institucional",
+    "content": "CLDO — Reserva Open Mall, Fortaleza: Oftalmologia. Endereço publicado: Avenida Washington Soares, 3000.",
+    "sourceUrl": "https://cldo.com.br/unidades/",
+    "verifiedAt": "2026-09-24T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-domus-cadastro",
+    "clinicId": "public-domus",
+    "title": "Domus Saúde: cadastro institucional",
+    "content": "Domus Saúde, Eusébio: Cardiologia, Oftalmologia, Clínica Médica, Ginecologia e Obstetrícia, Neurologia. Endereço publicado: Avenida Nova do Contorno, 3260, Catarina Mall.",
+    "sourceUrl": "https://www.domussaude.com.br/",
+    "verifiedAt": "2026-09-28T10:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-fam-cadastro",
+    "clinicId": "public-fam",
+    "title": "Clínica FAM: cadastro institucional",
+    "content": "Clínica FAM, Fortaleza: Ortopedia e Traumatologia, Dermatologia. Endereço publicado: Rua Osvaldo Cruz, 1089, 1º andar.",
+    "sourceUrl": "https://clinicafam.com.br/",
+    "verifiedAt": "2026-09-24T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-ffaz-cadastro",
+    "clinicId": "public-ffaz",
+    "title": "Clínica FFAZ: cadastro institucional",
+    "content": "Clínica FFAZ, Fortaleza: Clínica Médica, Dermatologia, Neurologia, Psicologia, Reumatologia, Pneumologia. Endereço publicado: Rua Monsenhor Bruno, 1906.",
+    "sourceUrl": "https://clinicaffaz.com.br/",
+    "verifiedAt": "2026-09-28T10:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-iclinic-cadastro",
+    "clinicId": "public-iclinic",
+    "title": "iClinic Fortaleza: cadastro institucional",
+    "content": "iClinic Fortaleza, Fortaleza: Psicologia. Endereço publicado: Rua João Emídio da Silveira, 46.",
+    "sourceUrl": "https://www.iclinicfortaleza.com.br/",
+    "verifiedAt": "2026-09-24T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-ioce-santa-casa-cadastro",
+    "clinicId": "public-ioce-santa-casa",
+    "title": "IOCE — Santa Casa de Fortaleza: cadastro institucional",
+    "content": "IOCE — Santa Casa de Fortaleza, Fortaleza: Oftalmologia. Endereço publicado: Rua Barão do Rio Branco, 20, Consultório 01.",
+    "sourceUrl": "https://oftalmosantacasace.com.br/",
+    "verifiedAt": "2026-09-24T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-labclinica-eusebio-cadastro",
+    "clinicId": "public-labclinica-eusebio",
+    "title": "LabClínica Eusébio: cadastro institucional",
+    "content": "LabClínica Eusébio, Eusébio: Dermatologia, Ginecologia e Obstetrícia. Endereço publicado: Rua Irmã Ambrosina, 155.",
+    "sourceUrl": "https://labclinica.med.br/",
+    "verifiedAt": "2026-09-28T10:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-marcella-pinheiro-cadastro",
+    "clinicId": "public-marcella-pinheiro",
+    "title": "Clínica Dra. Marcella Pinheiro: cadastro institucional",
+    "content": "Clínica Dra. Marcella Pinheiro, Eusébio: Ginecologia e Obstetrícia, Dermatologia, Clínica Médica, Cardiologia. Endereço publicado: Avenida Eusébio de Queiroz, 4808, 1º andar, salas 112 e 114.",
+    "sourceUrl": "https://clinicamarcellapinheiro.com.br/",
+    "verifiedAt": "2026-09-28T10:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-mario-de-assis-cadastro",
+    "clinicId": "public-mario-de-assis",
+    "title": "Clínica Mário de Assis: cadastro institucional",
+    "content": "Clínica Mário de Assis, Fortaleza: Clínica Médica, Gastroenterologia, Neurologia, Ortopedia e Traumatologia. Endereço publicado: Rua 24 de Maio, 1465.",
+    "sourceUrl": "https://www.clinicamariodeassis.com.br/especialidades",
+    "verifiedAt": "2026-09-24T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-medclinica-eusebio-cadastro",
+    "clinicId": "public-medclinica-eusebio",
+    "title": "Medclínica Eusébio: cadastro institucional",
+    "content": "Medclínica Eusébio, Eusébio: Clínica Médica, Dermatologia, Endocrinologia e Metabologia, Ginecologia e Obstetrícia, Neurologia, Ortopedia e Traumatologia, Psicologia, Urologia. Endereço publicado: Avenida Eusébio de Queiroz, 2880, loja 15, Palmares Open Mall.",
+    "sourceUrl": "https://www.medclinicaeusebio.com.br/",
+    "verifiedAt": "2026-09-28T10:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-multiclinic-cadastro",
+    "clinicId": "public-multiclinic",
+    "title": "Multiclinic: cadastro institucional",
+    "content": "Multiclinic, Fortaleza: Gastroenterologia, Psicologia, Oftalmologia, Ortopedia e Traumatologia. Endereço publicado: Rua Pedro Firmeza, 712.",
+    "sourceUrl": "https://multiclinic.com.br/",
+    "verifiedAt": "2026-09-24T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-multiclinica-fortaleza-cadastro",
+    "clinicId": "public-multiclinica-fortaleza",
+    "title": "MultiClínica Fortaleza: cadastro institucional",
+    "content": "MultiClínica Fortaleza, Fortaleza: Clínica Médica, Dermatologia, Oftalmologia, Ortopedia e Traumatologia, Otorrinolaringologia, Psicologia. Endereço publicado: Rua Guaratinguetá, 60.",
+    "sourceUrl": "https://www.multiclinicafortaleza.com.br/especialidades.html",
+    "verifiedAt": "2026-09-24T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-new-medical-cadastro",
+    "clinicId": "public-new-medical",
+    "title": "New Medical: cadastro institucional",
+    "content": "New Medical, Maracanaú: Dermatologia, Oftalmologia, Ortopedia e Traumatologia, Psicologia. Endereço publicado: Rua Capitão Valdemar de Lima, 55 C, 2º andar.",
+    "sourceUrl": "https://clinicanewmedical.com.br/especialidades-medicas/",
+    "verifiedAt": "2026-09-28T10:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-nova-cadastro",
+    "clinicId": "public-nova",
+    "title": "Clínica Nova: cadastro institucional",
+    "content": "Clínica Nova, Fortaleza: Cardiologia, Clínica Médica, Dermatologia, Endocrinologia e Metabologia, Gastroenterologia, Ginecologia e Obstetrícia, Neurologia, Reumatologia, Ortopedia e Traumatologia, Otorrinolaringologia, Urologia, Nefrologia, Psicologia. Endereço publicado: Rua Guilherme Rocha, 326.",
+    "sourceUrl": "https://clinicanova.med.br/",
+    "verifiedAt": "2026-09-28T10:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-oftalmoclinica-conjunto-ceara-cadastro",
+    "clinicId": "public-oftalmoclinica-conjunto-ceara",
+    "title": "Oftalmoclínica — Conjunto Ceará: cadastro institucional",
+    "content": "Oftalmoclínica — Conjunto Ceará, Fortaleza: Oftalmologia. Endereço publicado: Rua 444, 42, 2ª etapa.",
+    "sourceUrl": "https://www.oftalmoclinicafortaleza.com.br/",
+    "verifiedAt": "2026-09-24T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-oftalmoclinica-north-cadastro",
+    "clinicId": "public-oftalmoclinica-north",
+    "title": "Oftalmoclínica — North Shopping: cadastro institucional",
+    "content": "Oftalmoclínica — North Shopping, Fortaleza: Oftalmologia. Endereço publicado: Avenida Bezerra de Menezes, 2450, 607, 3º piso.",
+    "sourceUrl": "https://www.oftalmoclinicafortaleza.com.br/",
+    "verifiedAt": "2026-09-24T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-oftalmoclinica-parangaba-cadastro",
+    "clinicId": "public-oftalmoclinica-parangaba",
+    "title": "Oftalmoclínica — Parangaba: cadastro institucional",
+    "content": "Oftalmoclínica — Parangaba, Fortaleza: Oftalmologia. Endereço publicado: Avenida Dr. Silas Munguba, 400, 01.",
+    "sourceUrl": "https://www.oftalmoclinicafortaleza.com.br/",
+    "verifiedAt": "2026-09-24T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-oftalmoclinica-premium-cadastro",
+    "clinicId": "public-oftalmoclinica-premium",
+    "title": "Oftalmoclínica — Premium: cadastro institucional",
+    "content": "Oftalmoclínica — Premium, Fortaleza: Oftalmologia. Endereço publicado: Avenida Humberto Monte, 2929, 520 B.",
+    "sourceUrl": "https://www.oftalmoclinicafortaleza.com.br/",
+    "verifiedAt": "2026-09-24T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-otos-aldeota-cadastro",
+    "clinicId": "public-otos-aldeota",
+    "title": "Clínica Otos — Aldeota: cadastro institucional",
+    "content": "Clínica Otos — Aldeota, Fortaleza: Otorrinolaringologia. Endereço publicado: Rua Carolina Sucupira, 1151.",
+    "sourceUrl": "https://otos.com.br/",
+    "verifiedAt": "2026-09-24T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-otos-eusebio-cadastro",
+    "clinicId": "public-otos-eusebio",
+    "title": "Clínica Otos — Eusébio: cadastro institucional",
+    "content": "Clínica Otos — Eusébio, Eusébio: Otorrinolaringologia. Endereço publicado: Avenida Eusébio de Queiroz, 1890, Sala 14, Shopping Eusébio.",
+    "sourceUrl": "https://otos.com.br/",
+    "verifiedAt": "2026-09-24T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-otos-parquelandia-cadastro",
+    "clinicId": "public-otos-parquelandia",
+    "title": "Clínica Otos — Parquelândia: cadastro institucional",
+    "content": "Clínica Otos — Parquelândia, Fortaleza: Otorrinolaringologia. Endereço publicado: Rua Dom Lino, 266.",
+    "sourceUrl": "https://otos.com.br/",
+    "verifiedAt": "2026-09-24T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-policlinica-maracanau-cadastro",
+    "clinicId": "public-policlinica-maracanau",
+    "title": "Policlínica Regional Senador Almir Pinto: cadastro institucional",
+    "content": "Policlínica Regional Senador Almir Pinto, Maracanaú: Cardiologia, Clínica Médica, Dermatologia, Endocrinologia e Metabologia, Ginecologia e Obstetrícia, Oftalmologia, Ortopedia e Traumatologia, Otorrinolaringologia, Reumatologia, Urologia, Psicologia. Endereço publicado: Avenida Airton Senna, 56. Atendimento pelo SUS, com encaminhamento pela UBS e agendamento pela regulação municipal. Não há atendimento por demanda espontânea.",
+    "sourceUrl": "https://www.consorciodesaudemaracanau.com.br/policlinica/perguntas-e-respostas/",
+    "verifiedAt": "2026-09-28T10:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-premiere-cadastro",
+    "clinicId": "public-premiere",
+    "title": "Première Medicina e Saúde: cadastro institucional",
+    "content": "Première Medicina e Saúde, Fortaleza: Pneumologia. Endereço publicado: Rua Tibúrcio Cavalcante, 1947.",
+    "sourceUrl": "https://premieremedicina.com.br/equipe/diana-rangel/",
+    "verifiedAt": "2026-09-28T10:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-reviva-cadastro",
+    "clinicId": "public-reviva",
+    "title": "Reviva Clínica Popular: cadastro institucional",
+    "content": "Reviva Clínica Popular, Maracanaú: Cardiologia, Clínica Médica, Endocrinologia e Metabologia, Gastroenterologia, Ginecologia e Obstetrícia, Neurologia. Endereço publicado: Avenida 5A, 17.",
+    "sourceUrl": "https://www.revivaclinicapopular.com.br/",
+    "verifiedAt": "2026-09-28T10:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-santa-maria-maracanau-cadastro",
+    "clinicId": "public-santa-maria-maracanau",
+    "title": "Clínica Santa Maria: cadastro institucional",
+    "content": "Clínica Santa Maria, Maracanaú: Ginecologia e Obstetrícia, Urologia. Endereço publicado: Rua 46, 60.",
+    "sourceUrl": "https://santamariaclinica.com.br/",
+    "verifiedAt": "2026-09-28T10:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-sao-carlos-hospital-cadastro",
+    "clinicId": "public-sao-carlos-hospital",
+    "title": "Hospital São Carlos — Consultas: cadastro institucional",
+    "content": "Hospital São Carlos — Consultas, Fortaleza: Pneumologia. Endereço publicado: Rua Fotógrafo Ribeiro, 214.",
+    "sourceUrl": "https://www.rededorsaoluiz.com.br/encontre-um-medico/pneumologista/em/fortaleza-ce",
+    "verifiedAt": "2026-09-28T10:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-sao-carlos-uno-cadastro",
+    "clinicId": "public-sao-carlos-uno",
+    "title": "Centro Médico São Carlos — Edifício Uno: cadastro institucional",
+    "content": "Centro Médico São Carlos — Edifício Uno, Fortaleza: Pneumologia. Endereço publicado: Avenida Pontes Vieira, 2340.",
+    "sourceUrl": "https://www.rededorsaoluiz.com.br/encontre-um-medico/pneumologista/em/fortaleza-ce",
+    "verifiedAt": "2026-09-28T10:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  }
+]

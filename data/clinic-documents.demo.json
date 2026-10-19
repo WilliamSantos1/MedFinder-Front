@@ -1,0 +1,22 @@
+[
+  {
+    "id": "texto-demo-aldeota",
+    "clinicId": "demo-aldeota",
+    "title": "Serviços demonstrativos de Clínica Exemplo Aldeota",
+    "content": "Conteúdo fictício para testes: consultas de ortopedia em ambiente acessível, atendimento adulto e orientações sobre os serviços disponíveis. Esta unidade é apenas uma demonstração e não presta atendimento.",
+    "sourceUrl": null,
+    "verifiedAt": null,
+    "isDemo": true,
+    "active": true
+  },
+  {
+    "id": "texto-demo-urologia",
+    "clinicId": "demo-urologia",
+    "title": "Serviços demonstrativos de Urologia Demonstração",
+    "content": "Conteúdo fictício para testes: consultas de urologia em ambiente acessível, atendimento adulto e orientações sobre os serviços disponíveis. Esta unidade é apenas uma demonstração e não presta atendimento.",
+    "sourceUrl": null,
+    "verifiedAt": null,
+    "isDemo": true,
+    "active": true
+  }
+]

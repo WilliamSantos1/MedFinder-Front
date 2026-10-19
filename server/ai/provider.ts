@@ -1,11 +1,7 @@
-import type { ModelAnswer, Source, Specialty } from '../../shared/contracts.js';
+import type { ModelAnswer, Specialty } from '../../shared/contracts.js';
+import type { PatientProfile } from '../domain/patient.js';
 
 export const EMBEDDING_DIMENSIONS = 1536;
-export interface Evidence extends Source {
-  specialties: Specialty[];
-  content: string;
-  score: number;
-}
 export interface AIProvider {
   mode: 'demo' | 'openai' | 'ollama';
   embeddingDimensions: number;
@@ -15,7 +11,9 @@ export interface AIProvider {
   generate(input: {
     message: string;
     history: string[];
-    evidence: Evidence[];
+    specialties?: Specialty[];
+    previousQuestions?: string[];
+    patient?: PatientProfile;
   }): Promise<ModelAnswer>;
 }
 

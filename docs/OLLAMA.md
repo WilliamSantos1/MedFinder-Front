@@ -1,110 +1,54 @@
-# IA generativa local, sem pagar por uma API
+# IA generativa local com Ollama
 
-O MedFinder 1.3 pode gerar respostas e calcular embeddings no seu computador com **Ollama**. Não exige chave da OpenAI, cartão, assinatura do ChatGPT ou API de clínicas. Os modelos são baixados uma vez; depois, chat, busca RAG e catálogo funcionam localmente. Abrir o site de uma clínica ou uma fonte externa ainda exige internet.
-
-## Instalação no Windows
-
-### 1. Instalar o Ollama
-
-Baixe e instale pelo [site oficial](https://ollama.com/download/windows). Abra o Ollama e deixe-o em execução. Feche e abra novamente o PowerShell após instalar, para reconhecer o comando `ollama`.
-
-### 2. Baixar os dois modelos
-
-No PowerShell, execute um comando por vez e espere terminar:
+O MedFinder pode rodar sem chave OpenAI ou API paga. Instale [Ollama](https://ollama.com/download/windows), abra o aplicativo e um novo PowerShell. Na pasta do projeto, execute:
 
 ```powershell
+node -v
+ollama --version
 ollama pull qwen3:4b-instruct-2507-q4_K_M
 ollama pull bge-m3
-```
-
-`qwen3:4b-instruct-2507-q4_K_M` escreve as respostas em português. `bge-m3` transforma o relato e os documentos em vetores para a busca do RAG. Ambos são modelos locais; não escolha versões com `cloud` no nome. Não é preciso fazer login no Ollama para esses downloads públicos.
-
-Os arquivos dos modelos somam aproximadamente **3,7 GB**, além do próprio Ollama e do projeto. Para começar com folga, recomendamos **16 GB de RAM e 15 GB livres no disco**; isso é uma estimativa para este conjunto, não uma garantia de desempenho. É possível usar CPU, mas as respostas podem levar mais tempo. Uma GPU compatível ajuda. Não há cobrança por mensagem; o processamento usa memória, energia e hardware do seu PC.
-
-### 3. Preparar o MedFinder
-
-Extraia a nova entrega em uma pasta separada, preservando sua instalação anterior. Entre na pasta **MedFinder**, a que contém `package.json`. Clique na barra de endereço do Explorador, digite `powershell` e pressione Enter.
-
-Execute:
-
-```powershell
 npm.cmd ci
 npm.cmd run setup:ollama
-```
-
-Se já executou `npm.cmd ci` nesta nova versão, não precisa repetir. `setup:ollama`:
-
-1. Cria o `.env` automaticamente a partir de `.env.ollama.example`. Você **não precisa procurar, copiar ou editar esse arquivo**.
-2. Se existir uma configuração local de outro modo, guarda uma cópia `.env.backup-...` antes de ativar Ollama. Não sobrescreve uma configuração Ollama já existente nem converte automaticamente uma configuração de produção/banco externo.
-3. Confere se os dois modelos estão instalados localmente, cria o banco em `.data/ollama`, indexa os oito resumos e carrega as 20 clínicas reais.
-4. Faz um teste técnico de embeddings e geração. Ao terminar com sucesso, imprime **“IA local pronta”**. A primeira execução pode demorar alguns minutos.
-
-Não rode esse comando enquanto outra instância do MedFinder estiver usando o mesmo banco. O banco antigo e seus arquivos não são apagados. A configuração anterior pode conter uma chave: mantenha os backups privados e fora do Git, assim como o `.env`.
-
-### 4. Abrir o aplicativo
-
-```powershell
 npm.cmd run dev
 ```
 
-Abra **http://localhost:5173**. O cabeçalho do chat deve mostrar **“IA local · Ollama”**. Uma resposta gerada e validada terá `mode=ollama` e fontes consultáveis. O modo `fallback` significa que a consulta não produziu orientação suficiente, e não comprova sucesso da geração.
+Abra **http://localhost:5173**. Para os próximos usos, basta deixar o Ollama aberto e executar `npm.cmd run dev`.
 
-Nas próximas vezes, abra o Ollama e execute apenas `npm.cmd run dev`. Não precisa baixar os modelos nem preparar o banco novamente.
+`setup:ollama` cria `.env` a partir de `.env.ollama.example` quando necessário. Se a configuração anterior era de outro provedor, preserva um backup privado `.env.backup-*`. Se já era Ollama, mantém seus valores. O padrão usa `DATA_DIR=./.data/ollama`, gerador Qwen3 Instruct e embeddings BGE-M3 de 1024 dimensões.
 
-## Por que ainda aparece “demonstração”?
+A preparação aplica migrações, importa as 36 unidades, tenta indexar os 36 resumos públicos e testa a geração com mensagem sintética. O gerador sugere no máximo uma especialidade, validada pela taxonomia; **não precisa do índice RAG para isso**. Falha opcional de embeddings é informada sem bloquear indicação ou catálogo. Depois de resolver o problema, repita a preparação para indexar os documentos.
 
-A IA local é generativa de verdade. O aviso se refere aos **resumos médicos de homologação**, que ainda não foram revisados por um profissional. As 20 clínicas são registros reais com fontes documentadas, mas o catálogo é uma cópia local, sem atualização automática de horários, preços ou cobertura. A revisão clínica continua necessária antes de disponibilizar orientação a pacientes.
+## Se já tinha a versão anterior
 
-## Resolver problemas
+Pare `npm.cmd run dev` com Ctrl+C, faça backup da pasta de dados e atualize o código. Preserve `.env` e `.data`. Execute `npm.cmd ci`, `npm.cmd run db:migrate`, `npm.cmd run setup:ollama` e `npm.cmd run dev`. Não execute manutenção com outro processo usando o mesmo PGlite.
 
-| Mensagem ou situação               | O que fazer                                                                                                                                     |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ollama` não reconhecido           | Instale o Ollama e reabra o PowerShell.                                                                                                         |
-| Ollama indisponível                | Abra o aplicativo Ollama; confirme que ele está em execução. Depois repita `npm.cmd run setup:ollama`.                                          |
-| Modelo local ausente               | Execute o `ollama pull ...` indicado no erro. `ollama list` mostra os modelos baixados.                                                         |
-| Falta de memória ou resposta lenta | Feche outros programas. Para reduzir o modelo, veja a opção abaixo.                                                                             |
-| A janela permanece indexando       | Aguarde; o primeiro carregamento e a geração na CPU podem demorar.                                                                              |
-| Banco já está em uso               | Pare `npm.cmd run dev` com Ctrl+C antes da preparação/reindexação.                                                                              |
-| `setup:ollama` não existe          | Você está em uma versão antiga ou em outra pasta. Use o pacote 1.3 e a pasta com `package.json`.                                                |
-| Chat mostra modo demonstração      | Confira `AI_PROVIDER=ollama` no `.env` e reinicie `npm.cmd run dev`.                                                                            |
-| `needsReindex=true`                | Pare o servidor e execute `npm.cmd run rag:reindex` com o Ollama aberto.                                                                        |
-| Teste gera resposta inválida       | Repita `npm.cmd run integrations:check`; confirme os modelos indicados acima. Modelos menores podem falhar mais no formato ou na fundamentação. |
-
-Para diagnosticar sem alterar o catálogo, pare o MedFinder e execute `npm.cmd run integrations:check`. `ollama-live` precisa ficar `ok: true`. A revisão clínica permanece separada desse teste técnico.
-
-## Ajustes opcionais
-
-Para usar um gerador menor:
+## Conferir funcionamento
 
 ```powershell
-ollama pull qwen3:1.7b
-notepad .env
+npm.cmd run setup:check
+npm.cmd run integrations:check
 ```
 
-Troque apenas `OLLAMA_MODEL=qwen3:4b-instruct-2507-q4_K_M` por `OLLAMA_MODEL=qwen3:1.7b`, salve, execute `npm.cmd run integrations:check` e reinicie o MedFinder. O modelo menor pode ter qualidade inferior e não foi validado nesta entrega. O perfil padrão usa a variante Instruct 2507, verificada no teste técnico descrito em VALIDACAO.md. Trocar só o gerador não exige reindexação.
+A primeira verificação examina configuração e banco. A segunda faz um teste sintético real com o gerador e, se houver documentos, testa embeddings. `liveVerified=true` refere-se à geração técnica, não à validade clínica das respostas. O componente textual opcional pode falhar independentemente.
 
-Trocar o modelo de embeddings exige ajustar `OLLAMA_EMBEDDING_MODEL` e `OLLAMA_EMBEDDING_DIMENSIONS` ao modelo escolhido e executar `npm.cmd run rag:reindex`. Não misture embeddings de modelos diferentes. Reindexe também após atualizar os pesos do modelo sob a mesma etiqueta, pois a etiqueta não fixa o digest dos pesos.
+Na interface, deve aparecer **IA local · Ollama**. “Estou com dor no pescoço” agora inicia esclarecimentos; responda às perguntas antes de esperar uma especialidade. Um relato já detalhado pode receber indicação diretamente. Fortaleza + CASSI permite conferir o filtro do catálogo depois da indicação. Também são aceitas consultas diretas, como “Existe clínica de urologia em Fortaleza?” e “Quais clínicas aceitam Unimed?”, sem precisar relatar sintomas. Informações de clínicas vêm do banco e dos textos verificados.
 
-O limite por operação é `OLLAMA_TIMEOUT_MS=180000` (três minutos). O navegador aguarda embeddings + geração; você pode interromper o envio. O cancelamento no navegador não descarrega imediatamente o modelo: o servidor termina a operação ou atinge seu limite. `AI_MAX_CONCURRENCY=1` evita várias gerações simultâneas neste perfil.
+## Localização e feedback
 
-O modo local aceita apenas um endereço de loopback, consulta os metadados do modelo antes de enviar texto e rejeita modelos remotos/cloud e redirecionamentos. Não há fallback automático para OpenAI. Como proteção adicional no próprio Ollama, você pode desativar recursos de nuvem:
+Use “Usar minha localização” se desejar ordenar por proximidade. A posição não é salva nem enviada ao modelo. As 36 unidades distribuídas possuem coordenadas verificadas; a distância é calculada em linha reta. Se todos os cards da instalação antiga continuarem sem distância, pare a API, rode `npm.cmd run catalog:load`, reinicie e autorize localização. Dados demo continuam identificados como exemplos.
 
-```powershell
-[Environment]::SetEnvironmentVariable('OLLAMA_NO_CLOUD', '1', 'User')
-```
+Os botões “Sim” e “Não” avaliam a utilidade da resposta e não treinam a IA. O comentário opcional é salvo com redução de identificadores; não inclua dados pessoais ou sintomas.
 
-Depois, encerre o Ollama pelo ícone próximo ao relógio e abra-o novamente. Não basta colocar essa variável no `.env` do MedFinder: o Ollama é outro processo.
+## Problemas frequentes
 
-O perfil foi preparado para **Node e Ollama no mesmo computador, sem Docker**. Um backend em container não consegue acessar o Ollama do host usando `127.0.0.1`; esse arranjo precisa de configuração de implantação própria.
+| Problema                           | Ação                                                                   |
+| ---------------------------------- | ---------------------------------------------------------------------- |
+| `ollama` não reconhecido           | Abrir novo terminal após instalar; conferir instalação                 |
+| Modelo ausente                     | Executar `ollama pull` com o nome mostrado no erro                     |
+| Geração lenta                      | Aguardar carregamento; o desempenho depende de RAM/CPU/GPU e do modelo |
+| BGE-M3 indisponível                | Baixar o modelo e repetir setup; a navegação não depende do RAG        |
+| Modelo cloud/alias remoto recusado | Usar pesos locais GGUF; o sistema não envia relatos a modelos cloud    |
+| `needsReindex=true`                | Parar API e executar `npm.cmd run rag:reindex`                         |
+| Origem não permitida               | Abrir localhost:5173 ou alias de loopback na mesma porta               |
 
-Configuração manual: copie `.env.ollama.example` para `.env` na raiz do projeto (junto de `package.json`). Em uma instalação de servidor, preserve os campos do banco, HTTPS e revisão de conteúdo; execute `npm.cmd run setup:connected -- caminho/conhecimento-aprovado.json` com `AI_PROVIDER=ollama`. Esse comando utiliza o provedor configurado e não ativa OpenAI automaticamente.
-
-## Referências oficiais
-
-- [Ollama para Windows](https://docs.ollama.com/windows)
-- [Geração estruturada](https://docs.ollama.com/capabilities/structured-outputs)
-- [Embeddings locais](https://docs.ollama.com/api/embed)
-- [Qwen3 4B](https://ollama.com/library/qwen3:4b-instruct-2507-q4_K_M)
-- [BGE-M3](https://ollama.com/library/bge-m3)
-- [BGE-M3: especificações do autor](https://huggingface.co/BAAI/bge-m3)
-- [Desativar nuvem e configuração](https://docs.ollama.com/faq)
+Ollama deve ficar no loopback do servidor MedFinder (`http://127.0.0.1:11434`); redirects e modelos remotos são recusados antes do envio de texto. Não há troca automática para OpenAI. Se mudar o gerador, valide Structured Outputs e comportamento em PT-BR. Trocar modelo/dimensão de embeddings ou atualizar seus pesos exige reindexação. Veja [RAG.md](RAG.md) e [VALIDACAO.md](VALIDACAO.md).

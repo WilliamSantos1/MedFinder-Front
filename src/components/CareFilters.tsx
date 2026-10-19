@@ -1,9 +1,11 @@
 import { MapPin, WalletCards } from 'lucide-react';
 import { useId } from 'react';
+import type { GeolocationState } from '../hooks/useGeolocation';
 import type { CatalogMeta } from '../../shared/contracts';
 
 export interface CareFilterProps {
   catalog?: CatalogMeta;
+  geolocation: GeolocationState;
   city: string;
   insurance: string;
   onCityChange: (value: string) => void;

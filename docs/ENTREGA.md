@@ -1,35 +1,34 @@
-# Entrega do MedFinder 1.3
+# Atualizar a instalação existente
 
-A implementação foi preparada a partir do repositório `WilliamSantos1/MedFinder-Front`, commit-base `ba16877da5b0140fd0ba05fb7bdfbd84aac3d1e9`.
+Esta entrega 2.3.1 evolui o código do repositório `WilliamSantos1/MedFinder-Front`. Não precisa criar outra pasta de publicação, branch ou aplicar um patch para executar uma cópia completa.
 
-O GitHub permitiu consultar e clonar o projeto, mas recusou a tentativa de gravação pela integração com HTTP 403, `Resource not accessible by integration`. Nenhum commit, branch remota ou pull request desta implementação foi criado no GitHub. A entrega está no pacote completo, com um patch binário para aplicação ao repositório original.
+Se você já usa a versão 2.3, esta integração não muda banco, modelos ou catálogo. Basta substituir o código preservando `.env`, `.data` e `.git`, executar `npm.cmd ci` e depois `npm.cmd run dev`. Veja [os commits integrados](INTEGRACAO-EQUIPE.md). Para versões anteriores, siga a atualização completa abaixo.
 
-## Usar o projeto completo
+1. Pare o servidor local (Ctrl+C).
+2. Faça backup do projeto e da pasta de dados configurada no `.env`.
+3. Atualize os arquivos de código mantendo seu `.git`, `.env` e `.data`. Não copie `node_modules` de outra máquina.
+4. Na pasta de `package.json`, execute:
 
-Extraia o ZIP, entre na pasta `MedFinder` e siga o README. A pasta contém todo o código, assets originais, arquivos de configuração, testes, exemplos e documentação. Dependências, banco local, credenciais e diretório `.git` não fazem parte do pacote.
-
-## Aplicar as mudanças ao GitHub existente
-
-O arquivo `MedFinder-Completo-v1.3.patch`, ao lado da pasta do projeto no ZIP, contém todas as mudanças, incluindo imagens. Use um clone limpo do projeto. Os comandos abaixo não devem ser executados sobre trabalho local ainda não salvo.
-
-```bash
-git clone https://github.com/WilliamSantos1/MedFinder-Front.git
-cd MedFinder-Front
-git switch -c feat/medfinder-catalogo-publico ba16877da5b0140fd0ba05fb7bdfbd84aac3d1e9
-git apply --check ../MedFinder-Completo-v1.3.patch
-git apply --index ../MedFinder-Completo-v1.3.patch
-npm ci
-npm run check
-git commit -m "feat: integrar IA, RAG e catalogo publico ao MedFinder"
-git push -u origin feat/medfinder-catalogo-publico
+```powershell
+npm.cmd ci
+npm.cmd run db:migrate
+npm.cmd run setup:ollama
+npm.cmd run dev
 ```
 
-Ajuste o caminho do patch conforme o local em que extraiu o ZIP. O envio usa a sua autenticação normal do GitHub com permissão de escrita no repositório. Depois, abra um pull request da branch `feat/medfinder-catalogo-publico` para `main`. Caso `main` tenha evoluído, revise a integração em uma branch antes de mesclar; `git apply --check` evita aplicar um patch incompatível silenciosamente.
+Abra `http://localhost:5173`. As migrações atualizam o banco sem apagá-lo. A migração 10 habilita Pediatria e a 9 mantém Medicina de Família e Comunidade desativada; `setup:ollama` importa as 36 unidades com coordenadas e tenta indexar seus textos, incluindo Pediatria na Clínica Angellus. Apenas `db:migrate` não substitui o catálogo antigo. Backend e frontend devem ser atualizados juntos para permitir respostas curtas de idade, como “5”, também na interface. Não há mais dependência de `data/knowledge.demo.json`; se esse arquivo sobrar de uma extração anterior, remova apenas esse arquivo antigo de código/dados demo, não a pasta do banco.
 
-Não compartilhe tokens ou chaves de API no chat, em arquivos públicos ou no código. Para que uma integração faça o envio diretamente, seu proprietário/administrador precisa conceder a ela o acesso de escrita correspondente. O erro 403 não foi contornado nesta entrega.
+Valide no seu Ollama com `npm.cmd run integrations:check`. Teste “estou com dor de cabeça” ou “estou sentindo muita dor no pescoço”: inicialmente devem aparecer perguntas, sem especialidade ou clínicas. Responda sobre início, características e demais sintomas. Só com contexto suficiente e candidata válida haverá recomendação; alertas de urgência interrompem o fluxo. Um relato já detalhado pode dispensar perguntas. Confira também que Medicina de Família e Comunidade não aparece no filtro de especialidade.
 
-A atualização 1.3 foi desenvolvida sobre o pacote local anterior. O ZIP inclui os fontes completos e as instruções em `docs/ATIVACAO.md`. Não foi feita nova tentativa de escrita no GitHub nesta atualização; o bloqueio de acesso relatado acima permanece pendente.
+Teste também:
 
-## Atualização a partir do pacote 1.2
+- “Meu ouvido coça depois que nadei”: não deve exigir preencher um formulário se houver candidata válida.
+- O relato da imagem (ouvido doendo após uso de lápis): deve priorizar avaliação presencial, com área relacionada e explicação curta, sem questionário ou clínicas eletivas.
+- “Minha filha está com coceira na pele e manchas desde ontem”: deve perguntar a idade. “5” usa o histórico; “25 anos” não trata a filha como criança.
+- “Minha filha de 5 anos está com coceira e manchas”: não deve repetir a idade. Uma criança pode receber outra especialidade quando a queixa justificar; não há encaminhamento obrigatório de toda criança à Pediatria.
 
-O ZIP também inclui `MedFinder-Atualizacao-v1.2-v1.3.patch`, aplicável à cópia exata da entrega 1.2. Ele adiciona geração/embeddings Ollama, configuração automática, migração de vetores, testes e documentação. Preserva `.env` e o banco local; `setup:ollama` guarda uma cópia da configuração anterior ao ativar o novo perfil. Siga [OLLAMA.md](OLLAMA.md). Não confunda esse patch incremental com o patch completo contra o commit original do GitHub.
+Os adaptadores enviam o novo prompt/schema automaticamente. Não é preciso baixar novamente os modelos locais. A execução real no seu Ollama pode variar; os testes automatizados usam demonstração e transportes simulados.
+
+Para publicar suas alterações no repositório já configurado, revise primeiro o diff e os arquivos ignorados. Não versione `.env`, `.data`, `node_modules`, builds ou relatórios de teste. `git status` e `git diff` mostram o conteúdo concreto antes de adicionar/commitar. Não use `push --force` para atualizar o projeto.
+
+As instruções não afirmam que o código foi publicado no GitHub: publicação depende do acesso de escrita ao repositório e deve ser confirmada pelo commit remoto.

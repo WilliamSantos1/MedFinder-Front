@@ -1,191 +1,147 @@
 # MedFinder
 
-Aplicação web para **navegação de cuidados**: a pessoa descreve uma queixa, consulta informações fundamentadas em uma base de conhecimento e encontra especialidades e clínicas do catálogo por cidade e convênio.
+Aplicação web de navegação de cuidados em React, TypeScript e Node.js. A IA sugere uma especialidade para avaliação; o backend valida o nome e busca clínicas com filtros exatos. Não realiza diagnóstico, prescrição ou agendamento.
 
-O projeto evolui o front React original para uma aplicação integrada em TypeScript. A identidade verde foi preservada, os componentes saíram de `public/` e o chat simulado foi substituído por uma API e um pipeline RAG.
+**Versão 2.3.1:** relatos detalhados dispensam o questionário obrigatório. A idade da pessoa com o sintoma é considerada quando pode mudar o atendimento, e a orientação inclui uma descrição breve. Medicina de Família e Comunidade saiu das opções ativas. A resposta continua com zero ou uma especialidade canônica, consultas diretas ao catálogo e continuidade da conversa. São 36 unidades reais com coordenadas verificadas, localização opcional e feedback. O RAG complementa os resultados com textos de clínicas: **não decide a especialidade**.
 
-> **Versão 1.3:** IA generativa e embeddings **locais com Ollama**, sem chave da OpenAI ou cobrança por mensagem. Mantém as **20 clínicas reais** e o RAG. A base médica de homologação ainda precisa de revisão clínica antes de uso assistencial.
+A versão 2.3.1 integra os commits `c15dc8d` e `9682928` da equipe: fontes maiores, interface simplificada e plugins React/Tailwind na configuração dos testes, preservando os ajustes recentes do chat. [Detalhes da integração e atualização](docs/INTEGRACAO-EQUIPE.md).
 
-**Quer usar sem API paga? Siga [docs/OLLAMA.md](docs/OLLAMA.md)**. Instale [Ollama](https://ollama.com/download/windows), abra o aplicativo e execute na pasta que contém `package.json`:
+## Rodar localmente no Windows, sem API paga
+
+Na pasta que contém `package.json`, com Node.js >=22.16 e Ollama instalado:
 
 ```powershell
+npm.cmd ci
 ollama pull qwen3:4b-instruct-2507-q4_K_M
 ollama pull bge-m3
-npm.cmd ci
 npm.cmd run setup:ollama
 npm.cmd run dev
 ```
 
-`setup:ollama` cria o `.env` automaticamente, prepara o RAG e testa os modelos. Abra **http://localhost:5173**. Os downloads dos dois modelos somam aproximadamente 3,7 GB; reserve memória e disco para o Ollama e o projeto. Depois dos downloads, chat/RAG/catálogo funcionam localmente. [Catálogo e fontes](docs/CATALOGO.md) · [OpenAI opcional](docs/ATIVACAO.md).
+Abra **http://localhost:5173**. `setup:ollama` cria o `.env` quando necessário, aplica migrações, importa o catálogo e verifica a geração. `bge-m3` é usado somente na indexação/recuperação textual opcional; a indicação de especialidade não depende dele. Não há chave ou cobrança por mensagem com modelos locais. Memória, disco, energia e desempenho dependem do seu computador. [Passo a passo Ollama](docs/OLLAMA.md).
 
-![MedFinder em desktop](docs/images/desktop.png)
+Para quem já está usando a versão anterior: pare o servidor, faça backup de `.data` e preserve seu `.env`; atualize o código e execute:
 
-[Visualização em celular](docs/images/mobile.png) · [Arquitetura](docs/ARQUITETURA.md) · [API](docs/API.md) · [Operação](docs/OPERACAO.md)
-
-## Demonstração sem instalar modelos
-
-Requisitos: **Node.js 24 LTS** recomendado (mínimo 22.16), npm e Git.
-
-Extraia o pacote entregue e abra um terminal na pasta `MedFinder`. Se estiver trabalhando no repositório original, aplique primeiro o patch conforme [docs/ENTREGA.md](docs/ENTREGA.md).
-
-```bash
-cd MedFinder
-npm ci
-cp .env.example .env
-npm run dev
+```powershell
+npm.cmd ci
+npm.cmd run db:migrate
+npm.cmd run setup:ollama
+npm.cmd run dev
 ```
 
-No PowerShell, use `npm.cmd` e substitua `cp .env.example .env` por `Copy-Item .env.example .env`. Copie o arquivo de configuração apenas quando ainda não tiver um `.env` configurado.
+Não apague `.data` para atualizar. As migrações 1–9 permanecem intactas. A migração 9 mantém Medicina de Família e Comunidade desativada; a 10 habilita Pediatria sem sobrescrever uma configuração administrativa existente. `setup:ollama` também importa o catálogo ampliado e seus textos. Não rode API e manutenção simultaneamente no mesmo PGlite.
 
-Abra **http://localhost:5173**. A API inicia na porta 3001. Na primeira execução, cria as tabelas, importa as 20 unidades reais e indexa os resumos de homologação automaticamente. Selecione **Fortaleza**, **CASSI** e envie **“estou com dor no pescoço”** para verificar chat, fontes, especialidades e a clínica compatível.
+Em relatos como “minha filha está com coceira na pele e manchas desde ontem”, a idade é perguntada se estiver ausente. Uma resposta como “5” ou “8 meses” complementa o histórico. Idade conhecida não é perguntada novamente; uma filha adulta não é tratada automaticamente como criança. O serviço de Pediatria da Clínica Angellus foi confirmado na fonte oficial em 18/10/2026.
 
-O banco local usa **PGlite**, PostgreSQL embarcado no processo Node, com **pgvector**, e persiste em `.data/postgres`. Não é um banco no navegador. Não exige Docker. Execute somente um processo de API ou CLI por vez quando usar esse diretório: pare `npm run dev` antes de comandos de manutenção.
+## Demonstração sem modelos
 
-O modo `AI_PROVIDER=demo` usa busca lexical/vetorial por feature hashing e respostas em modelo fixo. **Não contém um LLM local e não é IA generativa**. Serve para desenvolver, testar e demonstrar as conexões sem custo de API.
-
-## Alternativa opcional: API OpenAI
-
-1. Pare a aplicação.
-2. No `.env`, altere:
-
-   ```dotenv
-   AI_PROVIDER=openai
-   OPENAI_API_KEY=sua-chave-apenas-no-servidor
-   OPENAI_MODEL=gpt-4.1-mini
-   EMBEDDING_MODEL=text-embedding-3-small
-   ```
-
-3. Reindexe os documentos no mesmo modelo usado para as consultas:
-
-   ```bash
-   npm run setup:connected
-   npm run integrations:check
-   npm run dev
-   ```
-
-4. No chat, autorize o processamento do relato pela OpenAI. O serviço usa **Responses API + Structured Outputs**, `store: false` e embeddings de **1536 dimensões**. A interface distingue o catálogo real da base de orientação ainda sem revisão clínica.
-
-A chave precisa ter acesso aos modelos e saldo/limites suficientes. A assinatura do ChatGPT não configura a API deste projeto. Não coloque a chave em variáveis `VITE_*`, no código, em commits ou no navegador. Toda troca de modelo de embeddings requer reindexação. Vetores de modelos diferentes não são misturados. O nome do modelo de geração é configurável; use um modelo compatível com Responses e Structured Outputs.
-
-## Stack e organização
-
-| Camada       | Tecnologia / responsabilidade                                                 |
-| ------------ | ----------------------------------------------------------------------------- |
-| Frontend     | React 19, TypeScript, Vite, CSS/Tailwind, Lucide; chat e catálogo responsivos |
-| Contratos    | Zod compartilhado entre front e back                                          |
-| API          | Node.js, Fastify; validação, CORS restrito, limites de payload e requisições  |
-| Persistência | PostgreSQL 17 + pgvector; PGlite em desenvolvimento                           |
-| RAG          | Ingestão de JSON, chunks com sobreposição, embeddings, busca híbrida e fontes |
-| Geração      | Ollama local ou OpenAI com saída estruturada; demonstração explícita          |
-| Qualidade    | Vitest, Playwright, TypeScript estrito, ESLint, Prettier, GitHub Actions      |
-
-```text
-src/                  interface, componentes, hooks e cliente HTTP
-shared/contracts.ts   formatos validados e taxonomia de especialidades
-server/app.ts         composição da API e controles HTTP
-server/services/      orquestração do chat
-server/domain/        alertas, normalização e redução de identificadores
-server/ai/            contratos e adaptadores de IA
-server/rag/           ingestão, chunking e recuperação
-server/db/            conexão, migrações e catálogo
-scripts/manage.ts     manutenção e importação via CLI
-data/                catálogo real, fixtures e documentos de homologação
-tests/               testes de regras, API, banco e contrato do provedor
-e2e/                 fluxos completos no navegador
-docs/                arquitetura, API, operação e limites conhecidos
+```powershell
+npm.cmd ci
+# Apenas se ainda não tiver um .env:
+Copy-Item .env.example .env
+npm.cmd run dev
 ```
 
-## Fluxo RAG
+O modo `demo` usa exemplos determinísticos e feature hashing para testar o fluxo; **não é IA generativa nem um motor clínico**. O startup local carrega 36 unidades reais e 36 resumos textuais. Experimente “Quais clínicas aceitam Unimed?” ou “Qual clínica de oftalmologia está mais perto?”. O botão “Usar minha localização” pede permissão somente após clique.
+
+## Stack
+
+| Camada         | Tecnologias e responsabilidade                                       |
+| -------------- | -------------------------------------------------------------------- |
+| Interface      | React 19, TypeScript, Vite, CSS/Tailwind, Lucide                     |
+| API            | Node.js, Fastify, Zod, CORS restrito e rate limits                   |
+| Banco          | PGlite local; PostgreSQL + pgvector em produção                      |
+| IA             | Ollama local ou OpenAI opcional, JSON Schema + Zod                   |
+| Especialidades | Taxonomia e aliases no banco; resolução exata normalizada            |
+| Proximidade    | Geolocation API no navegador; Haversine no servidor                  |
+| RAG            | Documentos de clínicas, chunks e busca híbrida restrita a candidatos |
+| Avaliação      | Feedback no banco, sem conversa ou coordenadas                       |
+| Qualidade      | TypeScript estrito, ESLint, Vitest e Playwright desktop/mobile       |
+
+## Fluxo
 
 ```mermaid
 flowchart TD
-    A[Relato e contexto recente] --> B{Sinal de urgência?}
-    B -->|Sim| C[Orientação imediata e SAMU 192]
-    B -->|Não| D[Consentimento e redução de identificadores]
-    D --> E[Embedding e busca híbrida no pgvector]
-    E --> F{Evidência suficiente?}
-    F -->|Não| G[Incerteza e pedido de contexto]
-    F -->|Sim| H[Geração estruturada com fontes]
-    H --> I[Validar fontes e especialidades]
-    I --> J[Filtrar catálogo no banco]
-    J --> K[Orientação, fontes e clínicas]
+  A[Mensagem e contexto recente] --> B{Alerta determinístico?}
+  B -->|Sim| C[Orientação de segurança]
+  B -->|Não| R{Intenção}
+  R -->|Sintomas| D[LLM sugere uma especialidade]
+  R -->|Busca ou informação| Q[Resolver entidades do catálogo]
+  D --> T{Há contexto suficiente?}
+  T -->|Não| P[Até duas perguntas curtas]
+  P --> A
+  T -->|Sim| E[Resolver valida nome ou alias]
+  E --> F{Especialidade ativa?}
+  F -->|Não| G[Informar limitação do cadastro]
+  F -->|Sim| H[SQL filtra clínicas]
+  Q --> H
+  H --> I[Localização opcional ordena candidatos]
+  I --> J[RAG textual opcional dessas clínicas]
+  J --> K[Resposta e cards com fontes]
+  C --> L[Feedback opcional]
+  G --> L
+  K --> L
 ```
 
-As clínicas, convênios, endereços e contatos vêm **do banco**, e não de nomes inventados pelo modelo. IDs de fontes e especialidades são validados contra os trechos recuperados. Em alerta de urgência, o fluxo não mostra clínicas para consulta eletiva. Se a IA ou a busca falhar, a resposta informa indisponibilidade e não fabrica uma indicação.
+A resposta apresenta **zero ou uma especialidade**, sempre validada no banco. “Oculista”, “oftalmo” e “oftalmologista” resolvem para **Oftalmologia**; nomes desconhecidos do modelo não são exibidos, inclusive no texto livre. Não há especialidades alternativas nem substituição para preencher resultados.
 
-## Cadastrar os dados reais
+O chat distingue `care_navigation`, `clinic_search` e `clinic_information`. Consultas como “Onde fica a Clínica CTI?” usam dados estruturados, sem inferência médica. “E que aceite Unimed?” e “Qual dessas fica mais perto?” refinam o contexto recente em memória. Convênio e cidade não são relaxados. Proximidade não representa qualidade médica: a distância é aproximada em linha reta, não trajeto nem tempo de viagem.
 
-`data/clinics.public.json` contém **20 unidades em Fortaleza, Eusébio e Maracanaú**, consultadas em sites próprios em 24/09/2026. Abrange as nove especialidades do projeto. Não é uma lista nacional nem uma confirmação de parceria comercial, agenda ou cobertura individual. [Fontes e limitações](docs/CATALOGO.md).
+## Esclarecimentos antes da recomendação
+
+“Estou com dor de cabeça” ou “estou sentindo muita dor no pescoço” não geram uma indicação imediata. O assistente pergunta, por exemplo, quando começou e como é o desconforto. Usa as respostas seguintes e não repete tópicos já respondidos. Com descrição suficiente, pode recomendar diretamente uma especialidade; consultas de catálogo continuam dispensando entrevista.
+
+O modelo seleciona tópicos de esclarecimento permitidos. O backend distingue relatos genéricos e idade necessária, publicando perguntas próprias, sem exigir um formulário completo nem exibir texto livre da IA. São até duas perguntas por resposta e três rodadas; se continuar faltando contexto, não força recomendação e orienta avaliação presencial. Alertas de urgência têm prioridade. A suficiência descritiva é um controle de software, não validação clínica.
+
+## Dados e manutenção
+
+O catálogo distribuído contém **36 unidades em Fortaleza, Eusébio, Maracanaú e Caucaia**, com fontes e datas próprias, cobrindo as 16 áreas ativas da taxonomia atual. Cadastrar uma especialidade não afirma que uma clínica a oferece. Psicologia é uma área de cuidado mantida do projeto, não uma especialidade médica do CFM.
+
+**36 de 36 unidades têm coordenadas verificadas.** O problema anterior era a ausência desses dados nas 20 unidades do snapshot. A preparação do catálogo conferiu o ponto da unidade ou do edifício oficialmente indicado, sem usar centros de cidade. A consulta apenas lê os pares, calcula Haversine e ordena antes de paginar. Cidade vazia permite municípios vizinhos; cidade selecionada restringe a busca. [Fontes, auditoria e limites](docs/CATALOGO.md).
+
+Comandos administrativos, sem servidor PGlite aberto:
 
 ```powershell
-npm.cmd run catalog:load
+npm.cmd run data:import -- specialties caminho/especialidades.json
+npm.cmd run data:import -- clinics caminho/clinicas.json
+npm.cmd run data:import -- clinic-documents caminho/textos.json
+npm.cmd run rag:reindex
+npm.cmd run feedback:prune
 ```
 
-Esse comando importa a versão local do catálogo, sem chave ou acesso à internet no modo `demo`. Não consulta os sites nem altera a data de verificação. Registros removidos da coleção são desativados, preservando cadastros manuais. As clínicas fictícias da instalação anterior são desativadas. Para atualizar os dados, revise o JSON nas fontes antes de reimportar.
+Novas especialidades são cadastradas por JSON, sem recompilar. O importador de clínicas rejeita IDs não cadastrados/ativos. Veja exemplos e regras em [OPERACAO.md](docs/OPERACAO.md) e [RAG.md](docs/RAG.md).
 
-Use `data/clinics.demo.json` e `data/knowledge.demo.json` como exemplos dos formatos. Não basta remover a marca de demonstração: o conteúdo, os vínculos de convênio e as fontes precisam ser verificados por responsáveis pelo projeto.
+## OpenAI opcional
 
-```bash
-npm run db:migrate
-npm run data:import -- clinics ./caminho/clinicas-verificadas.json
-npm run data:import -- knowledge ./caminho/conhecimento-revisado.json
-```
+O uso local com Ollama não precisa da OpenAI. Para optar pela API externa, configure `AI_PROVIDER=openai`, `OPENAI_API_KEY` no servidor, `OPENAI_MODEL` e `EMBEDDING_MODEL` no `.env`, depois execute `npm run setup:connected` e `npm run integrations:check`. A interface pede consentimento antes de enviar relatos ao provedor. Esse modo depende de acesso e cobrança da API; não publique a chave em `VITE_*`, no Git ou no navegador. [Ativação](docs/ATIVACAO.md).
 
-- **Clínicas:** `isDemo=false`, `sourceUrl` HTTPS, `verifiedAt` real e `active=true`. Convênios são correspondências de cadastro, não garantia de cobertura de todo produto da operadora. Cadastros públicos/manuais sem reverificação por 180 dias deixam de aparecer. Campos desconhecidos ficam nulos ou em listas vazias.
-- **Conhecimento:** resumos autorizados, fonte, palavras-chave e especialidades. A publicação exige `reviewStatus=approved`, `reviewedBy`, `reviewedAt`, `isDemo=false` e `active=true`. Documentos com revisão superior a 365 dias saem da recuperação. A aplicação verifica metadados, **não certifica a habilitação do revisor**.
-- A importação manual atualiza registros por `id`; reserve o prefixo `public-` para a coleção distribuída. Para retirar um item, importe o mesmo `id` com `active=false`. Documentos iguais não são reprocessados; a troca de conteúdo substitui os chunks em uma transação.
-- A CLI é o canal administrativo: não há endpoint público de escrita nem painel com credenciais embutidas. Execute a CLI em um ambiente autorizado com acesso ao banco.
-- Arquivos de conhecimento são lidos localmente. URLs de fontes não são baixadas automaticamente; não há crawling nem execução de instruções contidas nos documentos. Os sites de clínicas só são abertos quando a pessoa segue os links; nenhum relato é enviado a eles pelo backend.
+## APIs e organização
 
-Detalhes em [docs/OPERACAO.md](docs/OPERACAO.md).
+`GET /api/catalog` entrega especialidades `{id,name}` do banco. `POST /api/chat` recebe mensagem, filtros e contexto opcional; `POST /api/clinics/search` recebe também localização opcional no corpo. `GET /api/clinics` não aceita posição do usuário. `POST /api/feedback` registra uma avaliação por resposta, com possibilidade de alteração. [Contratos completos](docs/API.md).
 
-## Docker e PostgreSQL externo
+- `shared/contracts.ts`: contratos Zod, sem enum fechado de especialidades.
+- `server/services/chat.ts`, `chat-intent.ts` e `specialty-resolver.ts`: navegação, roteamento e resolução.
+- `server/db/`: migrations incrementais e repositories de catálogo, taxonomia e feedback.
+- `server/rag/`: indexação e recuperação de documentos das clínicas selecionadas.
+- `src/hooks/useGeolocation.ts`: localização explícita, compartilhada e em memória.
+- `src/features/chat/ResponseFeedback.tsx`: avaliação acessível e isolada do chat.
 
-Para experimentar o conjunto com Docker:
+## Privacidade
 
-1. Copie `.env.example` para `.env`.
-2. Defina `POSTGRES_PASSWORD` com uma senha de desenvolvimento e `WEB_ORIGIN=http://localhost:3001`.
-3. Execute `docker compose up --build`.
-4. Abra **http://localhost:3001**. O backend também serve o front compilado.
+Conversas e localização ficam apenas na memória da aba e da requisição. Não usamos localStorage, sessionStorage, IndexedDB ou cookies para esses dados. Coordenadas não vão para URLs, logs, LLM ou RAG. Mensagens recebem redução de identificadores comuns antes do processamento; isso não garante anonimização.
 
-Para produção, parta de `.env.production.example`. São obrigatórios PostgreSQL externo, um provedor generativo configurado (Ollama local ou OpenAI), `ALLOW_DEMO_DATA=false`, `AUTO_SEED=false` e origem HTTPS. Cadastre e revise o conteúdo antes de liberar o tráfego; `/api/ready` retorna 503 sem catálogo visível, sem documentos válidos ou com reindexação pendente. O Compose escuta somente no loopback do host: publique atrás de um proxy HTTPS. O banco não expõe porta ao host. Use senha com caracteres seguros em URL ou codifique os caracteres reservados ao montar `DATABASE_URL`.
+Feedback salva voto, motivo, comentário opcional redigido e identificadores técnicos. Um comprovante de resposta guarda apenas metadados e hash de um token para autorizar o voto. Não salva relato, histórico, resposta completa ou localização. Evite incluir dados pessoais ou sintomas no comentário. O feedback mede utilidade percebida, não acurácia médica, e não treina o modelo automaticamente.
 
-Para executar sem Docker com banco já configurado:
+No modo Ollama, o adaptador aceita apenas loopback e modelos locais GGUF. No modo OpenAI, o relato e histórico recente são enviados após autorização; `store:false` não equivale a retenção zero de todos os sistemas do provedor. As regras determinísticas e de saída reduzem riscos, mas não substituem avaliação clínica independente.
+
+## Verificação e operação
 
 ```bash
-npm ci
-npm run db:migrate
-npm run build
-npm start
-```
-
-O servidor de produção usa `dist/` para servir o front e `build/` para a API, na mesma origem. Não use `vite preview` como servidor de produção. Não compartilhe `.data/` entre réplicas. Para múltiplas instâncias, use PostgreSQL externo e limites de uso compartilhados no gateway; o limitador atual é por processo.
-
-## Comandos e testes
-
-```bash
-npm run check        # lint, TypeScript, build e testes de unidade/integração
+npm run check
 npx playwright install chromium
-npm run test:e2e     # navegador desktop e celular
-npm run format:check
+npm run test:e2e
 ```
 
-Os testes de integração usam PostgreSQL em memória via PGlite com pgvector real, e não um mock SQL. Os contratos OpenAI/Ollama são testados com transporte HTTP simulado; a execução não faz chamadas pagas. Não use esses resultados como prova de acurácia clínica. Consulte [docs/VALIDACAO.md](docs/VALIDACAO.md) para o escopo e os limites.
+Os testes usam PGlite/pgvector reais, provedores simulados no transporte HTTP e geolocalização mockada. Eles verificam implementação e contratos, sem demonstrar eficácia clínica. [Validação](docs/VALIDACAO.md).
 
-## Privacidade e limites
-
-A aplicação não cria contas nem armazena conversas. O histórico fica na memória da aba; os últimos seis relatos acompanham a requisição para manter contexto. “Nova conversa” e recarregar a página removem esse histórico local. O backend não grava textos em tabelas ou logs de requisição. Há uma redução de CPF, e-mail e telefone antes do envio à IA, que **não garante anonimização** e não remove todas as informações identificáveis.
-
-No modo Ollama, embeddings e geração são executados no computador do backend, sem chave e sem envio à OpenAI. O adaptador rejeita modelos cloud e não troca automaticamente de provedor. No modo OpenAI, embeddings e geração envolvem processamento pelo provedor. `store:false` não equivale a retenção zero de todos os sistemas do provedor. O consentimento técnico da interface não substitui a análise jurídica, a política de privacidade e os contratos necessários para operar com dados de saúde.
-
-Não há agendamento, geolocalização automática, integração com operadoras, autenticação de pacientes ou ranking de qualidade médica. As sugestões respeitam os filtros informados. Antes de uso assistencial, são necessárias validação clínica independente, avaliação de segurança, governança dos dados, definição da finalidade regulatória e operação monitorada. Consulte [docs/ARQUITETURA.md](docs/ARQUITETURA.md).
-
-## Referências de implementação
-
-- [PGlite e pgvector](https://pglite.dev/extensions/)
-- [Fastify](https://fastify.dev/docs/latest/)
-- [OpenAI Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs)
-- [OpenAI embeddings](https://developers.openai.com/api/docs/guides/embeddings)
-- [SAMU 192 — Ministério da Saúde](https://www.gov.br/saude/pt-br/composicao/saes/samu-192)
-
-As referências específicas dos resumos demonstrativos estão em cada documento JSON. As associações de especialidades são editoriais, explicitadas nos textos, e não significam endosso do serviço de origem.
+Produção exige PostgreSQL externo, provedor generativo, `ALLOW_DEMO_DATA=false`, `AUTO_SEED=false` e `WEB_ORIGIN` HTTPS. Aplique migrações antes de iniciar; `/api/ready` verifica banco, especialidades e catálogo. RAG é opcional e não bloqueia prontidão. Limites de uso são por processo; use gateway compartilhado para múltiplas réplicas. [Arquitetura](docs/ARQUITETURA.md) · [Operação](docs/OPERACAO.md).

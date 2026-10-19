@@ -1,7 +1,15 @@
 import { ArrowUpRight, Building2, MapPin, Phone } from 'lucide-react';
-import { specialties, type Clinic } from '../../../shared/contracts';
+import { type ClinicResult } from '../../../shared/contracts';
 
-export function ClinicCard({ clinic, compact = false }: { clinic: Clinic; compact?: boolean }) {
+export function ClinicCard({
+  clinic,
+  compact = false,
+  showDistance = false,
+}: {
+  clinic: ClinicResult;
+  compact?: boolean;
+  showDistance?: boolean;
+}) {
   return (
     <article className={`clinic-card ${compact ? 'compact' : ''}`}>
       <div className="clinic-title-row">
@@ -30,9 +38,17 @@ export function ClinicCard({ clinic, compact = false }: { clinic: Clinic; compac
           .filter(Boolean)
           .join(' · ')}
       </p>
-      <p className="clinic-specialties">
-        {clinic.specialties.map((id) => specialties[id]).join(' · ')}
-      </p>
+      {clinic.accessNote && <p className="result-note">{clinic.accessNote}</p>}
+      <p className="clinic-specialties">{clinic.specialtyDetails.map((s) => s.name).join(' · ')}</p>
+      {showDistance && (
+        <p className="clinic-distance">
+          {clinic.distanceKm === null
+            ? 'Distância não disponível'
+            : clinic.distanceKm < 1
+              ? `${Math.round((clinic.distanceKm * 1000) / 50) * 50} m de você`
+              : `${clinic.distanceKm.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km de você`}
+        </p>
+      )}
       <div className="insurance-tags">
         {clinic.insurances.map((insurance) => (
           <span key={insurance}>{insurance}</span>

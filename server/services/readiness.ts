@@ -8,12 +8,11 @@ export async function catalogStatus(db: Database, config: Config, provider: AIPr
   const { rows } = await db.query<{ indexed: string; demo: string; outdated: string }>(
     `
     SELECT count(*) FILTER (WHERE embedding_model=$1) AS indexed,
-      count(*) FILTER (WHERE embedding_model=$1 AND (data->>'isDemo')::boolean) AS demo,
+      count(*) FILTER (WHERE embedding_model=$1 AND is_demo) AS demo,
       count(*) FILTER (WHERE embedding_model<>$1) AS outdated
-    FROM documents WHERE (data->>'active')::boolean AND
-      (($2::boolean AND (data->>'isDemo')::boolean) OR
-        ((data->>'isDemo')::boolean=false AND data->>'reviewStatus'='approved'
-          AND (data->>'reviewedAt')::timestamptz >= now()-interval '365 days'))`,
+    FROM clinic_documents d JOIN clinics c ON c.id=d.clinic_id WHERE d.active AND (c.data->>'active')::boolean AND
+      (($2::boolean AND d.is_demo) OR (NOT d.is_demo AND d.verified_at BETWEEN now()-interval '365 days' AND now()
+        AND (c.data->>'verifiedAt')::timestamptz BETWEEN now()-interval '180 days' AND now()))`,
     [provider.embeddingModel, config.ALLOW_DEMO_DATA],
   );
   const { total, realRecords, sourceCount, lastVerifiedAt, ...metadata } = catalog;
@@ -27,11 +26,6 @@ export async function catalogStatus(db: Database, config: Config, provider: AIPr
       demoDocuments: Number(rows[0].demo),
       needsReindex: Number(rows[0].outdated) > 0,
     },
-    directory: {
-      total,
-      realRecords,
-      sourceCount,
-      lastVerifiedAt,
-    },
+    directory: { total, realRecords, sourceCount, lastVerifiedAt },
   };
 }

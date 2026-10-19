@@ -1,70 +1,96 @@
-# Arquitetura e decisões
+# Arquitetura MedFinder 2.3
 
-## Fronteiras
+## Responsabilidades
 
-A aplicação é um monólito modular em TypeScript. `buildApp` compõe repositórios, recuperador e provedor por injeção de dependências. A interface `AIProvider` permite trocar o gerador sem acoplar HTTP e domínio. `Database` mantém a mesma interface transacional sobre PGlite e `pg.Pool`. SQL é parametrizado; as migrações são versionadas e transacionais.
+1. **Guardrails:** `detectUrgency` avalia relato e histórico antes da IA. Um alerta determinístico não pode ser reduzido pelo modelo, pela localização ou por feedback. Emergência e avaliação no mesmo dia não listam clínicas eletivas.
+2. **Intenção e LLM:** após guardrails, `chat-intent.ts` identifica sintomas, pesquisas de clínicas e pedidos de informação. Nomes/aliases de especialidades, clínicas, cidades e convênios vêm do banco. Consultas ao catálogo dispensam geração. Para sintomas, o LLM recebe mensagem/histórico redigidos, perguntas anteriores controladas e a taxonomia ativa; sugere uma candidata ou `null`. Não recebe clínicas, coordenadas ou feedback. JSON Schema e Zod controlam a estrutura.
+3. **SpecialtyResolver:** resolve nomes e aliases normalizados por acento/caixa usando `SpecialtyRepository`. Não usa similaridade vetorial nem fuzzy matching. A taxonomia é administrativa, no banco.
+4. **CatalogRepository:** fonte de verdade de clínicas, convênios, cidades, endereços, serviços cadastrados e coordenadas. SQL parametrizado filtra atividade, especialidade ativa, convênio exato, cidade exata e palavras opcionais. Não recebe texto arbitrário da IA como SQL.
+5. **Proximidade:** Haversine calcula quilômetros em linha reta somente para registros com coordenadas. Ordena todos os candidatos antes de paginar. Sem coordenadas ficam por último; desempate estável por nome e ID. Sem localização, cadastros reais primeiro e nome/ID.
+6. **RAG de clínicas:** complementa a resposta com trechos e fontes dos candidatos já selecionados. Não escolhe a especialidade nem amplia filtros. Os trechos são exibidos separadamente, sem uma segunda síntese clínica pelo modelo.
+7. **FeedbackRepository:** emite comprovantes e grava avaliações. Não lê nem grava conversas. Não se conecta à IA ou altera os guardrails.
 
-O escopo é navegação de cuidados. A taxonomia de especialidades é explícita em `shared/contracts.ts`; não há diagnóstico, receita, consulta médica nem reserva de horários. A associação entre queixas e especialidades deve ser aprovada por profissionais responsáveis pelo conteúdo antes de uso assistencial.
+## Especialidades
 
-## Geração aumentada por recuperação (RAG)
+`specialties` armazena ID, nome, nome normalizado, aliases, atividade e datas. `clinic_specialties` mantém a relação com integridade referencial. A API monta `{id,name}` diretamente do banco; filtros e cards não importam uma lista fixa do frontend.
 
-1. **Ingestão controlada:** operador importa um JSON validado. Cada documento inclui título, fonte HTTPS, conteúdo, palavras-chave, especialidades e revisão.
-2. **Versão:** hash SHA-256 do documento e identificação do modelo de embeddings. Uma mudança em qualquer um provoca reindexação; repetir o mesmo conteúdo não duplica registros.
-3. **Chunking:** até 900 caracteres, com sobreposição aproximada de 120 e fronteiras de palavras. Limite de 20.000 caracteres por documento. O formato favorece resumos curados, não livros completos.
-4. **Embeddings:** Ollama usa `bge-m3` com 1024 dimensões; OpenAI usa `text-embedding-3-small` com 1536 dimensões. O adaptador offline usa feature hashing com o mesmo comprimento, mas identificador separado. Ele não tem compreensão semântica.
-5. **Índice:** pgvector para cosseno e `tsvector` em português para texto. Vetores e chunks ficam no banco, ao lado de metadados de origem e revisão.
-6. **Consulta:** o relato atual e até dois relatos recentes formam a busca; os seis relatos recentes são o contexto máximo enviado ao gerador. Identificadores comuns são reduzidos antes desses passos.
-7. **Ranking:** 70% similaridade cosseno e 30% relevância lexical limitada a 1. Busca exata sobre o corpus pequeno, até 12 candidatos e até 4 documentos distintos. A seleção exclui inativos, dados não autorizados, revisões vencidas e modelos de embedding diferentes.
-8. **Abstenção:** no modo demo é necessário acerto lexical; nos modos generativos, sem acerto lexical, exige-se cosseno de pelo menos 0,38. Esse limiar é uma configuração inicial de engenharia, **não uma probabilidade clínica**, e precisa ser calibrado com avaliações reais.
-9. **Geração:** Responses API, instruções de navegação de cuidados, `store:false`, timeout de 25 segundos por chamada, sem retentativas automáticas e no máximo 900 tokens de saída. Contexto e fontes são serializados como dados. Nenhuma ferramenta de execução ou acesso livre a banco é disponibilizada ao modelo.
-10. **Validação:** Zod, limites de tamanho, IDs de fontes presentes e especialidades contidas nas fontes citadas. Um filtro adicional rejeita padrões simples de prescrição e diagnóstico. Isso reduz riscos, mas não comprova que todas as afirmações decorrem das fontes.
-11. **Catálogo:** o servidor monta os cards a partir dos registros do banco. Cidade e convênio são filtros exatos normalizados; especialidades usam correspondência de interseção. Sem correspondência, retorna vazio. Não há recomendação baseada em patrocínio, distância ou avaliação de qualidade médica.
+`specialty_reference` é um vocabulário administrativo separado para reconhecer um nome válido ainda não habilitado. Inicialmente contém a taxonomia cadastrada e Pediatria, Geriatria e Radiologia. A migração 10 promove Pediatria para a taxonomia ativa. Referência de nomenclatura: [CFM, Resolução 2.380/2024](https://sistemas.cfm.org.br/normas/visualizar/resolucoes/BR/2024/2380). Não se trata de uma lista exaustiva nem de validação automática da pertinência clínica da indicação. Psicologia é uma área de cuidado preservada do catálogo anterior.
 
-## Alertas de urgência
+Resolução ativa retorna `resolved`. Nome só na referência, ou cadastro inativo, retorna `not_registered`. Nome sem correspondência exata/alias explícito retorna `unrecognized`: o LLM não pode declarar sozinho que uma especialidade desconhecida é válida. O comando administrativo `data:import -- specialties` adiciona/atualiza nome, aliases, referência e atividade; conflitos entre nomes/aliases são rejeitados em transação.
 
-Regras de texto são avaliadas antes de embeddings, consentimento de IA e geração, considerando o relato e o histórico recebido. Elas cobrem alguns sinais descritos na orientação pública do SAMU e em fontes identificadas, com tratamento restrito de negações. Um alerta interrompe o encaminhamento eletivo. O LLM também pode elevar uma resposta para alerta, nunca reduzir o alerta prévio.
+Apenas **uma especialidade canônica ou nenhuma** determina a busca de cuidado. A migração 8 acrescenta aliases explícitos, incluindo “oculista”, “oftalmo”, “dermato”, “neuro”, “cardio” e “uro”. Não cria especialidades por saída de IA e não reativa cadastros. Um rótulo desconhecido, inativo ou insuficiente produz fallback sem clínicas, sem o nome original e sem alternativas.
 
-Regex não equivale a triagem validada: linguagem indireta, erros de digitação, contexto temporal, negação complexa, outras línguas e sinais não cadastrados podem falhar. Não apresentar alerta não implica que seja seguro esperar. O produto explicita isso nas respostas e mantém o contato de emergência visível.
+A defesa tem quatro camadas: taxonomia ativa fornecida ao modelo, Structured Output singular, resolução exata no banco e apresentação controlada. `answer` e `reason` gerados continuam sujeitos aos guardrails, mas **não são publicados**; `questions` aceita apenas códigos de tópicos: o backend apresenta mensagens próprias e a entidade resolvida. Isso impede que um alias ou uma especialidade inventada escape pelo texto livre, mesmo quando a candidata principal é válida.
 
-## Dados e confiança
+A migração 9 desativa `medicina-de-familia`. O registro e as relações históricas permanecem no banco, mas a área sai da lista fornecida ao modelo, da resolução ativa, dos filtros e dos cards. O snapshot e o texto público da Clínica FAM mantêm somente Ortopedia e Dermatologia dentro do escopo do produto. A clínica permanece no catálogo. Isso é uma escolha de escopo do MedFinder, não uma afirmação sobre o reconhecimento profissional dessa especialidade.
 
-| Tabela                | Conteúdo                                                                          |
-| --------------------- | --------------------------------------------------------------------------------- |
-| `clinics`             | Cadastro JSON validado, cidade normalizada, convênios e especialidades indexáveis |
-| `documents`           | Metadados, revisão, conteúdo, hash e modelo de embeddings                         |
-| `chunks`              | Trechos, busca textual e vetores na dimensão nativa do modelo                     |
-| `catalog_collections` | IDs das unidades gerenciadas por cada coleção local                               |
-| `integration_state`   | Histórico da integração retirada, sem acesso ativo                                |
-| `schema_migrations`   | Versões aplicadas                                                                 |
+## Esclarecimento condicional
 
-Não há tabela de pacientes, mensagens ou sessões. O histórico no browser não usa localStorage, cookies ou IndexedDB. O cliente controla os próprios relatos; o servidor não aceita papéis `system`/`assistant` como histórico. Fontes recuperadas também são tratadas como dados, não como instruções.
+`server/domain/clarification.ts` reconhece relatos claramente genéricos, como dor de cabeça/pescoço sem características, e identifica dados já fornecidos. Isso não é um formulário obrigatório: duração e todas as outras categorias não precisam estar preenchidas. Características, circunstâncias, sintomas associados ou uma descrição mais rica podem permitir uma orientação. Descrições não cobertas pelos padrões linguísticos ficam a cargo do modelo. Trata-se de heurística de linguagem, não validação clínica.
 
-Datas de verificação e revisores são declarações do operador. O software não verifica licenças profissionais nem acordos comerciais. A governança deve documentar quem aprovou, quando, qual versão e quais critérios foram usados. As janelas iniciais de 180 dias para clínicas e 365 dias para documentos são decisões de produto ajustáveis via migração/código, não uma norma legal.
+Um relato não genérico com candidata válida segue para resolução no banco. Perguntas opcionais e `urgency=uncertain` não anulam essa candidata; a incerteza é preservada na resposta. Se não houver candidata, não se inventa uma especialidade ou uma nova lista de perguntas para um relato detalhado. Relatos genéricos e idade necessária podem gerar até duas perguntas por rodada, com limite de três rodadas.
 
-## Operação e evolução
+`patient.ts` identifica a idade de quem apresenta o sintoma, separando-a da idade do responsável. Filha/filho não implica menor de idade. Idade desconhecida numa possível criança é perguntada antes de recomendar; anos, meses, números por extenso e uma resposta curta como “5” são aceitos. Duração de sintomas não é idade. Nova pessoa reinicia o contexto. A API e o frontend aceitam mensagens a partir de um caractere não vazio.
 
-- PostgreSQL externo para produção. PGlite usa uma conexão exclusiva e serve ao desenvolvimento.
-- Um processo Fastify possui limitadores locais de chamadas por IP e de concorrência. Réplicas exigem rate limiting compartilhado no gateway/Redis, limitação de custos e observabilidade agregada.
-- O endpoint de prontidão comprova conexão e conhecimento elegível, mas não valida saldo da OpenAI, precisão médica ou disponibilidade de todas as clínicas.
-- Alterar o provedor requer reindexação antes do tráfego. Durante reindexação, versões por documento são transacionais; o lote inteiro não é uma troca atômica. Em produção, realizar em janela de manutenção ou implantar um índice paralelo antes de trocar o tráfego.
-- A pesquisa vetorial é exata. Antes de HNSW, medir volume, latência e recuperação com o corpus real e comparar com o baseline.
-- Contas, painel administrativo, agendamento, integração com operadoras e busca geográfica não fazem parte desta implementação.
-- Antes da operação com pessoas reais: revisão clínica e jurídica aplicável, gestão do ciclo das fontes, avaliações de segurança e qualidade, monitoramento de incidentes e critérios de liberação definidos pelos responsáveis.
+O perfil derivado (`relationship`, `ageYears`, `adultReported`, `needsAge`) vai ao modelo junto do relato redigido; não contém nome ou nascimento. O prompt instrui a considerar Pediatria para a avaliação inicial de queixas inespecíficas de crianças/adolescentes, sem encaminhar toda criança obrigatoriamente para essa área. Uma filha explicitamente adulta ou com 20 anos ou mais não recebe Pediatria neste MVP. Esse limite conservador do produto não substitui a política etária de cada serviço. Faixa etária efetivamente atendida deve ser confirmada com a unidade.
 
-## Catálogo versionado na versão 1.2
+`care.questions`, `care.askedTopics` e `care.round` ficam em memória. O histórico recente e as perguntas anteriores acompanham a resposta seguinte. A idade também é reconstruída a partir das mensagens, sem tabela de pacientes ou persistência da conversa. Guardrails continuam examinando todo o histórico antes do recorte de contexto. Após três rodadas sem conseguir orientar, não se força indicação.
 
-`server/services/public-catalog.ts` importa a coleção de `data/clinics.public.json` em uma transação. `catalog_collections` guarda os IDs gerenciados por coleção. A substituição desativa os removidos e exemplos fictícios; não apaga o histórico nem desativa importações manuais fora da coleção. A data `verifiedAt` vem do arquivo e nunca é renovada automaticamente pela carga.
+## Explicação e prioridade presencial
 
-A migração 3 desativa registros da antiga API Docplanner. As migrações 1 e 2 permanecem imutáveis para compatibilidade; `integration_state` é uma tabela histórica sem leitor, escritor ou agendador ativo. Nenhuma credencial ou pacote da Docplanner é necessário.
+`care-explanation.ts` apresenta uma descrição breve controlada, vinculada ao relato e à área validada. Ouvido e coceira na pele têm descrições específicas de possibilidades, com referências públicas; outras situações usam uma explicação geral de investigação do desconforto. Não são diagnóstico, prescrição ou resumo clínico obtido do RAG. `answer` e `reason` livres do LLM continuam sem ser publicados.
 
-O RAG tem dois tipos de recuperação: os trechos de orientação vêm da busca híbrida vetorial/textual; os fatos de atendimento vêm de SQL com filtros exatos. Cadastros de clínicas não se tornam evidência médica nem são usados para inferir especialidades por proximidade semântica. Os cards são construídos com registros existentes, sem texto de endereço/convênio gerado pelo modelo. O catálogo também oferece busca por palavras no nome, bairro e endereço, com normalização de acentos.
+Fontes editoriais de orientação aparecem em `sources` sem `clinicId` e se somam às fontes cadastrais recuperadas pelo RAG. `ragStatus` continua descrevendo apenas o índice de clínicas. Referências de orientação não são prova de validação médica do motor de indicação.
 
-`setup:local` prepara catálogo real e oito documentos de homologação usando o adaptador offline. `setup:ollama` cria a configuração local e prepara os dados com embeddings Ollama; `setup:connected` usa o provedor generativo configurado; o gerador é chamado durante o chat. A carga inicial não sobrescreve documentos não demonstrativos já revisados. `integrations:check` valida embeddings e geração com entrada sintética quando executado pelo operador. As verificações distinguem integração técnica e revisão clínica.
+O caso reproduzido da imagem — desconforto no ouvido após uso de lápis — aciona um sinal conservador de possível lesão: avaliação presencial no mesmo dia, sem perguntas, geração ou clínicas eletivas. A área relacionada Otorrinolaringologia aparece apenas se estiver ativa no banco. Alertas de emergência já detectados continuam prevalecendo; não se reduz uma emergência para esse fluxo.
 
-## IA generativa local (1.3)
+Fontes consultadas em 18/10/2026: [NHS — Earache](https://www.nhs.uk/symptoms/earache/), [NHS — Perforated eardrum](https://www.nhs.uk/conditions/perforated-eardrum/), [NHS — Itchy skin](https://www.nhs.uk/symptoms/itchy-skin/) e [SBP — Pediatria e adolescência](https://www.sbp.com.br/sbp-destaca-papel-do-pediatra-nos-cuidados-com-os-adolescentes/). Não foi criado um protocolo clínico validado.
 
-O adaptador Ollama usa HTTP nativo, `/api/show`, `/api/embed` e `/api/chat`. Não depende do SDK OpenAI nem usa credenciais externas. Endpoint limitado a loopback; redirects recusados; metadados remotos/cloud rejeitados antes de enviar relato ou documentos. Não existe troca automática de provedor. `format` envia o JSON Schema compartilhado, a resposta é validada com Zod e passa pelas mesmas verificações de referências, especialidades e segurança do chat. `think=false` e 8192 tokens de contexto no gerador Qwen3 Instruct 2507. O esquema restringe `sourceIds` aos IDs recuperados, e suas definições também são incluídas no prompt.
+## Contrato e falhas
 
-A migração 4 altera `chunks.embedding` para `vector` sem dimensão fixa, preservando os vetores antigos. O comprimento é validado pelo adaptador e na ingestão; a chave do índice inclui provedor, modelo e dimensão. Uma CTE materializada filtra documentos pelo modelo antes da distância cosseno, impedindo comparação entre vetores incompatíveis. Trocas de embeddings exigem reindexar; atualizar os pesos sob a mesma etiqueta também exige reindexação manual. O limiar semântico deve ser calibrado por modelo, pois não há equivalência clínica entre scores de provedores diferentes.
+O modelo retorna `answer`, `urgency`, `specialty:{name,reason}|null` e `questions`. Limites: zero ou uma candidata, dois tópicos de pergunta, resposta até 1800 caracteres e justificativa até 240. Campos extras e o antigo array são rejeitados. O prompt tem versão `care-navigation-2.3.0`.
 
-O perfil local usa PGlite, concorrência 1 e timeout de 180 s por operação. A API publica `chatTimeoutMs` para o navegador aguardar embeddings + geração. O diretório de clínicas continua em SQL com filtros exatos: o modelo não inventa endereços ou cobertura. Documentos de homologação e revisão clínica mantêm suas regras existentes.
+`care_navigation` cobre relatos; `clinic_search` consulta especialidade/convênio/cidade/proximidade; `clinic_information` busca fatos de uma unidade. Não há dedução de endereço, contato, plano, horário, serviço ou distância pela memória do LLM. Quando faltam convênio ou unidade identificável, pede esclarecimento. Múltiplas especialidades na mesma consulta também pedem uma escolha.
+
+O frontend devolve contexto curto `{specialtyId,clinicIds,city,insurance}` para continuidades como “dessas” ou “e que aceite Unimed?”. O backend trata-o como não confiável: valida IDs, atividade e filtros novamente. Nada é persistido, nem incluído na entrada do LLM. A história continua limitada a seis mensagens do usuário. Segurança é avaliada antes de toda intenção. Consultas OpenAI sem consentimento usam somente o catálogo e pulam embeddings externos.
+
+`status` distingue `llm_unavailable`, `invalid_output`, `needs_information`, `specialty_unrecognized`, `specialty_not_registered` e `no_matching_clinics`. `ragStatus` é separado: `skipped`, `not_indexed`, `available`, `no_matches`, `unavailable`. Uma falha de embedding não descarta especialidade e clínicas já encontradas. Falhas de banco são erros HTTP de serviço; não são rotuladas como falha da IA.
+
+O modo demo usa casos sintéticos fixos para testar navegação, não inferência clínica. Ollama e OpenAI usam o mesmo contrato. Ollama verifica modelo local antes de enviar texto; OpenAI usa Responses, Structured Outputs e `store:false`. Nenhum erro bruto de SDK é registrado.
+
+## Localização e minimização
+
+`useGeolocation` pertence ao App e é compartilhado entre chat e diretório. Só chama `getCurrentPosition` após clique, com baixa precisão, timeout de 10 segundos e cache do navegador de até 5 minutos. Negação não dispara nova solicitação automática. Cancelar/remover invalida callbacks pendentes.
+
+O frontend envia apenas latitude/longitude arredondadas a quatro casas, em corpos POST; `accuracy` fica no hook. O servidor valida valores finitos e limites. `AIProvider.generate` recebe uma allowlist explícita de campos; o Retriever recebe consulta textual e IDs de clínicas, sem posição do usuário. `locationUsed` é um booleano da resposta, sem guardar coordenadas.
+
+As coordenadas da clínica são dados administrativos persistentes; a posição do usuário e `distanceKm` calculada nunca são persistidas. O bug de distância indisponível vinha do snapshot com **20 pares nulos**, não da permissão do navegador: Haversine corretamente não calculava sem o segundo ponto. O snapshot 2.1 tem **36 pares verificados por unidade**, com auditoria em `data/coordinates.provenance.json`. Importação preserva coordenadas administrativas mais recentes. Não há geocodificação durante o chat. Cidade vazia permite cidades vizinhas; cidade selecionada permanece um filtro exato. Geolocalização não determina urgência, tempo de viagem ou qualidade médica.
+
+## Feedback e proteção contra falsificação
+
+Cada resposta tem UUID aleatório e um token aleatório de 256 bits. Só o hash do token é persistido em `response_receipts`, junto do modo, versão do prompt, motivos permitidos e data. O navegador mantém o token apenas na memória da conversa. O servidor não aceita modo/versão/motivos fora do comprovante.
+
+`POST /api/feedback` faz UPSERT por `response_id`. Negativo exige motivo contextual; comentário opcional tem até 500 caracteres e passa por `redactIdentifiers`. Positivo limpa motivo/comentário anteriores. Não há endpoint público de leitura das avaliações. Comprovantes expiram em 7 dias; a CLI de limpeza remove os vencidos sem apagar os votos existentes. Configure uma política administrativa de retenção do feedback conforme o uso real.
+
+A conversa não depende do feedback: erro na emissão ou no envio não impede o chat. Não há treinamento, fine-tuning, mudança de prompt ou uso de votos no próximo contexto. A redação de identificadores é limitada e não impede que o usuário inclua voluntariamente informações sensíveis num comentário; a UI orienta a evitar isso.
+
+## Migrations e compatibilidade
+
+Migrações 1–9 não foram alteradas nesta atualização. Histórico de `evolution-migrations.ts`:
+
+| Versão | Mudança                                                                                                                            |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 5      | Taxonomia, referência, `clinic_specialties`; migra os IDs existentes e remove o antigo array SQL                                   |
+| 6      | Coordenadas nullable, `clinic_documents`, `clinic_chunks` com pgvector; renomeia documentos/chunks médicos para `legacy_medical_*` |
+| 7      | `response_receipts` e `ai_feedback`                                                                                                |
+| 8      | Acrescenta aliases explícitos na taxonomia e referência existentes, preservando atividade e evitando colisões                      |
+
+A migração **9** desativa Medicina de Família e Comunidade. A **10** insere Pediatria a partir da referência já existente, sem substituir um cadastro do operador nem reativar registros desativados por ele.
+
+As tabelas médicas anteriores são preservadas para auditoria/migração administrativa, sem leitores no fluxo ativo. O antigo arquivo `knowledge.demo.json` foi removido. `integration_state` continua apenas como registro legado da integração antiga. Não se cria PostGIS. A mesma SQL usa PostgreSQL/PGlite e a extensão pgvector.
+
+## Limites de escala e validação
+
+O catálogo do MVP é pequeno: distância é calculada em memória sobre todos os registros já filtrados no SQL, depois ordenação e paginação. Antes de ampliar muito o volume, medir memória/latência e adaptar a estratégia. Busca vetorial é exata e restrita por modelo/dimensão em CTE materializada. Veja [RAG.md](RAG.md).
+
+Rate limits são por processo, não uma autorização de identidade. O acesso ao CLI/banco é administrativo. Proxy/APM não devem capturar corpos de saúde, comentários ou localização. Prontidão não comprova conectividade do modelo, revisão clínica ou qualidade dos cadastros; `integrations:check` faz teste técnico sintético explícito.

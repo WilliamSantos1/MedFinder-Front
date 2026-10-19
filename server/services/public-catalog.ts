@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { z } from 'zod';
-import { clinicSchema } from '../../shared/contracts.js';
+import { clinicSchema, type Clinic } from '../../shared/contracts.js';
+import { normalize } from '../domain/text.js';
 import { CatalogRepository } from '../db/catalog.js';
 import type { Database } from '../db/database.js';
 
@@ -11,6 +12,11 @@ export const publicCatalogSchema = z
   .superRefine((clinics, ctx) => {
     if (new Set(clinics.map((clinic) => clinic.id)).size !== clinics.length)
       ctx.addIssue({ code: 'custom', message: 'IDs duplicados no catálogo público.' });
+    const units = clinics.map((clinic) =>
+      normalize(`${clinic.city}|${clinic.address}|${clinic.name}`),
+    );
+    if (new Set(units).size !== units.length)
+      ctx.addIssue({ code: 'custom', message: 'Unidades duplicadas no catálogo público.' });
     if (clinics.some((clinic) => clinic.isDemo || !clinic.id.startsWith('public-')))
       ctx.addIssue({
         code: 'custom',
@@ -41,7 +47,31 @@ export async function loadPublicCatalog(db: Database, path?: string) {
         WHERE (id=ANY($1::text[]) AND NOT id=ANY($2::text[])) OR (data->>'isDemo')::boolean`,
       [managedIds, ids],
     );
-    await CatalogRepository.write(tx, clinics);
+    const existing = await tx.query<{ id: string; data: Clinic }>(
+      'SELECT id,data FROM clinics WHERE id=ANY($1::text[]) FOR UPDATE',
+      [ids],
+    );
+    const previousData = new Map(existing.rows.map((row) => [row.id, row.data]));
+    const merged = clinics.map((clinic) => {
+      const previous = previousData.get(clinic.id);
+      // Preserve a newer operator verification; loading an older bundle must not roll it back.
+      return previous?.latitude != null &&
+        previous.longitude != null &&
+        previous.coordinatesVerifiedAt &&
+        previous.coordinatesSourceUrl &&
+        (clinic.latitude === null ||
+          Date.parse(previous.coordinatesVerifiedAt) >
+            Date.parse(clinic.coordinatesVerifiedAt ?? ''))
+        ? {
+            ...clinic,
+            latitude: previous.latitude,
+            longitude: previous.longitude,
+            coordinatesVerifiedAt: previous.coordinatesVerifiedAt,
+            coordinatesSourceUrl: previous.coordinatesSourceUrl,
+          }
+        : clinic;
+    });
+    await CatalogRepository.write(tx, merged);
     await tx.query(
       `INSERT INTO catalog_collections(id,clinic_ids) VALUES('bundled-public',$1)
        ON CONFLICT(id) DO UPDATE SET clinic_ids=$1,imported_at=now()`,

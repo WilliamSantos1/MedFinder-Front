@@ -10,8 +10,6 @@ import { connectDatabase, type Database } from '../server/db/database.js';
 import { migrate } from '../server/db/migrations.js';
 import { buildApp } from '../server/app.js';
 import { setupConnected, checkSetup } from '../server/services/setup.js';
-import { ingestDocument } from '../server/rag/ingest.js';
-import { Retriever } from '../server/rag/retrieve.js';
 import { prepareOllamaConfig } from '../scripts/local-config.js';
 
 const config = readConfig({ NODE_ENV: 'test', DATA_DIR: 'memory://', AI_PROVIDER: 'ollama' });
@@ -21,9 +19,8 @@ const localDetails = { details: { format: 'gguf' }, capabilities: ['completion',
 const answer = {
   answer: 'Faltam informações para orientar.',
   urgency: 'uncertain',
-  specialtyIds: [],
+  specialty: null,
   questions: [],
-  sourceIds: [],
 };
 const chat = (content: unknown = answer, doneReason = 'stop') =>
   json({
@@ -54,9 +51,9 @@ describe('Ollama local, sem credenciais ou saída para nuvem', () => {
     );
     const provider = createOllamaProvider(config, transport);
     await expect(provider.embed(['relato privado'])).rejects.toThrow('remotos');
-    await expect(
-      provider.generate({ message: 'relato privado', evidence: [], history: [] }),
-    ).rejects.toThrow('remotos');
+    await expect(provider.generate({ message: 'relato privado', history: [] })).rejects.toThrow(
+      'remotos',
+    );
     expect(transport.mock.calls.every(([url]) => String(url).endsWith('/api/show'))).toBe(true);
     expect(JSON.stringify(transport.mock.calls)).not.toContain('relato privado');
   });
@@ -94,7 +91,6 @@ describe('Ollama local, sem credenciais ou saída para nuvem', () => {
     expect(
       await createOllamaProvider(config, transport).generate({
         message: 'teste',
-        evidence: [],
         history: [],
       }),
     ).toEqual(answer);
@@ -107,9 +103,7 @@ describe('Ollama local, sem credenciais ou saída para nuvem', () => {
       const provider = createOllamaProvider(config, async (url) =>
         String(url).endsWith('/show') ? json(localDetails) : result,
       );
-      await expect(
-        provider.generate({ message: 'teste', evidence: [], history: [] }),
-      ).rejects.toThrow();
+      await expect(provider.generate({ message: 'teste', history: [] })).rejects.toThrow();
     }
   });
 
@@ -136,7 +130,7 @@ describe('Ollama local, sem credenciais ou saída para nuvem', () => {
   });
 });
 
-describe('RAG e catálogo com vetores locais de 1024 dimensões', () => {
+describe('Geração local e catálogo independentes de embeddings', () => {
   let db: Database;
   beforeAll(async () => {
     db = await connectDatabase(config);
@@ -145,91 +139,60 @@ describe('RAG e catálogo com vetores locais de 1024 dimensões', () => {
   afterAll(async () => {
     await db?.close();
   });
-  it('gera sem consentimento externo e isola vetores de outros modelos no mesmo banco', async () => {
+  it('usa transporte HTTP simulado, sem consentimento externo nem fonte médica', async () => {
     const transport = vi.fn<typeof fetch>(async (url, init) => {
       expect(String(url).startsWith('http://127.0.0.1:11434/api/')).toBe(true);
-      const body = JSON.parse(String(init?.body));
       if (String(url).endsWith('/show')) return json(localDetails);
+      const body = JSON.parse(String(init?.body));
       if (String(url).endsWith('/embed')) {
-        expect(body.truncate).toBe(false);
-        const values = await demoProvider.embed(body.input);
+        const vectors = await demoProvider.embed(body.input);
         return json({
-          embeddings: values.map((v) =>
+          embeddings: vectors.map((v) =>
             Array.from({ length: 1024 }, (_, i) => v[i] + (v[i + 1024] ?? 0)),
           ),
         });
       }
-      const evidence = JSON.parse(body.messages[1].content).retrievedEvidence;
-      const source = evidence.find((item: { specialtyIds: string[] }) =>
-        item.specialtyIds.includes('ortopedia'),
-      );
-      return chat(
-        source
-          ? {
-              answer: 'Uma avaliação em ortopedia pode orientar o próximo passo.',
-              urgency: 'routine',
-              questions: [],
-              specialtyIds: ['ortopedia'],
-              sourceIds: [source.id],
-            }
-          : answer,
-      );
+      expect(body.messages[1].content).not.toContain('retrievedEvidence');
+      return chat({
+        answer: 'Uma avaliação em ortopedia pode orientar o próximo passo.',
+        urgency: 'routine',
+        questions: [],
+        specialty: { name: 'Ortopedista', reason: 'Avaliação possível.' },
+      });
     });
     const provider = createOllamaProvider(config, transport);
     expect(await setupConnected(db, config, provider)).toMatchObject({
-      indexed: 8,
-      publicClinics: 20,
+      indexed: 36,
+      publicClinics: 36,
     });
-    expect(await setupConnected(db, config, provider)).toMatchObject({ indexed: 0 });
-    const docs = JSON.parse(await readFile('data/knowledge.demo.json', 'utf8'));
-    expect(await ingestDocument(db, provider, docs[0])).toBe(false);
-    expect(await ingestDocument(db, provider, docs[0], { force: true })).toBe(true);
-    await ingestDocument(db, demoProvider, { ...docs[0], id: 'different-dimensions' });
-    const evidence = await new Retriever(db, provider, true).search('dor no pescoço');
-    expect(evidence.length).toBeGreaterThan(0);
-    expect(evidence.some((source) => source.id.startsWith('different-dimensions:'))).toBe(false);
-    await db.query('DELETE FROM documents WHERE id=$1', ['different-dimensions']);
     const app = await buildApp(config, db, provider);
     try {
       expect((await app.inject('/api/catalog')).json()).toMatchObject({
         mode: 'ollama',
         requiresConsent: false,
         chatTimeoutMs: 390000,
-        directory: { total: 20 },
       });
       const response = (
         await app.inject({
           method: 'POST',
           url: '/api/chat',
           payload: {
-            message: 'Estou com dor no pescoço',
+            message:
+              'Estou com dor no pescoço desde ontem, piora ao movimentar, sem outros sintomas',
             city: 'Fortaleza',
             insurance: 'CASSI',
             consent: false,
           },
         })
       ).json();
-      expect(response).toMatchObject({ mode: 'ollama', specialtyIds: ['ortopedia'] });
+      expect(response).toMatchObject({ mode: 'ollama', status: 'ok', ragStatus: 'available' });
+      expect(response.specialty.id).toBe('ortopedia');
       expect(response.clinics[0].id).toBe('public-cti');
-      expect(response.sources).toHaveLength(1);
       expect(await checkSetup(db, config, provider, true)).toMatchObject({
         allPassed: true,
         liveVerified: true,
-        clinicalReviewComplete: false,
       });
-      const failed = await checkSetup(
-        db,
-        config,
-        {
-          ...provider,
-          embed: async () => {
-            throw new Error('private-data');
-          },
-        },
-        true,
-      );
-      expect(failed.allPassed).toBe(false);
-      expect(JSON.stringify(failed)).not.toContain('private-data');
+      expect(response.sources[0].clinicId).toBe('public-cti');
     } finally {
       await app.close();
     }

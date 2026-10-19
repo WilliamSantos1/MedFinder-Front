@@ -6,7 +6,7 @@ test('catálogo real tem fonte, paginação e busca por nome sem depender da Doc
   await page.goto('/');
   await page.getByRole('button', { name: 'Encontrar clínicas', exact: true }).click();
   const directory = page.getByRole('region', { name: 'Catálogo de clínicas' });
-  await expect(directory.getByRole('heading', { name: '20 opções encontradas' })).toBeVisible();
+  await expect(directory.getByRole('heading', { name: '38 opções encontradas' })).toBeVisible();
   await expect(directory.getByText('CLÍNICA FICTÍCIA', { exact: true })).toHaveCount(0);
   await expect(directory.getByRole('link', { name: 'Fonte do cadastro' }).first()).toHaveAttribute(
     'href',
@@ -25,7 +25,7 @@ test('catálogo real tem fonte, paginação e busca por nome sem depender da Doc
     page.viewportSize()!.width,
   );
   await page.getByRole('button', { name: 'Próxima página' }).click();
-  await expect(page.getByText('Página 2 de 4')).toBeVisible();
+  await expect(page.getByText('Página 2 de 7')).toBeVisible();
   await page.getByLabel('Nome, bairro ou endereço').fill('JULIO LIMA');
   await directory.getByRole('button', { name: 'Buscar', exact: true }).click();
   await expect(directory.getByRole('heading', { name: '1 opção encontrada' })).toBeVisible();

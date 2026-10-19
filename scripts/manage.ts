@@ -1,9 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { z } from 'zod';
-import { clinicSchema, documentSchema, type KnowledgeDocument } from '../shared/contracts.js';
+import { clinicSchema, clinicDocumentSchema, type ClinicDocument } from '../shared/contracts.js';
 import { createProvider } from '../server/ai/factory.js';
 import { OllamaError } from '../server/ai/ollama.js';
 import { readConfig } from '../server/config.js';
+import { SpecialtyRepository } from '../server/db/specialties.js';
+import { FeedbackRepository } from '../server/db/feedback.js';
 import { CatalogRepository } from '../server/db/catalog.js';
 import { connectDatabase } from '../server/db/database.js';
 import { migrate } from '../server/db/migrations.js';
@@ -18,6 +20,7 @@ async function main() {
   if (
     ![
       'migrate',
+      'feedback-prune',
       'seed',
       'import',
       'reindex',
@@ -39,6 +42,11 @@ async function main() {
       console.log('Migrações aplicadas.');
       return;
     }
+    if (command === 'feedback-prune') {
+      await new FeedbackRepository(db).purgeExpiredReceipts();
+      console.log('Comprovantes de resposta expirados removidos.');
+      return;
+    }
     if (command === 'catalog-load') {
       console.log(JSON.stringify(await loadPublicCatalog(db), null, 2));
       return;
@@ -50,20 +58,22 @@ async function main() {
           'setup:local é demonstrativo. Para IA generativa local, use setup:ollama; para OpenAI, setup:connected.',
         );
       await seedDevelopment(db, provider);
-      console.log('Catálogo real e RAG local carregados. O modo demo não usa IA generativa.');
+      console.log(
+        'Catálogo real carregado. O RAG de clínicas é opcional; o modo demo não usa IA generativa.',
+      );
       return;
     }
     if (command === 'setup-connected' || command === 'setup-ollama') {
       if (command === 'setup-ollama' && provider.mode !== 'ollama')
         throw new Error('setup:ollama exige AI_PROVIDER=ollama no .env.');
       console.log(
-        'Verificando modelos e indexando a base RAG. A primeira execução local pode demorar alguns minutos.',
+        'Verificando a IA e preparando o catálogo. Documentos de clínicas são opcionais.',
       );
       console.log(
         JSON.stringify(await setupConnected(db, config, provider, process.argv[3]), null, 2),
       );
       if (command === 'setup-ollama') {
-        console.log('Testando embeddings e geração local com uma mensagem técnica…');
+        console.log('Testando geração local com uma mensagem técnica…');
         const result = await checkSetup(db, config, provider, true);
         console.log(JSON.stringify(result, null, 2));
         if (!result.allPassed) process.exitCode = 1;
@@ -85,30 +95,35 @@ async function main() {
       console.log('Dados fictícios e base demonstrativa carregados.');
     } else if (command === 'import') {
       const [kind, path] = process.argv.slice(3);
-      if (!path || !['clinics', 'knowledge'].includes(kind))
-        throw new Error('Use: npm run data:import -- clinics|knowledge caminho.json');
+      if (!path || !['clinics', 'clinic-documents', 'specialties'].includes(kind))
+        throw new Error(
+          'Use: npm run data:import -- clinics|clinic-documents|specialties caminho.json',
+        );
       const data: unknown = JSON.parse(await readFile(path, 'utf8'));
-      if (kind === 'clinics') {
+      if (kind === 'specialties') {
+        console.log(
+          `${await new SpecialtyRepository(db).import(data)} especialidades cadastradas.`,
+        );
+      } else if (kind === 'clinics') {
         const clinics = z.array(clinicSchema).max(10000).parse(data);
         if (!config.ALLOW_DEMO_DATA && clinics.some((clinic) => clinic.isDemo))
           throw new Error('Remova os dados fictícios antes de importar.');
         await new CatalogRepository(db, config.ALLOW_DEMO_DATA).import(clinics);
         console.log(`${clinics.length} clínicas importadas.`);
       } else {
-        const documents = z.array(documentSchema).max(1000).parse(data);
-        if (
-          !config.ALLOW_DEMO_DATA &&
-          documents.some((doc) => doc.isDemo || doc.reviewStatus !== 'approved')
-        )
-          throw new Error('Produção só aceita documentos aprovados por revisor clínico.');
+        const documents = z.array(clinicDocumentSchema).max(1000).parse(data);
+        if (!config.ALLOW_DEMO_DATA && documents.some((doc) => doc.isDemo))
+          throw new Error('Produção só aceita documentos reais, com fonte e data verificadas.');
         let changed = 0;
         for (const document of documents)
           if (await ingestDocument(db, provider, document)) changed++;
         console.log(`${changed} documentos atualizados. Os demais já estavam indexados.`);
       }
     } else {
-      const { rows } = await db.query<{ data: KnowledgeDocument }>(
-        'SELECT data FROM documents ORDER BY id',
+      const { rows } = await db.query<{ data: ClinicDocument }>(
+        `SELECT jsonb_build_object('id',id,'clinicId',clinic_id,'title',title,'content',content,
+          'sourceUrl',source_url,'verifiedAt',to_char(verified_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+          'isDemo',is_demo,'active',active) AS data FROM clinic_documents ORDER BY id`,
       );
       let changed = 0;
       for (const { data } of rows)

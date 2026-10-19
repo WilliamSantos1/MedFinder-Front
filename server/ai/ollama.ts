@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { modelAnswerSchema } from '../../shared/contracts.js';
+import { modelAnswerFormat, modelAnswerSchema } from '../../shared/contracts.js';
 import type { Config } from '../config.js';
 import { careInput, careInstructions } from './prompt.js';
 import { vectorLiteral, type AIProvider } from './provider.js';
@@ -74,7 +74,6 @@ export function createOllamaProvider(config: Config, transport: typeof fetch = f
     embeddingDimensions: config.OLLAMA_EMBEDDING_DIMENSIONS,
     embeddingModel: `ollama:${config.OLLAMA_EMBEDDING_MODEL}:${config.OLLAMA_EMBEDDING_DIMENSIONS}`,
     async checkAvailability() {
-      await requireLocalModel(config.OLLAMA_EMBEDDING_MODEL, 'embedding');
       await requireLocalModel(config.OLLAMA_MODEL, 'completion');
     },
     async embed(texts) {
@@ -96,13 +95,7 @@ export function createOllamaProvider(config: Config, transport: typeof fetch = f
     },
     async generate(input) {
       await requireLocalModel(config.OLLAMA_MODEL, 'completion');
-      const sourceIds = input.evidence.map((source) => source.id);
-      const groundedSchema = modelAnswerSchema.extend({
-        sourceIds: sourceIds.length
-          ? z.array(z.enum(sourceIds as [string, ...string[]])).max(4)
-          : z.array(z.string()).max(0),
-      });
-      const format = z.toJSONSchema(groundedSchema);
+      const format = z.toJSONSchema(modelAnswerFormat);
       const response = chatResult.parse(
         await post('chat', {
           model: config.OLLAMA_MODEL,
@@ -112,12 +105,7 @@ export function createOllamaProvider(config: Config, transport: typeof fetch = f
           messages: [
             {
               role: 'system',
-              content: `${careInstructions}
-Exemplo apenas de estilo, não use os dados do exemplo como evidência:
-Se uma fonte sustenta avaliação inicial em clínica médica para um desconforto persistente,
-uma resposta de navegação possível é {"answer":"Uma avaliação em clínica médica pode ajudar a investigar seu desconforto. Conte ao profissional quando começou e o que mudou.","urgency":"routine","specialtyIds":["clinica-medica"],"questions":["Há quanto tempo começou?"],"sourceIds":["id-exato-da-fonte"]}.
-Ao responder o caso atual, use somente as fontes recebidas e preserve a incerteza sobre causas e riscos.
-Retorne somente JSON conforme este esquema: ${JSON.stringify(format)}`,
+              content: `${careInstructions}\nRetorne somente JSON conforme este esquema: ${JSON.stringify(format)}`,
             },
             { role: 'user', content: careInput(input) },
           ],
@@ -125,7 +113,7 @@ Retorne somente JSON conforme este esquema: ${JSON.stringify(format)}`,
           keep_alive: '2m',
         }),
       );
-      return groundedSchema.parse(JSON.parse(response.message.content));
+      return modelAnswerSchema.parse(JSON.parse(response.message.content));
     },
   };
 }

@@ -6,14 +6,18 @@
     "state": "CE",
     "neighborhood": "Aldeota",
     "address": "Endereço fictício · sem atendimento real",
-    "specialties": ["clinica-medica", "ortopedia", "medicina-de-familia"],
+    "specialties": ["clinica-medica", "ortopedia"],
     "insurances": ["Particular", "Plano Exemplo A"],
     "phone": null,
     "website": null,
     "sourceUrl": null,
     "verifiedAt": null,
     "isDemo": true,
-    "active": true
+    "active": true,
+    "latitude": -3.73,
+    "longitude": -38.52,
+    "coordinatesVerifiedAt": null,
+    "coordinatesSourceUrl": null
   },
   {
     "id": "demo-centro",
@@ -22,14 +26,18 @@
     "state": "CE",
     "neighborhood": "Centro",
     "address": "Endereço fictício · sem atendimento real",
-    "specialties": ["clinica-medica", "medicina-de-familia", "gastroenterologia"],
+    "specialties": ["clinica-medica", "gastroenterologia"],
     "insurances": ["Particular", "Plano Exemplo B"],
     "phone": null,
     "website": null,
     "sourceUrl": null,
     "verifiedAt": null,
     "isDemo": true,
-    "active": true
+    "active": true,
+    "latitude": -3.75,
+    "longitude": -38.52,
+    "coordinatesVerifiedAt": null,
+    "coordinatesSourceUrl": null
   },
   {
     "id": "demo-pele",
@@ -45,7 +53,11 @@
     "sourceUrl": null,
     "verifiedAt": null,
     "isDemo": true,
-    "active": true
+    "active": true,
+    "latitude": -3.77,
+    "longitude": -38.52,
+    "coordinatesVerifiedAt": null,
+    "coordinatesSourceUrl": null
   },
   {
     "id": "demo-neuro",
@@ -61,7 +73,11 @@
     "sourceUrl": null,
     "verifiedAt": null,
     "isDemo": true,
-    "active": true
+    "active": true,
+    "latitude": -3.79,
+    "longitude": -38.52,
+    "coordinatesVerifiedAt": null,
+    "coordinatesSourceUrl": null
   },
   {
     "id": "demo-sp-familia",
@@ -70,14 +86,18 @@
     "state": "SP",
     "neighborhood": "Bela Vista",
     "address": "Endereço fictício · sem atendimento real",
-    "specialties": ["clinica-medica", "medicina-de-familia", "dermatologia"],
+    "specialties": ["clinica-medica", "dermatologia"],
     "insurances": ["Particular", "Plano Exemplo A"],
     "phone": null,
     "website": null,
     "sourceUrl": null,
     "verifiedAt": null,
     "isDemo": true,
-    "active": true
+    "active": true,
+    "latitude": -23.55,
+    "longitude": -46.63,
+    "coordinatesVerifiedAt": null,
+    "coordinatesSourceUrl": null
   },
   {
     "id": "demo-sp-especialidades",
@@ -93,6 +113,30 @@
     "sourceUrl": null,
     "verifiedAt": null,
     "isDemo": true,
-    "active": true
+    "active": true,
+    "latitude": -23.55,
+    "longitude": -46.63,
+    "coordinatesVerifiedAt": null,
+    "coordinatesSourceUrl": null
+  },
+  {
+    "id": "demo-urologia",
+    "name": "Urologia Demonstração",
+    "city": "Fortaleza",
+    "state": "CE",
+    "neighborhood": "Aldeota",
+    "address": "Endereço fictício · sem atendimento real",
+    "specialties": ["urologia"],
+    "insurances": ["Particular", "Plano Exemplo A"],
+    "phone": null,
+    "website": null,
+    "sourceUrl": null,
+    "verifiedAt": null,
+    "isDemo": true,
+    "active": true,
+    "latitude": -3.732,
+    "longitude": -38.527,
+    "coordinatesVerifiedAt": null,
+    "coordinatesSourceUrl": null
   }
 ]

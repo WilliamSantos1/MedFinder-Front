@@ -29,6 +29,8 @@ const schema = z.object({
   AUTO_SEED: boolean.default(true),
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(3).default(0),
   CHAT_RATE_LIMIT: z.coerce.number().int().min(1).max(120).default(12),
+  HTTP_RATE_LIMIT: z.coerce.number().int().min(1).max(1000).default(120),
+  FEEDBACK_RATE_LIMIT: z.coerce.number().int().min(1).max(120).default(20),
   AI_MAX_CONCURRENCY: z.coerce.number().int().min(1).max(50).default(4),
 });
 

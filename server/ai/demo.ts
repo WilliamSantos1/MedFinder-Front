@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
-import { specialties } from '../../shared/contracts.js';
-import { tokens } from '../domain/text.js';
+import { normalize, tokens } from '../domain/text.js';
 import { EMBEDDING_DIMENSIONS, type AIProvider } from './provider.js';
+import { assessDetail } from '../domain/clarification.js';
+import { patientProfile } from '../domain/patient.js';
 
 // Feature hashing is an offline test adapter, NOT a semantic language model.
 export const demoProvider: AIProvider = {
@@ -20,19 +21,46 @@ export const demoProvider: AIProvider = {
       return values.map((value) => value / norm);
     });
   },
-  async generate({ evidence }) {
-    const first = evidence[0];
-    if (!first) throw new Error('Evidência ausente.');
-    const specialtyIds = first.specialties.slice(0, 2);
+  async generate({ message, history, patient: reportedPatient }) {
+    // Synthetic examples for interface/integration checks, never a clinical inference engine.
+    const text = normalize([...history, message].join(' '));
+    const assessment = assessDetail([...history, message]);
+    const patient = reportedPatient ?? patientProfile([...history, message]);
+    const name =
+      !assessment.sufficient || patient.needsAge
+        ? null
+        : /ouvido|garganta|rouquidao/.test(text)
+          ? 'Otorrinolaringologia'
+          : /pele|coceira|cocando|manchas/.test(text) &&
+              patient.ageYears !== null &&
+              patient.ageYears < 18
+            ? 'Pediatria'
+            : /urinar|urinaria/.test(text)
+              ? 'Urologia'
+              : /pescoco|costas|lombar/.test(text)
+                ? 'Ortopedia'
+                : /pele|coceira|cocando|manchas/.test(text)
+                  ? 'Dermatologia'
+                  : /cabeca/.test(text)
+                    ? 'Neurologia'
+                    : /ouvido/.test(text)
+                      ? 'Otorrinolaringologia'
+                      : /estomago/.test(text)
+                        ? 'Gastroenterologia'
+                        : /olhos?/.test(text)
+                          ? 'Oftalmologia'
+                          : /ansiedade/.test(text)
+                            ? 'Psicologia'
+                            : null;
     return {
-      answer: `Para começar, você pode buscar uma avaliação em ${specialties[specialtyIds[0]]}. ${first.content} A indicação depende de uma avaliação presencial; esta conversa não estabelece um diagnóstico.`,
-      urgency: 'routine',
-      specialtyIds,
-      questions: [
-        'Há quanto tempo isso começou e qual é a intensidade?',
-        'Existe algum outro sintoma ou houve uma lesão recente?',
-      ],
-      sourceIds: [first.id],
+      answer: name
+        ? `Exemplo demonstrativo: uma avaliação em ${name} pode ajudar a orientar o próximo passo. A indicação precisa ser avaliada por um profissional.`
+        : 'Descreva melhor o desconforto para continuar a demonstração. Se precisar de atendimento, procure uma unidade de saúde.',
+      urgency: name ? 'routine' : 'uncertain',
+      specialty: name
+        ? { name, reason: 'Associação fictícia para testar o fluxo; não é uma avaliação clínica.' }
+        : null,
+      questions: name ? [] : patient.needsAge ? ['age_group'] : assessment.missing.slice(0, 2),
     };
   },
 };

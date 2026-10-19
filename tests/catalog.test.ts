@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { clinicSchema, specialties, type Clinic } from '../shared/contracts.js';
+import { clinicSchema, type Clinic } from '../shared/contracts.js';
 import { readConfig } from '../server/config.js';
 import { connectDatabase, type Database } from '../server/db/database.js';
 import { migrate } from '../server/db/migrations.js';
@@ -22,11 +22,11 @@ beforeAll(async () => {
   db = await connectDatabase(config);
   await migrate(db);
   clinics = await readPublicCatalog();
-  catalog = new CatalogRepository(db, false);
+  catalog = new CatalogRepository(db, true);
   temporary = await mkdtemp(join(tmpdir(), 'medfinder-catalog-'));
 });
 beforeEach(async () => {
-  await db.exec('TRUNCATE clinics, catalog_collections, documents CASCADE');
+  await db.exec('TRUNCATE clinics, catalog_collections, clinic_documents CASCADE');
 });
 afterAll(async () => {
   await db?.close();
@@ -34,35 +34,111 @@ afterAll(async () => {
 });
 
 describe('Catálogo real independente de provedores de diretório', () => {
-  it('carrega 20 unidades, três cidades e todas as nove especialidades com fontes próprias', async () => {
+  it('carrega 36 unidades, quatro cidades e dezesseis especialidades com fontes próprias', async () => {
     await loadPublicCatalog(db);
-    expect(clinics).toHaveLength(20);
-    expect(new Set(clinics.map((c) => c.id)).size).toBe(20);
+    expect(clinics).toHaveLength(36);
+    expect(new Set(clinics.map((c) => c.id)).size).toBe(36);
     expect(new Set(clinics.flatMap((c) => c.specialties))).toEqual(
-      new Set(Object.keys(specialties)),
+      new Set([
+        'clinica-medica',
+        'ortopedia',
+        'dermatologia',
+        'neurologia',
+        'gastroenterologia',
+        'otorrinolaringologia',
+        'oftalmologia',
+        'psicologia',
+        'cardiologia',
+        'urologia',
+        'reumatologia',
+        'endocrinologia',
+        'pneumologia',
+        'nefrologia',
+        'ginecologia',
+        'pediatria',
+      ]),
     );
     expect(
       clinics.every(
-        (c) => !c.isDemo && c.sourceUrl && c.verifiedAt && c.provenance === 'official-website',
+        (c) =>
+          !c.isDemo &&
+          c.sourceUrl &&
+          c.verifiedAt &&
+          ['official-website', 'public-directory'].includes(c.provenance ?? ''),
       ),
     ).toBe(true);
     expect(await catalog.metadata()).toMatchObject({
-      total: 20,
-      realRecords: 20,
+      total: 36,
+      realRecords: 36,
       demoData: false,
-      cities: ['Eusébio', 'Fortaleza', 'Maracanaú'],
-      sourceCount: 11,
+      cities: ['Caucaia', 'Eusébio', 'Fortaleza', 'Maracanaú'],
+      sourceCount: 26,
     });
+  });
+  it('mantém coordenadas verificadas, fontes, taxonomia e unidades únicas; ordena o catálogo real antes de paginar', async () => {
+    const audit = JSON.parse(await readFile('data/coordinates.provenance.json', 'utf8')) as {
+      clinicId: string;
+      latitude: number;
+      longitude: number;
+      coordinatesSourceUrl: string;
+    }[];
+    expect(audit).toHaveLength(clinics.length);
+    expect(new Set(clinics.map((c) => `${c.city}|${c.address}`)).size).toBe(clinics.length);
+    await loadPublicCatalog(db);
+    const meta = await catalog.metadata();
+    for (const clinic of clinics) {
+      expect(clinic.latitude).not.toBeNull();
+      expect(clinic.longitude).not.toBeNull();
+      expect(audit.find((a) => a.clinicId === clinic.id)).toMatchObject({
+        latitude: clinic.latitude,
+        longitude: clinic.longitude,
+        coordinatesSourceUrl: clinic.coordinatesSourceUrl,
+      });
+      expect(clinic.specialties.every((id) => meta.specialties.some((s) => s.id === id))).toBe(
+        true,
+      );
+      for (const url of [clinic.sourceUrl, clinic.website, clinic.coordinatesSourceUrl].filter(
+        Boolean,
+      ))
+        expect(new URL(url!).protocol).toBe('https:');
+    }
+    const search = { ...filters, location: { latitude: -3.88, longitude: -38.46 } };
+    const items = [];
+    for (let page = 1; page <= 6; page++)
+      items.push(...(await catalog.search({ ...search, page })).items);
+    expect(items.every((c) => c.distanceKm !== null)).toBe(true);
+    expect(items[0].city).toBe('Eusébio');
+    expect(items.map((c) => c.distanceKm)).toEqual(
+      items.map((c) => c.distanceKm).sort((a, b) => a! - b!),
+    );
+    expect(
+      (await catalog.search({ ...search, city: 'Fortaleza' })).items.every(
+        (c) => c.city === 'Fortaleza',
+      ),
+    ).toBe(true);
+  });
+  it('preserva coordenadas verificadas mais recentemente pelo operador', async () => {
+    const clinic = clinics[0];
+    await catalog.import([
+      {
+        ...clinic,
+        latitude: clinic.latitude! + 0.00001,
+        coordinatesVerifiedAt: new Date().toISOString(),
+      },
+    ]);
+    await loadPublicCatalog(db);
+    const result = await catalog.search({ ...filters, q: clinic.name });
+    expect(result.items.find((c) => c.id === clinic.id)?.latitude).toBe(clinic.latitude! + 0.00001);
   });
   it('página, busca e filtros exatos funcionam sem perder ou repetir registros', async () => {
     await loadPublicCatalog(db);
     const ids: string[] = [];
-    for (let page = 1; page <= 4; page++) {
+    for (let page = 1; page <= 6; page++) {
       const result = await catalog.search({ ...filters, page });
-      expect(result.total).toBe(20);
+      expect(result.total).toBe(36);
       ids.push(...result.items.map((clinic) => clinic.id));
     }
-    expect(new Set(ids).size).toBe(20);
+    expect(new Set(ids).size).toBe(36);
     expect((await catalog.search({ ...filters, q: 'clinica assis' })).items[0].id).toBe(
       'public-mario-de-assis',
     );
@@ -116,7 +192,7 @@ describe('Catálogo real independente de provedores de diretório', () => {
     for (const data of [[], [clinics[0], clinics[0]], [{ ...clinics[0], sourceUrl: null }]]) {
       await writeFile(path, JSON.stringify(data));
       await expect(loadPublicCatalog(db, path)).rejects.toThrow();
-      expect((await catalog.search(filters)).total).toBe(20);
+      expect((await catalog.search(filters)).total).toBe(36);
     }
     expect(
       clinicSchema.safeParse({
@@ -134,8 +210,8 @@ describe('Catálogo real independente de provedores de diretório', () => {
     expect((await db.query('SELECT id FROM clinics')).rows).toHaveLength(1);
     await migrate(db);
   });
-  it('a inicialização local entrega catálogo real e oito documentos sem chave', async () => {
-    await seedDevelopment(db, demoProvider);
+  it('a inicialização local entrega catálogo real sem exigir RAG médico ou chave', async () => {
+    await seedDevelopment(db);
     const app = await buildApp(config, db, demoProvider);
     try {
       expect((await app.inject('/api/ready')).statusCode).toBe(200);
@@ -143,13 +219,13 @@ describe('Catálogo real independente de provedores de diretório', () => {
       expect(status).toMatchObject({
         mode: 'demo',
         demoData: false,
-        knowledge: { indexedDocuments: 8 },
+        knowledge: { indexedDocuments: 0 },
       });
       const response = await app.inject({
         method: 'POST',
         url: '/api/chat',
         payload: {
-          message: 'Estou com dor no pescoço',
+          message: 'Estou com dor no pescoço desde ontem, piora ao movimentar, sem outros sintomas',
           city: 'Fortaleza',
           insurance: 'CASSI',
         },

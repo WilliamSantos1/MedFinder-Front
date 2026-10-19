@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { documentSchema, type KnowledgeDocument } from '../../shared/contracts.js';
+import { clinicDocumentSchema, type ClinicDocument } from '../../shared/contracts.js';
 import { vectorLiteral, type AIProvider } from '../ai/provider.js';
 import type { Database } from '../db/database.js';
 import { normalize } from '../domain/text.js';
@@ -26,15 +26,40 @@ export function chunkText(text: string, size = 900, overlap = 120): string[] {
 export async function ingestDocument(
   db: Database,
   provider: AIProvider,
-  raw: KnowledgeDocument,
-  options: { force?: boolean } = {},
+  raw: ClinicDocument,
+  options: { force?: boolean; preserveNewer?: boolean } = {},
 ) {
-  const doc = documentSchema.parse(raw);
+  const doc = clinicDocumentSchema.parse(raw);
+  const clinic = await db.query<{
+    data: { isDemo: boolean; sourceUrl: string | null; website: string | null };
+  }>('SELECT data FROM clinics WHERE id=$1', [doc.clinicId]);
+  const record = clinic.rows[0]?.data;
+  if (!record || record.isDemo !== doc.isDemo)
+    throw new Error('Documento deve pertencer a uma clínica do mesmo tipo (real/demo).');
+  if (
+    !doc.isDemo &&
+    ![record.sourceUrl, record.website].some(
+      (url) =>
+        url &&
+        new URL(url).hostname.replace(/^www\./, '') ===
+          new URL(doc.sourceUrl!).hostname.replace(/^www\./, ''),
+    )
+  )
+    throw new Error('Use uma fonte do site oficial já verificado para esta clínica.');
   const hash = createHash('sha256').update(JSON.stringify(doc)).digest('hex');
-  const existing = await db.query<{ content_hash: string; embedding_model: string }>(
-    'SELECT content_hash,embedding_model FROM documents WHERE id=$1',
-    [doc.id],
-  );
+  const existing = await db.query<{
+    content_hash: string;
+    embedding_model: string;
+    verified_at: Date | string | null;
+  }>('SELECT content_hash,embedding_model,verified_at FROM clinic_documents WHERE id=$1', [doc.id]);
+  const existingDate = existing.rows[0]?.verified_at;
+  if (
+    options.preserveNewer &&
+    existingDate &&
+    doc.verifiedAt &&
+    new Date(existingDate).getTime() > Date.parse(doc.verifiedAt)
+  )
+    return false;
   if (
     !options.force &&
     existing.rows[0]?.content_hash === hash &&
@@ -42,7 +67,7 @@ export async function ingestDocument(
   )
     return false;
   const chunks = chunkText(doc.content);
-  const searchTexts = chunks.map((chunk) => `${doc.title}. ${doc.keywords.join(' ')}. ${chunk}`);
+  const searchTexts = chunks.map((chunk) => `${doc.title}. ${chunk}`);
   // Compute the entire new version before changing anything in the database.
   const embeddings = await provider.embed(searchTexts);
   if (embeddings.length !== chunks.length) throw new Error('Lote de embeddings incompleto.');
@@ -51,14 +76,27 @@ export async function ingestDocument(
   );
   await db.transaction(async (tx) => {
     await tx.query(
-      `INSERT INTO documents(id,content_hash,embedding_model,data) VALUES($1,$2,$3,$4::jsonb)
-      ON CONFLICT(id) DO UPDATE SET content_hash=$2,embedding_model=$3,data=$4::jsonb`,
-      [doc.id, hash, provider.embeddingModel, JSON.stringify(doc)],
+      `INSERT INTO clinic_documents(id,clinic_id,title,content,source_url,verified_at,content_hash,embedding_model,active,is_demo)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        ON CONFLICT(id) DO UPDATE SET clinic_id=$2,title=$3,content=$4,source_url=$5,verified_at=$6,
+          content_hash=$7,embedding_model=$8,active=$9,is_demo=$10`,
+      [
+        doc.id,
+        doc.clinicId,
+        doc.title,
+        doc.content,
+        doc.sourceUrl,
+        doc.verifiedAt,
+        hash,
+        provider.embeddingModel,
+        doc.active,
+        doc.isDemo,
+      ],
     );
-    await tx.query('DELETE FROM chunks WHERE document_id=$1', [doc.id]);
+    await tx.query('DELETE FROM clinic_chunks WHERE document_id=$1', [doc.id]);
     for (let index = 0; index < chunks.length; index++) {
       await tx.query(
-        'INSERT INTO chunks(id,document_id,content,search_text,embedding) VALUES($1,$2,$3,$4,$5::vector)',
+        'INSERT INTO clinic_chunks(id,document_id,content,search_text,embedding) VALUES($1,$2,$3,$4,$5::vector)',
         [
           `${doc.id}:${hash.slice(0, 12)}:${index}`,
           doc.id,

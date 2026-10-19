@@ -88,3 +88,17 @@ export function isUnsafeOutput(answer: string) {
     /(?:https?:\/\/|www\.|\b(?:r\$|crm\s*\d))/.test(value)
   );
 }
+
+/** Catalog claims have no authority in free-form model text. Catalog data is rendered separately. */
+export function containsCatalogClaim(answer: string) {
+  const value = normalize(answer);
+  return (
+    /\b(?:convenios?|unimed|bradesco|cassi|hapvida|telefone|endereco|whatsapp|agende|agendamento|disponibilidade|cobertura|preco|hospital|laboratorio)\b/.test(
+      value,
+    ) ||
+    /\b(?:[Rr]ua|[Aa]venida|[Tt]ravessa|[Cc]l[ií]nica)\s+(?![Mm][eé]dica\b|[Gg]eral\b|[Pp]resencial\b)[A-ZÁÉÍÓÚÂÊÔÃÕÇ][\wÀ-ÿ-]+/.test(
+      answer,
+    ) ||
+    /\d{4}[-\s]?\d{4}|\b\d+(?:[.,]\d+)?\s*(?:mg|ml|comprimidos?)\b/.test(value)
+  );
+}

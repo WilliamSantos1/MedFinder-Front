@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
-import { modelAnswerSchema } from '../../shared/contracts.js';
+import { modelAnswerFormat, modelAnswerSchema } from '../../shared/contracts.js';
 import type { Config } from '../config.js';
 import { careInstructions, careInput } from './prompt.js';
 import { EMBEDDING_DIMENSIONS, type AIProvider } from './provider.js';
@@ -41,11 +41,11 @@ export function createOpenAIProvider(config: Config, transport?: typeof fetch): 
           },
         ],
         max_output_tokens: 900,
-        text: { format: zodTextFormat(modelAnswerSchema, 'care_navigation') },
+        text: { format: zodTextFormat(modelAnswerFormat, 'care_navigation') },
       });
       if (!response.output_parsed || response.status !== 'completed')
         throw new Error('Resposta indisponível ou recusada.');
-      return response.output_parsed;
+      return modelAnswerSchema.parse(response.output_parsed);
     },
   };
 }

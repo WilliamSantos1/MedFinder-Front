@@ -26,7 +26,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'node --import tsx server/index.ts',
+      command: 'node --import tsx scripts/e2e-server.ts',
       url: 'http://127.0.0.1:3001/api/ready',
       timeout: 90000,
       reuseExistingServer: !process.env.CI,
@@ -38,6 +38,9 @@ export default defineConfig({
         DATABASE_URL: '',
         DATA_DIR: 'memory://',
         CHAT_RATE_LIMIT: '120',
+        // One test client executes many isolated user journeys in under a minute.
+        HTTP_RATE_LIMIT: '1000',
+        FEEDBACK_RATE_LIMIT: '120',
       },
     },
     {

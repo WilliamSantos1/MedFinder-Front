@@ -6,17 +6,18 @@ import {
   HeartPulse,
   LoaderCircle,
   LockKeyhole,
-  Sparkles,
   Square,
 } from 'lucide-react';
 import { CareFilters, type CareFilterProps } from '../../components/CareFilters';
 import { useChat } from './useChat';
+import { LocationControl } from '../../components/LocationControl';
+import { searchLocation } from '../../hooks/useGeolocation';
 import { AssistantMessage } from './AssistantMessage';
 
 const suggestions = [
   'Estou com dor no pescoço',
   'Minha pele está coçando',
-  'Tenho dores de cabeça',
+  'Qual clínica de oftalmologia está mais perto?',
 ];
 
 export function ChatPanel(props: CareFilterProps) {
@@ -35,10 +36,16 @@ export function ChatPanel(props: CareFilterProps) {
 
   async function submit() {
     const message = input.trim();
-    if (message.length < 3 || message.length > 2000 || pending || !ready) return;
+    if (!message || message.length > 2000 || pending || !ready) return;
     setInput('');
-    const success = await send({ message, city: props.city, insurance: props.insurance, consent });
-    if (!success) setInput(message);
+    const success = await send({
+      message,
+      city: props.city,
+      insurance: props.insurance,
+      consent,
+      location: searchLocation(props.geolocation.location),
+    });
+    if (!success) setInput((draft) => draft || message);
     textarea.current?.focus();
   }
   function fill(text: string) {
@@ -61,15 +68,13 @@ export function ChatPanel(props: CareFilterProps) {
                 ? 'Modo demonstração'
                 : props.catalog.mode === 'ollama'
                   ? 'IA local · Ollama'
-                  : 'IA com fontes consultáveis'
+                  : 'IA · orientação de atendimento'
               : 'Conectando ao serviço…'}
           </p>
         </div>
-        <span className="chat-header-badge">
-          <Sparkles size={13} /> SEU GUIA DE CUIDADO
-        </span>
       </div>
       <CareFilters {...props} />
+      <LocationControl geolocation={props.geolocation} />
       <div
         className={`conversation ${messages.length ? 'has-messages' : ''}`}
         ref={scrollArea}
@@ -87,9 +92,9 @@ export function ChatPanel(props: CareFilterProps) {
             <span className="welcome-eyebrow">PODE FALAR. ESTAMOS AQUI.</span>
             <h3>Como você está se sentindo?</h3>
             <p>
-              Descreva seu desconforto do seu jeito.
+              Conte seu desconforto ou pergunte sobre clínicas.
               <br />
-              Vamos buscar informações para orientar seu próximo passo.
+              Busque por especialidade, convênio ou proximidade.
             </p>
             <div className="suggestions">
               {suggestions.map((suggestion) => (
@@ -120,7 +125,7 @@ export function ChatPanel(props: CareFilterProps) {
             <LoaderCircle className="spin" size={17} />
             <span>
               {props.catalog?.mode === 'ollama'
-                ? 'A IA local está consultando a base. A primeira resposta pode demorar…'
+                ? 'A IA local está preparando a orientação. A primeira resposta pode demorar…'
                 : 'Consultando informações e opções de atendimento…'}
             </span>
           </div>
@@ -163,8 +168,7 @@ export function ChatPanel(props: CareFilterProps) {
               onChange={(event) => setInput(event.target.value)}
               maxLength={2000}
               rows={2}
-              placeholder="Ex.: estou com dor no pescoço há dois dias…"
-              disabled={pending}
+              placeholder="Ex.: qual clínica de oftalmologia está mais perto?"
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
                   event.preventDefault();
@@ -185,7 +189,7 @@ export function ChatPanel(props: CareFilterProps) {
               <button
                 className="send-button"
                 type="submit"
-                disabled={input.trim().length < 3 || !ready}
+                disabled={!input.trim() || !ready}
                 aria-label="Enviar mensagem"
               >
                 <ArrowUp size={22} />

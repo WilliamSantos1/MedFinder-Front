@@ -1,6 +1,15 @@
 @import 'tailwindcss';
 
+html {
+  font-size: 100%;
+}
+
 :root {
+  --text-xs: 0.875rem;
+  --text-sm: 0.9375rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
   font-family:
     'Inter',
     'Segoe UI',
@@ -23,6 +32,8 @@
   box-sizing: border-box;
 }
 body {
+  font-size: var(--text-base);
+  line-height: 1.5;
   margin: 0;
   min-width: 320px;
 }

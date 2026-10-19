@@ -1,76 +1,97 @@
 # Operação e manutenção
 
-## Primeiro uso e portas
+## Instalar e atualizar
 
-`npm ci`, copie `.env.example` para `.env` e execute `npm run dev`. Front: localhost:5173; API: localhost:3001. O Vite encaminha `/api` ao backend. `PORT` diferente de 3001 exige atualizar também o proxy em `vite.config.ts`.
+Use Node.js >=22.16. No PowerShell, prefira `npm.cmd` para não depender da execução de scripts `.ps1`. Execute comandos na pasta de `package.json`.
 
-Com `AUTO_SEED=true` e `ALLOW_DEMO_DATA=true`, o processo local aplica migrações, carrega a coleção pública e atualiza os resumos demonstrativos por hash a cada inicialização. Documentos não demonstrativos existentes são preservados. A carga explícita `npm run db:seed` repõe os exemplos pelos mesmos IDs; não use para gerenciar dados reais. `AUTO_SEED=false` desativa a carga automática. Use `catalog:load` para carregar somente as clínicas reais, sem chamadas de IA; `setup:local` carrega também o RAG offline. Consulte [CATALOGO.md](CATALOGO.md). Nenhum comando apaga o banco automaticamente.
-
-Pare a API antes de executar CLI contra o PGlite no mesmo diretório. Para usar API e CLI simultaneamente, configure PostgreSQL externo. Faça backup antes de operações manuais destrutivas.
-
-## Importação de clínicas
-
-Um JSON é uma lista de objetos com os campos de `clinicSchema`, em `shared/contracts.ts`. Exemplo de estrutura fictícia **não publicável**, presente em `data/clinics.demo.json`.
-
-Para um cadastro real, preencha nome, cidade, UF, bairro, endereço, especialidades, convênios, fonte HTTPS, data real de verificação ISO 8601 e `isDemo=false`. Telefone usa formato `+55` + DDD + número, ou `null`. Website e telefone são opcionais. `verifiedAt` não aceita data futura. IDs duplicados fazem o lote ser rejeitado antes da gravação. Cadastros reais vencidos não aparecem no catálogo nem na lista de filtros.
-
-```bash
-npm run data:import -- clinics ./dados/clinicas.json
+```powershell
+npm.cmd ci
+npm.cmd run db:migrate
+npm.cmd run setup:ollama
+npm.cmd run dev
 ```
 
-A importação é uma transação: um lote inválido não deve ser aplicado parcialmente. É um upsert por `id`; itens ausentes no arquivo não são excluídos. Desative com `active=false` usando o mesmo ID. Mudanças do convênio devem ser revalidadas, principalmente quando existem produtos diferentes da mesma operadora.
+Ollama deve estar aberto com o gerador configurado já baixado. `bge-m3` é usado no RAG opcional. Portas: frontend 5173, API 3001, Ollama 11434. Preserve `.env` existente. Antes de atualizar, pare a API e faça backup do diretório de dados configurado (`.data/ollama` ou `.data/postgres`). Não execute dois processos sobre o mesmo PGlite.
 
-## Importação de conhecimento
+Migrações 5–7 criaram taxonomia, textos de clínicas, coordenadas e feedback; a migração 8 acrescenta aliases explícitos a 9 desativa Medicina de Família e Comunidade e a 10 habilita Pediatria. As anteriores são preservadas. Não apague o banco para aplicar a nova versão. Sem PostgreSQL externo, a CLI e a API precisam usar o mesmo `DATA_DIR`. Em produção, aplique `db:migrate` antes de subir a API; ela não migra automaticamente.
 
-O JSON segue `documentSchema`. Inclua resumo cujo uso seja autorizado, título, publisher, URL HTTPS da origem, palavras-chave, especialidades e metadados. A clínica responsável deve revisar também as associações de especialidades, alertas e limites de escopo, não apenas a linguagem do resumo.
+`AUTO_SEED=true` é para desenvolvimento. Carrega a coleção pública; no modo demo indexa os textos públicos via hashing offline. O modo generativo usa setup explícito. `catalog:load` apenas importa o snapshot versionado, sem visitar sites ou renovar verificação. Cadastros manuais fora da coleção permanecem; exemplos demo e itens removidos da coleção são desativados. Coordenadas administrativas são preservadas quando ausentes no snapshot ou quando sua verificação é mais recente.
 
-```bash
-npm run data:import -- knowledge ./dados/conhecimento.json
+Relatos genéricos agora pedem esclarecimentos. Para testar, envie “estou com dor de cabeça” e responda às perguntas. São até duas por resposta, sem repetir tópicos já respondidos. Não altere o prompt para forçar indicação quando faltar contexto. O modelo pode manter incerteza mesmo após os esclarecimentos.
+
+## Taxonomia administrativa
+
+Exemplo de arquivo `especialidades.json`:
+
+```json
+[{ "id": "pediatria", "name": "Pediatria", "aliases": ["Pediatra"], "active": true }]
 ```
 
-Todos os objetos são validados antes do processamento. Cada documento é indexado atomicamente depois de obter seus embeddings; se uma chamada falhar, documentos anteriores do lote podem já ter sido atualizados. Reexecutar é seguro: o hash evita duplicação. Retirar um documento é importar o mesmo ID com `active=false`. Conteúdo inativo sai imediatamente da recuperação.
-
-`reviewedBy` deve identificar o revisor responsável segundo o processo da organização. O software não verifica essa identidade. Não aprove automaticamente a base de demonstração; substitua-a por conteúdo revisado e autorizado. Um cadastro aprovado não pode ser `isDemo=true`.
-
-## Docker
-
-Defina `POSTGRES_PASSWORD` no `.env` antes de `docker compose up --build`. Para testar, mantenha `NODE_ENV=development`, `AI_PROVIDER=demo`, os flags de dados demo e `WEB_ORIGIN=http://localhost:3001`. O Compose cria PostgreSQL/pgvector, aplica as migrações e inicia o app compilado na porta 3001. Use `docker compose logs app` para status operacional (sem adicionar logging de relatos).
-
-```bash
-docker compose exec app node build/scripts/manage.js migrate
+```powershell
+npm.cmd run data:import -- specialties caminho/especialidades.json
 ```
 
-Para importação, copie o JSON para o container ou monte um diretório autorizado e execute `node build/scripts/manage.js import clinics /caminho/clinicas.json`. A imagem inclui scripts compilados; não depende de tsx no runtime. Para reindexar, use `node build/scripts/manage.js reindex`.
+O comando atualiza cadastro e referência, normaliza nomes/aliases e rejeita ambiguidades. Não exige rebuild nem reiniciar o backend; recarregue a interface para buscar o novo catálogo. O administrador precisa verificar a nomenclatura. Não use o importador para registrar rótulos inventados pelo modelo. `active=false` retira a especialidade dos filtros e da resolução ativa, preservando seus vínculos.
 
-## Produção
+## Clínicas e coordenadas
 
-Use `.env.production.example` com valores reais. A configuração falha ao iniciar caso ainda permita demo, auto-seed, PGlite ou origem HTTP. O código não impõe automaticamente outras condições operacionais ou conformidade legal.
+Importe uma lista no formato de `clinicSchema`; exemplo fictício em `data/clinics.demo.json`. Campos reais exigem fonte HTTPS e `verifiedAt` não futura; cadastros ficam ocultos após 180 dias sem reverificação. Convênios desconhecidos são `[]`; telefone/website desconhecidos são `null`. Importar não cria especialidades automaticamente.
 
-Instale o proxy HTTPS na frente do app. `TRUST_PROXY_HOPS=0` é padrão seguro; só aumente para a quantidade exata de proxies controlados, impedindo acesso direto ao backend por outras rotas. Configure `WEB_ORIGIN` exatamente como a URL que o usuário abre, inclusive porta se houver. CORS não é autenticação; a API de leitura/chat é pública e precisa de proteção contra abuso e limites de gasto no provedor/gateway.
+```powershell
+npm.cmd run data:import -- clinics caminho/clinicas.json
+```
 
-PostgreSQL gerenciado: configure `DATABASE_URL`, use TLS validado com `DATABASE_SSL=true` quando requerido. A aplicação não usa `rejectUnauthorized:false`. Tenha backups testados, monitoramento e usuário do banco apropriado. Para instalação inicial, o banco precisa oferecer a extensão pgvector; em ambientes restritos, peça ao operador que a crie.
+A importação é transacional por lote, com UPSERT por ID. Itens ausentes não são removidos; use `active=false` para retirar. Reserve `public-` para a coleção distribuída. Fonte/contato/cobertura precisam ser revalidados pelo operador.
 
-`GET /api/health` é liveness. `GET /api/ready` verifica banco e documentos válidos indexados para o modelo configurado. Uma aplicação nova em produção retorna 503 até importar conhecimento aprovado. Isso é esperado; não desligue a verificação para publicar uma base vazia.
+`latitude` e `longitude` são nullable e devem ser preenchidas em par. Para clínicas reais, coordenadas exigem `coordinatesVerifiedAt` e `coordinatesSourceUrl` próprios. Geocodifique/verifique administrativamente e então importe. Não há chamada a geocoder durante consultas. O catálogo 2.3 inclui 36 unidades com pares verificados; `data/coordinates.provenance.json` registra o ponto/endereço encontrado, a fonte e o método. Não reutilize o ponto da matriz em outras filiais. As coordenadas demo servem apenas a testes.
 
-## Dados de saúde
+Se a instalação antiga ainda mostrar distância indisponível para todo o catálogo, pare a API e rode `npm.cmd run catalog:load` usando o mesmo `.env`/`DATA_DIR`. Reinicie e autorize “Usar minha localização”. Apenas migrar o schema não preenche os registros antigos: é necessário importar o snapshot atualizado. `setup:ollama` já faz essa importação e tenta indexar os 36 textos públicos.
 
-Não habilite captura de corpos HTTP em proxy, APM ou logs. A aplicação desabilita logging de requisições e registra apenas categorias de erro, sem SDK error/prompt. Redação de CPF, e-mail e telefone é limitada e não garante anonimização. A OpenAI recebe o relato/contexto após consentimento; configure a conta e o contrato do provedor segundo os requisitos reais do operador. `store:false` não garante retenção zero de todos os sistemas externos.
+## Documentos de clínicas
 
-A ação “Interromper envio” cancela a espera no navegador; uma chamada que já chegou ao provedor pode continuar até seu timeout e gerar custo. Nova conversa remove apenas o estado desta aba, sem prometer exclusão de registros externos.
+```powershell
+npm.cmd run data:import -- clinic-documents caminho/textos.json
+npm.cmd run rag:reindex
+```
 
-## Problemas frequentes
+Campos: `id`, `clinicId`, `title`, `content`, `sourceUrl`, `verifiedAt`, `isDemo`, `active`. Veja [RAG.md](RAG.md). Não use mais `data:import -- knowledge`. A importação não transforma documentos antigos de orientação médica em descrições de clínicas.
 
-| Sintoma                                        | Verificação                                                                        |
-| ---------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Interface sem conexão                          | API na porta 3001, proxy Vite, `WEB_ORIGIN`, erro de inicialização                 |
-| Resposta sem evidências após trocar embeddings | Pare a API local e execute `npm run rag:reindex`                                   |
-| Indisponibilidade com chave configurada        | Acesso ao modelo, saldo, quotas, conectividade e timeout                           |
-| Clínica não aparece                            | Filtros, `active`, `isDemo`, fonte e `verifiedAt` dentro da janela                 |
-| Documento não é recuperado                     | Modelo de embedding, `active`, revisão/idade, vocabulário, pertinência             |
-| Erro ao abrir PGlite                           | Diretório gravável, versão do banco e nenhum segundo processo usando a mesma pasta |
-| HTTP 429                                       | Limite por IP; aguarde ou ajuste o gateway conforme a demanda real                 |
-| Prontidão 503                                  | Migrações, banco e pelo menos um documento elegível com o modelo atual             |
+Hash evita trabalho repetido. O recálculo de embeddings acontece antes da substituição transacional por documento; o lote inteiro não é atômico. Para retirar documento, importe com `active=false`. Não atribua serviços, público ou estrutura sem fonte; datas não são renovadas automaticamente. O CLI não verifica o conteúdo remoto ou a identidade do operador: proteja o acesso ao ambiente/banco.
 
-## Ollama local
+## Feedback e retenção
 
-Consulte [OLLAMA.md](OLLAMA.md). Mantenha o serviço no loopback e use modelos baixados, sem cloud. `setup:ollama` configura o ambiente de desenvolvimento; `integrations:check` testa embeddings e geração locais sem chave. Backups `.env.backup-*` são privados e ignorados pelo Git. A configuração do MedFinder não modifica configurações globais do Ollama. Não há atualização automática das clínicas quando a máquina fica offline.
+`ai_feedback` guarda uma linha por resposta, atualizável. Não contém relato, histórico, resposta completa ou localização. Comentários são opcionais, limitados e redigidos; podem ainda conter informação que o usuário decidiu incluir. Não habilite logs de corpo em API, proxy ou APM.
+
+`response_receipts` guarda apenas o hash do token e metadados de autorização; expira em 7 dias. Execute periodicamente no ambiente autorizado:
+
+```powershell
+npm.cmd run feedback:prune
+```
+
+A limpeza não apaga as avaliações existentes. Defina a retenção administrativa do feedback para o projeto. Análises devem considerar que se trata de utilidade percebida, não avaliação de acurácia clínica. Não existe endpoint público de leitura ou treinamento automático.
+
+## Produção e Docker
+
+`.env.production.example` exige PostgreSQL externo + pgvector, provedor generativo, origem HTTPS, `ALLOW_DEMO_DATA=false` e `AUTO_SEED=false`. `npm run build` gera `dist/` e `build/`; `npm start` serve API e frontend na mesma origem. `/api/health` indica processo ativo; `/api/ready` verifica banco, taxonomia e catálogo visível, sem exigir índice textual ou validar conectividade real da IA.
+
+No Compose de desenvolvimento, defina `POSTGRES_PASSWORD` e `WEB_ORIGIN=http://localhost:3001`, execute `docker compose up --build` e abra a porta 3001. Ollama limitado a loopback precisa estar acessível no mesmo ambiente de rede do processo; o exemplo Compose não fornece um serviço Ollama. Comandos na imagem compilada usam `node build/scripts/manage.js migrate`, `import`, `reindex` ou `feedback-prune`.
+
+Use TLS validado em PostgreSQL quando aplicável e backup restaurável. Configure `TRUST_PROXY_HOPS` apenas para proxies controlados; CORS não autentica clientes. Rate limits atuais são por processo, então réplicas precisam de limite compartilhado no gateway. Não registre prompts, sintomas, feedback, coordenadas ou chaves.
+
+## Diagnóstico rápido
+
+| Sintoma                       | Verificar                                                                                                           |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| “Origem não permitida”        | Abrir o endereço/porta de `WEB_ORIGIN`; aliases de loopback somente no desenvolvimento                              |
+| `llm_unavailable`             | Ollama aberto/modelo baixado; ou credenciais/quota/conexão OpenAI                                                   |
+| `invalid_output`              | Saída fora do contrato ou bloqueada por guardrails; não relaxar as regras para exibir a resposta                    |
+| Especialidade não reconhecida | Nome/alias exato; cadastrar somente após validação administrativa                                                   |
+| Sem clínicas                  | Especialidade ativa, cidade/convênio exatos, atividade e verificação do cadastro                                    |
+| Distância indisponível        | Recarregar o catálogo 2.3 no banco correto; conferir permissão e pares/fonte/data da unidade; não inferir distância |
+| Localização negada            | Permissão do navegador; sem loop de solicitação, cidade continua funcionando                                        |
+| RAG indisponível              | Modelo de embeddings, dimensão, documentos e data; chat/catálogo continuam independentes                            |
+| Feedback não salvo            | Token/ID da resposta, motivo contextual, prazo de 7 dias, limite ou conexão                                         |
+| PGlite em uso                 | Parar a API antes de CLI; usar PostgreSQL externo para concorrência                                                 |
+| HTTP 429                      | Aguardar janela; revisar limites para a demanda real                                                                |
+
+“Interromper envio” interrompe a espera do navegador; uma chamada já enviada ao provedor pode continuar até o timeout. Nova conversa limpa o estado da aba, sem prometer remoção de registros externos do provedor. Antes de uso assistencial, é necessária avaliação clínica independente da navegação e das regras.

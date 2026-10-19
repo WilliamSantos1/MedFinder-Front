@@ -23,5 +23,5 @@ export function redactIdentifiers(value: string) {
   return value
     .replace(/\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b/gi, '[e-mail removido]')
     .replace(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g, '[documento removido]')
-    .replace(/(?:\+?55\s?)?(?:\(?\d{2}\)?\s?)?9\d{4}[-\s]?\d{4}\b/g, '[telefone removido]');
+    .replace(/(?:\+?55\s?)?(?:\(?\d{2}\)?\s?)?[2-9]\d{3,4}[-\s]?\d{4}\b/g, '[telefone removido]');
 }
