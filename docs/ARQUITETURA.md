@@ -8,7 +8,7 @@
 4. **CatalogRepository:** fonte de verdade de clínicas, convênios, cidades, endereços, serviços cadastrados e coordenadas. SQL parametrizado filtra atividade, especialidade ativa, convênio exato, cidade exata e palavras opcionais. Não recebe texto arbitrário da IA como SQL.
 5. **Proximidade:** Haversine calcula quilômetros em linha reta somente para registros com coordenadas. Ordena todos os candidatos antes de paginar. Sem coordenadas ficam por último; desempate estável por nome e ID. Sem localização, cadastros reais primeiro e nome/ID.
 6. **RAG de clínicas:** complementa a resposta com trechos e fontes dos candidatos já selecionados. Não escolhe a especialidade nem amplia filtros. Os trechos são exibidos separadamente, sem uma segunda síntese clínica pelo modelo.
-7. **FeedbackRepository:** emite comprovantes e grava avaliações. Não lê nem grava conversas. Não se conecta à IA ou altera os guardrails.
+7. **FeedbackRepository:** emite comprovantes, grava avaliações de respostas e avaliações de visita às clínicas indicadas. Não lê nem grava conversas. Não se conecta à IA ou altera os guardrails.
 
 ## Especialidades
 
@@ -68,11 +68,24 @@ As coordenadas da clínica são dados administrativos persistentes; a posição 
 
 ## Feedback e proteção contra falsificação
 
-Cada resposta tem UUID aleatório e um token aleatório de 256 bits. Só o hash do token é persistido em `response_receipts`, junto do modo, versão do prompt, motivos permitidos e data. O navegador mantém o token apenas na memória da conversa. O servidor não aceita modo/versão/motivos fora do comprovante.
+Cada resposta tem UUID aleatório e um token aleatório de 256 bits. Só o hash do token é persistido em `response_receipts`, junto do modo, versão do prompt, motivos permitidos e data. O navegador mantém o token na memória da conversa. Quando a resposta indica clínicas, uma cópia vai para o `localStorage` somente para o fluxo de retorno descrito abaixo. O servidor não aceita modo/versão/motivos fora do comprovante.
 
 `POST /api/feedback` faz UPSERT por `response_id`. Negativo exige motivo contextual; comentário opcional tem até 500 caracteres e passa por `redactIdentifiers`. Positivo limpa motivo/comentário anteriores. Não há endpoint público de leitura das avaliações. Comprovantes expiram em 7 dias; a CLI de limpeza remove os vencidos sem apagar os votos existentes. Configure uma política administrativa de retenção do feedback conforme o uso real.
 
 A conversa não depende do feedback: erro na emissão ou no envio não impede o chat. Não há treinamento, fine-tuning, mudança de prompt ou uso de votos no próximo contexto. A redação de identificadores é limitada e não impede que o usuário inclua voluntariamente informações sensíveis num comentário; a UI orienta a evitar isso.
+
+### Retorno e avaliação da visita
+
+O MedFinder não tem login, e por isso não identifica pessoas por IP, cookie de rastreamento ou ID de visitante. O retorno é detectado inteiramente no navegador (`src/features/followup/`):
+
+1. Quando `POST /chat` devolve clínicas (e a urgência não é `emergency` nem `prompt`), `rememberRecommendation` grava em `localStorage` (`medfinder.followup.v1`) o comprovante da resposta, os IDs e nomes das clínicas e a hora. Sem clínicas indicadas, nada é gravado.
+2. Enquanto houver indicações pendentes, `useReturnFollowUp` atualiza `lastSeen` a cada 30 s, ao ocultar a aba e no `pagehide`. Não existe um evento confiável de "fechou o app", então o hook compara horários.
+3. Ao abrir o app, ou ao voltar o foco da aba (celular), se a ausência passou de `MIN_ABSENCE_MS` (6 h), `ReturnFeedbackDialog` pergunta qual clínica a pessoa visitou e a nota de 1 a 5. A decisão é tomada antes de renovar `lastSeen`.
+4. O envio vai para `POST /api/visit-feedback`. O servidor valida token, validade de sete dias e se a clínica estava na indicação, e só então grava em `clinic_visit_feedback`.
+
+Escolher "Não fui a nenhuma", pressionar Esc ou enviar a avaliação descarta as indicações pendentes. Indicações com mais de seis dias são descartadas na leitura (o comprovante do servidor expira em sete). No máximo cinco indicações ficam guardadas.
+
+O `localStorage` guarda o token do comprovante, que só autoriza avaliar aquelas clínicas, uma vez por resposta. O texto de privacidade do app informa esse armazenamento. A avaliação enviada contém somente clínica, nota e comentário opcional. Detalhes em [FEEDBACK.md](FEEDBACK.md).
 
 ## Migrations e compatibilidade
 

@@ -11,6 +11,7 @@ Base local: `http://localhost:3001/api`. JSON UTF-8. Respostas da API usam `Cach
 | POST   | `/clinics/search` | Busca com filtros e posição opcional somente no corpo                            |
 | POST   | `/chat`           | Navegação, especialidades validadas, clínicas, trechos e comprovante de feedback |
 | POST   | `/feedback`       | Gravar/alterar avaliação de uma resposta                                         |
+| POST   | `/visit-feedback` | Avaliar uma clínica indicada (nota 1–5) após o retorno do usuário                |
 
 ## Catálogo
 
@@ -129,8 +130,32 @@ Retorno: `{"status":"saved"}`. `rating` aceita `positive` ou `negative`. Positiv
 
 Motivos possíveis: `incorrect_specialty`, `unclear_answer`, `not_helpful`, `clinic_problem`, `location_problem`, `insurance_problem`, `too_slow`, `other`. O mesmo `responseId` atualiza o voto por UPSERT. O comprovante expira em sete dias. Não há endpoint público de listagem.
 
+## Avaliação de visita à clínica
+
+Depois que o chat indica clínicas, o usuário pode avaliar uma delas quando voltar ao app. O fluxo completo está em [FEEDBACK.md](FEEDBACK.md).
+
+```json
+{
+  "responseId": "UUID retornado pelo chat",
+  "token": "token retornado em feedback.token",
+  "clinicId": "public-cldo-aldeota",
+  "rating": 4,
+  "comment": "Atendimento rápido."
+}
+```
+
+Envie para `POST /visit-feedback`. Retorno: `{"status":"saved"}`.
+
+- `responseId` e `token` são o mesmo comprovante emitido por `POST /chat` (`id` e `feedback.token`). Não existe conta, identificador de usuário nem uso de IP.
+- `clinicId` precisa ser uma das clínicas que **aquela resposta** indicou. O servidor guarda essa lista no comprovante (`response_receipts.clinic_ids`) e rejeita qualquer outro ID.
+- `rating` é um inteiro de 1 a 5. `comment` é opcional, trimado, limitado a 500 caracteres e redigido por `redactIdentifiers` antes de salvar.
+- O par `(responseId, clinicId)` é único: reenviar atualiza a nota e o comentário por UPSERT.
+- O comprovante expira em sete dias. Depois disso, a rota responde 400.
+- Campos extras, nota fora de 1–5 ou decimal, token incorreto, clínica não indicada e comprovante expirado retornam 400 com `{"error":"Avaliação inválida ou expirada."}`. Dados fora do schema retornam a mensagem padrão de validação.
+- Usa o limite `FEEDBACK_RATE_LIMIT`, o mesmo de `/feedback`. Não há endpoint público de listagem.
+
 ## Controles HTTP
 
 400: dados/consentimento/comprovante inválidos. 403: origem POST não autorizada. 404: rota ausente. 413: corpo acima de 24 KB. 429: limite de uso. 500: falha interna sem expor conteúdo do erro. Erros usam `{"error":"mensagem"}`.
 
-Limite global: `HTTP_RATE_LIMIT` (padrão 120/minuto/IP). O teste de navegador configura 1000 porque executa dezenas de jornadas usando o mesmo IP; o padrão da aplicação permanece 120. Chat: `CHAT_RATE_LIMIT` (padrão 12); feedback: `FEEDBACK_RATE_LIMIT` (padrão 20). Em desenvolvimento, `localhost`, `127.0.0.1` e `[::1]` são aceitos para o mesmo protocolo/porta configurados. Produção exige a origem HTTPS exata. CORS não substitui autenticação ou controle de abuso.
+Limite global: `HTTP_RATE_LIMIT` (padrão 120/minuto/IP). O teste de navegador configura 1000 porque executa dezenas de jornadas usando o mesmo IP; o padrão da aplicação permanece 120. Chat: `CHAT_RATE_LIMIT` (padrão 12); feedback e avaliação de visita: `FEEDBACK_RATE_LIMIT` (padrão 20, contado por rota). Em desenvolvimento, `localhost`, `127.0.0.1` e `[::1]` são aceitos para o mesmo protocolo/porta configurados. Produção exige a origem HTTPS exata. CORS não substitui autenticação ou controle de abuso.
