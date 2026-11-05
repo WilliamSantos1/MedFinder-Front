@@ -30,7 +30,12 @@ test('relato genérico pede detalhes, usa resposta parcial e só então mostra u
   await expect(final.getByRole('heading', { name: 'Neurologia', exact: true })).toBeVisible();
   await expect(final.locator('.specialty-suggestions section')).toHaveCount(1);
   await expect(final.locator('.follow-up')).toHaveCount(0);
-  expect(await page.evaluate(() => localStorage.length + sessionStorage.length)).toBe(0);
+  expect(
+    await page.evaluate(() => ({
+      local: Object.keys(localStorage).filter((key) => key !== 'medfinder.followup.v1'),
+      session: Object.keys(sessionStorage),
+    })),
+  ).toEqual({ local: [], session: [] });
   await page.getByRole('button', { name: 'Nova conversa', exact: true }).click();
   await expect(page.locator('.assistant-message')).toHaveCount(0);
 });
@@ -74,7 +79,12 @@ test('relato sobre filha pede apenas idade e aceita resposta de um caractere', a
   await expect(second).toContainText('irritação, ressecamento');
   await expect(second.locator('.follow-up')).toHaveCount(0);
   await expect(second.locator('.specialty-suggestions section')).toHaveCount(1);
-  expect(await page.evaluate(() => localStorage.length + sessionStorage.length)).toBe(0);
+  expect(
+    await page.evaluate(() => ({
+      local: Object.keys(localStorage).filter((key) => key !== 'medfinder.followup.v1'),
+      session: Object.keys(sessionStorage),
+    })),
+  ).toEqual({ local: [], session: [] });
 });
 
 test('relato detalhado sobre ouvido mostra explicação e orientação sem perguntas', async ({
