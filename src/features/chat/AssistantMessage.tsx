@@ -64,7 +64,7 @@ export function AssistantMessage({ response }: { response: ChatResponse }) {
       {response.questions.length > 0 && (
         <div className="follow-up">
           <strong>Para entender melhor</strong>
-          <ul>
+          <ul className='question-box list-disc list-inside'>
             {response.questions.map((question) => (
               <li key={question}>{question}</li>
             ))}
