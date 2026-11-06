@@ -729,6 +729,14 @@ h1 > span {
   font-size: var(--text-sm);
   color: #3a6243;
 }
+.question-box{
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  gap:0.4rem;
+  background: #e6f2e9;
+  border-radius: 0.5rem;
+}
 .follow-up {
   margin-top: 15px;
   padding-top: 12px;
@@ -1615,7 +1623,7 @@ h1 > span {
   margin: 16px 0;
 }
 .specialty-suggestions section {
-  background: #f4f8f4;
+  background: #e6f2e9;
   border-left: 3px solid #8cb8a2;
   border-radius: 6px;
   padding: 12px 14px;
