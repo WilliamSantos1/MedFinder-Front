@@ -18,6 +18,25 @@ CREATE TABLE catalog_collections(id text PRIMARY KEY,clinic_ids text[] NOT NULL,
 CREATE TABLE integration_state(provider text PRIMARY KEY,status text,last_attempt_at timestamptz,last_success_at timestamptz,summary jsonb);
 `;
 describe('Upgrade de instalação existente', () => {
+  it('migração 13 instala a taxonomia CFM/CME 2026 sem reativar Medicina de Família', async () => {
+    const db = await connectDatabase(readConfig({ NODE_ENV: 'test', DATA_DIR: 'memory://' }));
+    try {
+      await migrate(db);
+      const repo = new SpecialtyRepository(db);
+      const reference = await db.query<{ count: string }>(
+        "SELECT count(*)::text AS count FROM specialty_reference WHERE id <> 'psicologia'",
+      );
+      expect(Number(reference.rows[0].count)).toBe(55);
+      for (const name of ['Acupuntura', 'Cirurgia Pediátrica', 'Medicina Intensiva', 'Radioterapia'])
+        expect((await repo.resolve(name)).status).toBe('resolved');
+      expect((await repo.resolve('Medicina de Família e Comunidade')).status).toBe(
+        'not_registered',
+      );
+      expect((await repo.resolve('Psicologia')).status).toBe('resolved');
+    } finally {
+      await db.close();
+    }
+  });
   it('migração 10 habilita Pediatria sem reativar Medicina de Família ou registros desativados pelo operador', async () => {
     const db = await connectDatabase(readConfig({ NODE_ENV: 'test', DATA_DIR: 'memory://' }));
     try {
@@ -102,7 +121,7 @@ describe('Upgrade de instalação existente', () => {
       expect((await db.query('SELECT id FROM clinic_documents')).rows).toEqual([]);
       expect(
         (await db.query('SELECT version FROM schema_migrations ORDER BY version')).rows,
-      ).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((version) => ({ version })));
+      ).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].map((version) => ({ version })));
       const result = await new CatalogRepository(db, true).search({
         city: 'Fortaleza',
         insurance: 'Plano Exemplo A',

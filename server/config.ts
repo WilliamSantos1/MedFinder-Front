@@ -21,7 +21,7 @@ const schema = z.object({
   OPENAI_MODEL: z.string().default('gpt-4.1-mini'),
   EMBEDDING_MODEL: z.string().default('text-embedding-3-small'),
   OLLAMA_BASE_URL: z.url().default('http://127.0.0.1:11434'),
-  OLLAMA_MODEL: z.string().trim().min(1).max(120).default('qwen3:4b-instruct-2507-q4_K_M'),
+  OLLAMA_MODEL: z.string().trim().min(1).max(120).default('qwen3:1.7b'),
   OLLAMA_EMBEDDING_MODEL: z.string().trim().min(1).max(120).default('bge-m3'),
   OLLAMA_EMBEDDING_DIMENSIONS: z.coerce.number().int().min(1).max(16000).default(1024),
   OLLAMA_TIMEOUT_MS: z.coerce.number().int().min(1000).max(300000).default(180000),

@@ -1,5 +1,41 @@
 [
   {
+    "id": "public-alberto-lima",
+    "name": "Clínica Pediátrica Alberto Lima — Iguatemi Bosque",
+    "city": "Fortaleza",
+    "state": "CE",
+    "neighborhood": "Edson Queiroz",
+    "address": "Avenida Washington Soares, 85, Loja SS0018, Shopping Iguatemi Bosque",
+    "specialties": [
+      "alergologia-imunologia",
+      "dermatologia",
+      "endocrinologia",
+      "hematologia",
+      "neurocirurgia",
+      "neurologia",
+      "oftalmologia",
+      "ortopedia",
+      "otorrinolaringologia",
+      "pediatria",
+      "pneumologia",
+      "psiquiatria"
+    ],
+    "insurances": [],
+    "accessNote": "Clínica dedicada ao cuidado de crianças e adolescentes. Confirme diretamente cobertura e agenda de cada especialidade pediátrica.",
+    "professionals": [],
+    "provenance": "official-website",
+    "phone": null,
+    "website": "https://albertolima.com/",
+    "sourceUrl": "https://albertolima.com/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
+    "latitude": null,
+    "longitude": null,
+    "coordinatesVerifiedAt": null,
+    "coordinatesSourceUrl": null,
+    "isDemo": false,
+    "active": true
+  },
+  {
     "id": "public-angellus",
     "name": "Clínica Angellus",
     "city": "Caucaia",
@@ -34,7 +70,9 @@
     "state": "CE",
     "neighborhood": "Aldeota",
     "address": "Rua Padre Luis Figueira, 231",
-    "specialties": ["dermatologia"],
+    "specialties": [
+      "dermatologia"
+    ],
     "insurances": [],
     "provenance": "official-website",
     "phone": "+5585991854370",
@@ -80,13 +118,53 @@
     "coordinatesSourceUrl": "https://maps.google.com/maps?q=Avenida%20Ant%C3%B4nio%20Alves%20de%20Lacerda%2C%20315%2C%20Maracana%C3%BA%2C%20CE%2C%20Brasil&output=embed"
   },
   {
+    "id": "public-cardio-fortaleza",
+    "name": "Clínica Cardio Fortaleza",
+    "city": "Fortaleza",
+    "state": "CE",
+    "neighborhood": "Aldeota",
+    "address": "Rua Vicente Linhares, 521, salas 2004 a 2007",
+    "specialties": [
+      "cardiologia",
+      "cirurgia-vascular",
+      "neurologia"
+    ],
+    "insurances": [
+      "CAFAZ",
+      "Famed",
+      "Unimed"
+    ],
+    "accessNote": "O site publica os convênios Unimed, Cafaz e Famed e informa outros em credenciamento. Confirme cobertura e agenda diretamente com a clínica.",
+    "professionals": [
+      {
+        "name": "Ricardo Pereira Silva",
+        "specialtyId": "cardiologia",
+        "title": "Cardiologia",
+        "registry": "CRM/CE 4525 · RQE 8372/8407/9162"
+      }
+    ],
+    "provenance": "official-website",
+    "phone": "+558539950401",
+    "website": "https://clinicacardiofortaleza.com.br/",
+    "sourceUrl": "https://clinicacardiofortaleza.com.br/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
+    "latitude": null,
+    "longitude": null,
+    "coordinatesVerifiedAt": null,
+    "coordinatesSourceUrl": null,
+    "isDemo": false,
+    "active": true
+  },
+  {
     "id": "public-centro-pneumologia",
     "name": "Centro de Pneumologia e Alergia do Ceará",
     "city": "Fortaleza",
     "state": "CE",
     "neighborhood": "Aldeota",
     "address": "Avenida Rui Barbosa, 1349",
-    "specialties": ["pneumologia"],
+    "specialties": [
+      "pneumologia"
+    ],
     "insurances": [],
     "phone": "+558532613036",
     "website": null,
@@ -107,7 +185,9 @@
     "state": "CE",
     "neighborhood": "Aldeota",
     "address": "Rua Ildefonso Albano, 1373",
-    "specialties": ["oftalmologia"],
+    "specialties": [
+      "oftalmologia"
+    ],
     "insurances": [],
     "provenance": "official-website",
     "phone": "+558532011000",
@@ -128,7 +208,9 @@
     "state": "CE",
     "neighborhood": "Aldeota",
     "address": "Rua Barão de Aracati, 1280",
-    "specialties": ["oftalmologia"],
+    "specialties": [
+      "oftalmologia"
+    ],
     "insurances": [],
     "provenance": "official-website",
     "phone": "+558532011000",
@@ -149,7 +231,9 @@
     "state": "CE",
     "neighborhood": "Edson Queiroz",
     "address": "Avenida Washington Soares, 85, Lojas 805/806",
-    "specialties": ["oftalmologia"],
+    "specialties": [
+      "oftalmologia"
+    ],
     "insurances": [],
     "provenance": "official-website",
     "phone": "+558532011000",
@@ -170,7 +254,9 @@
     "state": "CE",
     "neighborhood": "Centro",
     "address": "Avenida Quarenta e Cinco, 500, Ponto Shopping",
-    "specialties": ["oftalmologia"],
+    "specialties": [
+      "oftalmologia"
+    ],
     "insurances": [],
     "provenance": "official-website",
     "phone": "+558532011000",
@@ -191,7 +277,9 @@
     "state": "CE",
     "neighborhood": "Água Fria",
     "address": "Avenida Washington Soares, 3000",
-    "specialties": ["oftalmologia"],
+    "specialties": [
+      "oftalmologia"
+    ],
     "insurances": [],
     "provenance": "official-website",
     "phone": "+558532011000",
@@ -212,20 +300,23 @@
     "state": "CE",
     "neighborhood": "Cidade dos Funcionários",
     "address": "Rua Júlio Lima, 675",
-    "specialties": ["ortopedia", "psicologia"],
+    "specialties": [
+      "ortopedia",
+      "psicologia"
+    ],
     "insurances": [
-      "CASSI",
-      "CAFAZ",
-      "SERPRO",
-      "Saúde Caixa",
-      "ISSEC",
-      "Postal Saúde",
-      "GEAP",
-      "Unimed",
-      "CAMED",
-      "IPM Saúde",
       "Bradesco Saúde",
-      "Plan-Assiste"
+      "CAFAZ",
+      "CAMED",
+      "CASSI",
+      "GEAP",
+      "IPM Saúde",
+      "ISSEC",
+      "Plan-Assiste",
+      "Postal Saúde",
+      "Saúde Caixa",
+      "SERPRO",
+      "Unimed"
     ],
     "provenance": "official-website",
     "phone": "+5585996400000",
@@ -246,7 +337,13 @@
     "state": "CE",
     "neighborhood": "Centro",
     "address": "Avenida Nova do Contorno, 3260, Catarina Mall",
-    "specialties": ["cardiologia", "oftalmologia", "clinica-medica", "ginecologia", "neurologia"],
+    "specialties": [
+      "cardiologia",
+      "clinica-medica",
+      "ginecologia",
+      "neurologia",
+      "oftalmologia"
+    ],
     "insurances": [],
     "phone": "+5585982021579",
     "website": "https://www.domussaude.com.br/",
@@ -261,13 +358,48 @@
     "coordinatesSourceUrl": "https://maps.google.com/maps?q=Catarina%20Mall%2C%20Avenida%20Nova%20do%20Contorno%2C%203260%2C%20Eus%C3%A9bio%2C%20CE%2C%20Brasil&output=embed"
   },
   {
+    "id": "public-fabiane-alergia",
+    "name": "Clínica Dra. Fabiane Pomiecinski",
+    "city": "Fortaleza",
+    "state": "CE",
+    "neighborhood": "Aldeota",
+    "address": "Rua Marcos Macedo, 1333, sala 617, Torre II, Pátio Dom Luís",
+    "specialties": [
+      "alergologia-imunologia"
+    ],
+    "insurances": [],
+    "accessNote": "Confirme diretamente com a clínica cobertura, reembolso e disponibilidade.",
+    "professionals": [
+      {
+        "name": "Fabiane Pomiecinski",
+        "specialtyId": "alergologia-imunologia",
+        "title": "Alergologista",
+        "registry": "RQE 7999"
+      }
+    ],
+    "provenance": "official-website",
+    "phone": "+5585986854122",
+    "website": "https://alergiafortaleza.com.br/",
+    "sourceUrl": "https://alergiafortaleza.com.br/a-clinica/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
+    "latitude": null,
+    "longitude": null,
+    "coordinatesVerifiedAt": null,
+    "coordinatesSourceUrl": null,
+    "isDemo": false,
+    "active": true
+  },
+  {
     "id": "public-fam",
     "name": "Clínica FAM",
     "city": "Fortaleza",
     "state": "CE",
     "neighborhood": "Aldeota",
     "address": "Rua Osvaldo Cruz, 1089, 1º andar",
-    "specialties": ["ortopedia", "dermatologia"],
+    "specialties": [
+      "dermatologia",
+      "ortopedia"
+    ],
     "insurances": [],
     "provenance": "official-website",
     "phone": "+5585981585291",
@@ -292,9 +424,9 @@
       "clinica-medica",
       "dermatologia",
       "neurologia",
+      "pneumologia",
       "psicologia",
-      "reumatologia",
-      "pneumologia"
+      "reumatologia"
     ],
     "insurances": [],
     "phone": "+558530852579",
@@ -310,34 +442,144 @@
     "coordinatesSourceUrl": "https://maps.google.com/maps?q=Rua%20Monsenhor%20Bruno%2C%201906%2C%20Fortaleza%2C%20CE%2C%20Brasil&output=embed"
   },
   {
+    "id": "public-haroldo-juacaba",
+    "name": "Hospital Haroldo Juaçaba — Centro de Especialidades",
+    "city": "Fortaleza",
+    "state": "CE",
+    "neighborhood": "Rodolfo Teófilo",
+    "address": "Rua Papi Júnior, 1222",
+    "specialties": [
+      "cardiologia",
+      "cirurgia-geral",
+      "coloproctologia",
+      "dermatologia",
+      "endocrinologia",
+      "gastroenterologia",
+      "ginecologia",
+      "hematologia",
+      "infectologia",
+      "mastologia",
+      "nefrologia",
+      "neurocirurgia",
+      "neurologia",
+      "oncologia-clinica",
+      "ortopedia",
+      "otorrinolaringologia",
+      "pneumologia",
+      "reumatologia",
+      "urologia"
+    ],
+    "insurances": [],
+    "accessNote": "O centro informa atendimento a clientes de convênios e particular. Confirme o plano e a disponibilidade na central de marcação.",
+    "professionals": [],
+    "provenance": "official-website",
+    "phone": "+558532884575",
+    "website": "https://www.haroldojuacaba.com.br/servicos/centro-de-especialidades/",
+    "sourceUrl": "https://www.haroldojuacaba.com.br/servicos/centro-de-especialidades/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
+    "latitude": null,
+    "longitude": null,
+    "coordinatesVerifiedAt": null,
+    "coordinatesSourceUrl": null,
+    "isDemo": false,
+    "active": true
+  },
+  {
     "id": "public-iclinic",
     "name": "iClinic Fortaleza",
     "city": "Fortaleza",
     "state": "CE",
     "neighborhood": "Dionísio Torres",
     "address": "Rua João Emídio da Silveira, 46",
-    "specialties": ["psicologia"],
+    "specialties": [
+      "psicologia",
+      "psiquiatria"
+    ],
     "insurances": [
-      "Unimed",
-      "SulAmérica",
-      "FUSMA",
-      "FUSEX",
-      "ISSEC",
       "FUNSA",
+      "FUSEX",
+      "FUSMA",
+      "ISSEC",
       "Rede Saúde",
-      "Total Life"
+      "SulAmérica",
+      "Total Life",
+      "Unimed"
     ],
     "provenance": "official-website",
     "phone": "+5585988465472",
     "website": "https://www.iclinicfortaleza.com.br/",
-    "sourceUrl": "https://www.iclinicfortaleza.com.br/",
-    "verifiedAt": "2026-09-24T00:00:00.000Z",
+    "sourceUrl": "https://www.iclinicfortaleza.com.br/nossa-equipe/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
     "isDemo": false,
     "active": true,
     "latitude": -3.7489009,
     "longitude": -38.4998246,
     "coordinatesVerifiedAt": "2026-09-28T10:30:00.000Z",
-    "coordinatesSourceUrl": "https://maps.google.com/maps?q=Rua%20Jo%C3%A3o%20Em%C3%ADdio%20da%20Silveira%2C%2046%2C%20Fortaleza%2C%20CE%2C%20Brasil&output=embed"
+    "coordinatesSourceUrl": "https://maps.google.com/maps?q=Rua%20Jo%C3%A3o%20Em%C3%ADdio%20da%20Silveira%2C%2046%2C%20Fortaleza%2C%20CE%2C%20Brasil&output=embed",
+    "professionals": [
+      {
+        "name": "Antonio Epaminondas Neves Junior",
+        "specialtyId": "psiquiatria",
+        "title": "Psiquiatra",
+        "registry": "CRM/CE 23396"
+      },
+      {
+        "name": "Augusto Gabriel Ribeiro",
+        "specialtyId": "psiquiatria",
+        "title": "Psiquiatra",
+        "registry": "CRM/CE 25398"
+      },
+      {
+        "name": "Caio Antero de Souza Pinheiro",
+        "specialtyId": "psiquiatria",
+        "title": "Psiquiatra",
+        "registry": "CRM/CE 15739"
+      },
+      {
+        "name": "Elwes Bruno Santos da Silva Oliveira",
+        "specialtyId": "psiquiatria",
+        "title": "Psiquiatra",
+        "registry": "CRM/CE 30046"
+      },
+      {
+        "name": "Flávia Milene de Souza Nobre",
+        "specialtyId": "psiquiatria",
+        "title": "Psiquiatra",
+        "registry": "CRM/CE 31346"
+      }
+    ]
+  },
+  {
+    "id": "public-inmune",
+    "name": "INMUNE Clínica de Alergia e Imunologia",
+    "city": "Fortaleza",
+    "state": "CE",
+    "neighborhood": "Aldeota",
+    "address": "Rua Pereira Valente, 578, salas 505/506",
+    "specialties": [
+      "alergologia-imunologia"
+    ],
+    "insurances": [],
+    "accessNote": "Atendimento particular; a clínica informa emissão de nota fiscal e recibo para possível reembolso conforme o plano do paciente.",
+    "professionals": [
+      {
+        "name": "Fátima Teresa",
+        "specialtyId": "alergologia-imunologia",
+        "title": "Alergologista e Imunologista",
+        "registry": "CRM/CE 13097 · RQE 12885"
+      }
+    ],
+    "provenance": "official-website",
+    "phone": "+5585992633758",
+    "website": "https://www.clinicainmune.com.br/",
+    "sourceUrl": "https://www.clinicainmune.com.br/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
+    "latitude": null,
+    "longitude": null,
+    "coordinatesVerifiedAt": null,
+    "coordinatesSourceUrl": null,
+    "isDemo": false,
+    "active": true
   },
   {
     "id": "public-ioce-santa-casa",
@@ -346,7 +588,9 @@
     "state": "CE",
     "neighborhood": "Centro",
     "address": "Rua Barão do Rio Branco, 20, Consultório 01",
-    "specialties": ["oftalmologia"],
+    "specialties": [
+      "oftalmologia"
+    ],
     "insurances": [],
     "provenance": "official-website",
     "phone": "+5585981702101",
@@ -367,7 +611,10 @@
     "state": "CE",
     "neighborhood": "Centro",
     "address": "Rua Irmã Ambrosina, 155",
-    "specialties": ["dermatologia", "ginecologia"],
+    "specialties": [
+      "dermatologia",
+      "ginecologia"
+    ],
     "insurances": [],
     "phone": "+558532601046",
     "website": "https://labclinica.med.br/",
@@ -388,7 +635,12 @@
     "state": "CE",
     "neighborhood": "Centro",
     "address": "Avenida Eusébio de Queiroz, 4808, 1º andar, salas 112 e 114",
-    "specialties": ["ginecologia", "dermatologia", "clinica-medica", "cardiologia"],
+    "specialties": [
+      "cardiologia",
+      "clinica-medica",
+      "dermatologia",
+      "ginecologia"
+    ],
     "insurances": [],
     "phone": "+5585997353197",
     "website": "https://clinicamarcellapinheiro.com.br/",
@@ -409,7 +661,12 @@
     "state": "CE",
     "neighborhood": "Centro",
     "address": "Rua 24 de Maio, 1465",
-    "specialties": ["clinica-medica", "gastroenterologia", "neurologia", "ortopedia"],
+    "specialties": [
+      "clinica-medica",
+      "gastroenterologia",
+      "neurologia",
+      "ortopedia"
+    ],
     "insurances": [],
     "provenance": "official-website",
     "phone": "+558530369000",
@@ -422,6 +679,103 @@
     "longitude": -38.5343493,
     "coordinatesVerifiedAt": "2026-09-28T10:30:00.000Z",
     "coordinatesSourceUrl": "https://maps.google.com/maps?q=Rua%2024%20de%20Maio%2C%201465%2C%20Fortaleza%2C%20CE%2C%20Brasil&output=embed"
+  },
+  {
+    "id": "public-massilon-vasconcelos",
+    "name": "Clínica de Olhos Massilon Vasconcelos",
+    "city": "Fortaleza",
+    "state": "CE",
+    "neighborhood": "Aldeota",
+    "address": "Avenida Dom Luís, 500, 12º andar, salas 1201 a 1209 — Shopping Aldeota Expansão",
+    "specialties": [
+      "oftalmologia"
+    ],
+    "insurances": [
+      "CAMED",
+      "Hapvida",
+      "SulAmérica",
+      "Unimed"
+    ],
+    "accessNote": "A página oficial publica esses convênios como exemplos; confirme elegibilidade, profissional e agenda diretamente com a clínica.",
+    "professionals": [
+      {
+        "name": "Massilon Vasconcelos",
+        "specialtyId": "oftalmologia",
+        "title": "Cirurgia refrativa e catarata",
+        "registry": "CRM/CE 3265 · RQE 6568"
+      },
+      {
+        "name": "Débora Almeida",
+        "specialtyId": "oftalmologia",
+        "title": "Córnea e ceratocone",
+        "registry": "CRM/CE 11252 · RQE 8195"
+      },
+      {
+        "name": "Renata Bastos",
+        "specialtyId": "oftalmologia",
+        "title": "Catarata e refrativa",
+        "registry": "CRM/CE 15066 · RQE 9020"
+      },
+      {
+        "name": "David de Almeida",
+        "specialtyId": "oftalmologia",
+        "title": "Catarata e refrativa",
+        "registry": "CRM/CE 11004 · RQE 8194"
+      },
+      {
+        "name": "Alexis Galeno",
+        "specialtyId": "oftalmologia",
+        "title": "Glaucoma",
+        "registry": "CRM/CE 10185 · RQE 6642"
+      },
+      {
+        "name": "Maria Vitória",
+        "specialtyId": "oftalmologia",
+        "title": "Retina e oftalmogeriatria",
+        "registry": "CRM/CE 11555 · RQE 8160"
+      },
+      {
+        "name": "Ana Paula Ximenes",
+        "specialtyId": "oftalmologia",
+        "title": "Plástica ocular",
+        "registry": "CRM/CE 6339 · RQE 2620"
+      },
+      {
+        "name": "Thiago Leite",
+        "specialtyId": "oftalmologia",
+        "title": "Retina",
+        "registry": "CRM/CE 10277 · RQE 6280"
+      },
+      {
+        "name": "George Emílio",
+        "specialtyId": "oftalmologia",
+        "title": "Plástica ocular",
+        "registry": "CRM/CE 6682 · RQE 2851"
+      },
+      {
+        "name": "Ana Carla",
+        "specialtyId": "oftalmologia",
+        "title": "Oftalmologia geral",
+        "registry": "CRM/CE 9376 · RQE 4238"
+      },
+      {
+        "name": "Antônio Abel",
+        "specialtyId": "oftalmologia",
+        "title": "Córnea e ceratocone",
+        "registry": "CRM/CE 11571 · RQE 6344"
+      }
+    ],
+    "provenance": "official-website",
+    "phone": "+558534581022",
+    "website": "https://clinicadeolhosvasconcelos.com.br/",
+    "sourceUrl": "https://clinicadeolhosvasconcelos.com.br/corpo-clinico/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
+    "latitude": null,
+    "longitude": null,
+    "coordinatesVerifiedAt": null,
+    "coordinatesSourceUrl": null,
+    "isDemo": false,
+    "active": true
   },
   {
     "id": "public-medclinica-eusebio",
@@ -460,8 +814,15 @@
     "state": "CE",
     "neighborhood": "Cidade dos Funcionários",
     "address": "Rua Pedro Firmeza, 712",
-    "specialties": ["gastroenterologia", "psicologia", "oftalmologia", "ortopedia"],
-    "insurances": ["Unimed"],
+    "specialties": [
+      "gastroenterologia",
+      "oftalmologia",
+      "ortopedia",
+      "psicologia"
+    ],
+    "insurances": [
+      "Unimed"
+    ],
     "provenance": "official-website",
     "phone": "+558532795059",
     "website": "https://multiclinic.com.br/",
@@ -503,13 +864,67 @@
     "coordinatesSourceUrl": "https://maps.google.com/maps?q=Rua%20Guaratinguet%C3%A1%2C%2060%2C%20Fortaleza%2C%20CE%2C%20Brasil&output=embed"
   },
   {
+    "id": "public-neusa-rocha",
+    "name": "Hospital de Olhos Neusa Rocha",
+    "city": "Fortaleza",
+    "state": "CE",
+    "neighborhood": "São Gerardo",
+    "address": "Rua Professor Nogueira, 71",
+    "specialties": [
+      "oftalmologia"
+    ],
+    "insurances": [
+      "Amil",
+      "ASSEFAZ",
+      "Banco Central Saúde",
+      "CAFAZ",
+      "CAMED",
+      "Famed",
+      "Golden Cross",
+      "Hapvida",
+      "IPM Saúde",
+      "ISSEC",
+      "Mediservice",
+      "Postal Saúde",
+      "Saúde Caixa",
+      "Saúde Petrobras",
+      "SulAmérica",
+      "Unimed"
+    ],
+    "accessNote": "Hospital especializado em oftalmologia. Confirme convênio, atendimento e disponibilidade diretamente com a unidade.",
+    "professionals": [
+      {
+        "name": "Aluízio Rocha Menezes",
+        "specialtyId": "oftalmologia",
+        "title": "Diretor técnico médico oftalmologista",
+        "registry": "CRM/CE 16139 · RQE 10972"
+      }
+    ],
+    "provenance": "official-website",
+    "phone": "+5585988655686",
+    "website": "https://www.hospitaldeolhosneusarocha.com.br/",
+    "sourceUrl": "https://www.hospitaldeolhosneusarocha.com.br/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
+    "latitude": null,
+    "longitude": null,
+    "coordinatesVerifiedAt": null,
+    "coordinatesSourceUrl": null,
+    "isDemo": false,
+    "active": true
+  },
+  {
     "id": "public-new-medical",
     "name": "New Medical",
     "city": "Maracanaú",
     "state": "CE",
     "neighborhood": "Centro",
     "address": "Rua Capitão Valdemar de Lima, 55 C, 2º andar",
-    "specialties": ["dermatologia", "oftalmologia", "ortopedia", "psicologia"],
+    "specialties": [
+      "dermatologia",
+      "oftalmologia",
+      "ortopedia",
+      "psicologia"
+    ],
     "insurances": [],
     "phone": "+5585986215555",
     "website": "https://clinicanewmedical.com.br/especialidades-medicas/",
@@ -522,6 +937,318 @@
     "longitude": -38.62463169999999,
     "coordinatesVerifiedAt": "2026-09-28T10:30:00.000Z",
     "coordinatesSourceUrl": "https://maps.google.com/maps?q=Rua%20Capit%C3%A3o%20Valdemar%20de%20Lima%2C%2055%20C%2C%202%C2%BA%20andar%2C%20Maracana%C3%BA%2C%20CE%2C%20Brasil&output=embed"
+  },
+  {
+    "id": "public-nohc-jose-lourenco",
+    "name": "NOHC — José Lourenço",
+    "city": "Fortaleza",
+    "state": "CE",
+    "neighborhood": "Aldeota",
+    "address": "Rua Dr. José Lourenço, 938",
+    "specialties": [
+      "cirurgia-aparelho-digestivo",
+      "cirurgia-geral",
+      "cirurgia-oncologica",
+      "clinica-medica",
+      "dermatologia",
+      "endocrinologia",
+      "gastroenterologia",
+      "geriatria",
+      "ginecologia",
+      "hematologia",
+      "infectologia",
+      "mastologia",
+      "oncologia-clinica",
+      "radioterapia",
+      "reumatologia",
+      "urologia"
+    ],
+    "insurances": [
+      "ABERTTA Saúde",
+      "ASSEFAZ",
+      "BASF",
+      "Blue Saúde",
+      "BS Saúde",
+      "CAFAZ",
+      "CAMED",
+      "CASSI",
+      "CONAB",
+      "EXMED",
+      "FACHESF",
+      "Famed",
+      "FUSEX",
+      "FUSMA",
+      "GEAP",
+      "IPM Saúde",
+      "Plan-Assiste",
+      "Postal Saúde",
+      "RH MED",
+      "Saúde Caixa",
+      "Saúde Petrobras",
+      "SERPRO",
+      "SulAmérica",
+      "Unimed",
+      "Vale Saúde"
+    ],
+    "professionals": [
+      {
+        "name": "Aline Sales",
+        "specialtyId": "reumatologia",
+        "title": "Reumatologista",
+        "registry": "CRM/CE 13039"
+      },
+      {
+        "name": "Ana Carolina Queiroz",
+        "specialtyId": "oncologia-clinica",
+        "title": "Oncologista",
+        "registry": "CRM/CE 13407"
+      },
+      {
+        "name": "Ana Joicy Pinheiro",
+        "specialtyId": "reumatologia",
+        "title": "Reumatologista",
+        "registry": "CRM/CE 16307"
+      },
+      {
+        "name": "Ana Vitória Magalhães",
+        "specialtyId": "hematologia",
+        "title": "Hematologista",
+        "registry": "CRM/CE 21206"
+      },
+      {
+        "name": "André Magalhães",
+        "specialtyId": "mastologia",
+        "title": "Mastologista",
+        "registry": "CRM/CE 4997"
+      },
+      {
+        "name": "Aurillo Rocha",
+        "specialtyId": "oncologia-clinica",
+        "title": "Oncologista",
+        "registry": "CRM/CE 7163"
+      },
+      {
+        "name": "Bárbara S. Cordeiro",
+        "specialtyId": "endocrinologia",
+        "title": "Endocrinologista",
+        "registry": "CRM/CE 21363"
+      },
+      {
+        "name": "Bruno Soares",
+        "specialtyId": "cirurgia-oncologica",
+        "title": "Cirurgião Oncológico",
+        "registry": "CRM/CE 16053"
+      },
+      {
+        "name": "Caroline Nobre",
+        "specialtyId": "cirurgia-aparelho-digestivo",
+        "title": "Cirurgiã Digestiva",
+        "registry": "CRM/CE 17567"
+      },
+      {
+        "name": "Catarine Braga",
+        "specialtyId": "reumatologia",
+        "title": "Reumatologista",
+        "registry": "CRM/CE 19859"
+      },
+      {
+        "name": "Daniel Facundo",
+        "specialtyId": "hematologia",
+        "title": "Hematologista",
+        "registry": "CRM/CE 17035"
+      },
+      {
+        "name": "Paulo Italo Martins",
+        "specialtyId": "reumatologia",
+        "title": "Reumatologista",
+        "registry": "CRM/CE 19426"
+      },
+      {
+        "name": "Paulo Viana",
+        "specialtyId": "reumatologia",
+        "title": "Reumatologista",
+        "registry": "CRM/CE 20430"
+      },
+      {
+        "name": "Rafael Alencar",
+        "specialtyId": "hematologia",
+        "title": "Hematologista",
+        "registry": "CRM/CE 17528"
+      },
+      {
+        "name": "Rafael Cruz",
+        "specialtyId": "oncologia-clinica",
+        "title": "Oncologista",
+        "registry": "CRM/CE 20254"
+      },
+      {
+        "name": "Rafaela Pitombeira",
+        "specialtyId": "hematologia",
+        "title": "Hematologista",
+        "registry": "CRM/CE 13771"
+      },
+      {
+        "name": "Roberto Furlani",
+        "specialtyId": "oncologia-clinica",
+        "title": "Oncologista",
+        "registry": "CRM/CE 8528"
+      },
+      {
+        "name": "Rômulo Cesar",
+        "specialtyId": "urologia",
+        "title": "Urologista",
+        "registry": "CRM/CE 13838"
+      },
+      {
+        "name": "Suzane Lavôr",
+        "specialtyId": "radioterapia",
+        "title": "Radioterapeuta",
+        "registry": "CRM/CE 18573"
+      }
+    ],
+    "provenance": "official-website",
+    "phone": "+558532683111",
+    "website": "https://nohc.com.br/",
+    "sourceUrl": "https://nohc.com.br/corpo-clinico/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
+    "latitude": null,
+    "longitude": null,
+    "coordinatesVerifiedAt": null,
+    "coordinatesSourceUrl": null,
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-nohc-santos-dumont",
+    "name": "NOHC — Santos Dumont",
+    "city": "Fortaleza",
+    "state": "CE",
+    "neighborhood": "Cocó",
+    "address": "Avenida Santos Dumont, 5753, 3º andar, sala 304, Torre Office",
+    "specialties": [
+      "cirurgia-geral",
+      "dermatologia",
+      "endocrinologia",
+      "gastroenterologia",
+      "hematologia",
+      "infectologia",
+      "nefrologia",
+      "nutrologia",
+      "oncologia-clinica",
+      "reumatologia"
+    ],
+    "insurances": [
+      "ABERTTA Saúde",
+      "ASSEFAZ",
+      "BASF",
+      "Blue Saúde",
+      "BS Saúde",
+      "CAFAZ",
+      "CAMED",
+      "CASSI",
+      "CONAB",
+      "EXMED",
+      "FACHESF",
+      "Famed",
+      "FUSEX",
+      "FUSMA",
+      "GEAP",
+      "IPM Saúde",
+      "Plan-Assiste",
+      "Postal Saúde",
+      "RH MED",
+      "Saúde Caixa",
+      "Saúde Petrobras",
+      "SERPRO",
+      "SulAmérica",
+      "Unimed",
+      "Vale Saúde"
+    ],
+    "professionals": [
+      {
+        "name": "Ana Carolina Perdigão",
+        "specialtyId": "dermatologia",
+        "title": "Dermatologista Oncológica",
+        "registry": "CRM/CE 12749"
+      },
+      {
+        "name": "Aurillo Rocha",
+        "specialtyId": "oncologia-clinica",
+        "title": "Oncologista",
+        "registry": "CRM/CE 7163"
+      },
+      {
+        "name": "Carolina Cambraia",
+        "specialtyId": "hematologia",
+        "title": "Hematologista Pediátrica",
+        "registry": "CRM/CE 15815"
+      },
+      {
+        "name": "Pamela Fortaleza",
+        "specialtyId": "gastroenterologia",
+        "title": "Gastroenterologista",
+        "registry": "CRM/CE 16497"
+      },
+      {
+        "name": "Ramon Rawache",
+        "specialtyId": "cirurgia-geral",
+        "title": "Cirurgião Geral",
+        "registry": "CRM/CE 13264"
+      },
+      {
+        "name": "Roberto Furlani",
+        "specialtyId": "oncologia-clinica",
+        "title": "Oncologista",
+        "registry": "CRM/CE 8528"
+      },
+      {
+        "name": "Rodrigo Monteiro",
+        "specialtyId": "hematologia",
+        "title": "Hematologista",
+        "registry": "CRM/CE 9620"
+      },
+      {
+        "name": "Sâmia Studart",
+        "specialtyId": "reumatologia",
+        "title": "Reumatologista",
+        "registry": "CRM/CE 9891"
+      },
+      {
+        "name": "Tamara Pinheiro",
+        "specialtyId": "nutrologia",
+        "title": "Nutróloga Oncológica",
+        "registry": "CRM/CE 13026"
+      },
+      {
+        "name": "Thaysla Soares",
+        "specialtyId": "nefrologia",
+        "title": "Nefrologista",
+        "registry": "CRM/CE 19646"
+      },
+      {
+        "name": "Theogenes Macêdo",
+        "specialtyId": "reumatologia",
+        "title": "Reumatologista",
+        "registry": "CRM/CE 11723"
+      },
+      {
+        "name": "Watrusy Lima",
+        "specialtyId": "endocrinologia",
+        "title": "Endocrinologista",
+        "registry": "CRM/CE 21345"
+      }
+    ],
+    "provenance": "official-website",
+    "phone": "+558532651323",
+    "website": "https://nohc.com.br/",
+    "sourceUrl": "https://nohc.com.br/corpo-clinico/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
+    "latitude": null,
+    "longitude": null,
+    "coordinatesVerifiedAt": null,
+    "coordinatesSourceUrl": null,
+    "isDemo": false,
+    "active": true
   },
   {
     "id": "public-nova",
@@ -537,13 +1264,13 @@
       "endocrinologia",
       "gastroenterologia",
       "ginecologia",
+      "nefrologia",
       "neurologia",
-      "reumatologia",
       "ortopedia",
       "otorrinolaringologia",
-      "urologia",
-      "nefrologia",
-      "psicologia"
+      "psicologia",
+      "reumatologia",
+      "urologia"
     ],
     "insurances": [],
     "phone": null,
@@ -559,13 +1286,163 @@
     "coordinatesSourceUrl": "https://maps.google.com/maps?q=Rua%20Guilherme%20Rocha%2C%20326%2C%20Fortaleza%2C%20CE%2C%20Brasil&output=embed"
   },
   {
+    "id": "public-nucleo-oftalmologia-fatima",
+    "name": "Núcleo de Oftalmologia — Fátima",
+    "city": "Fortaleza",
+    "state": "CE",
+    "neighborhood": "Fátima",
+    "address": "Avenida Treze de Maio, 1189, salas 29 e 30",
+    "specialties": [
+      "oftalmologia"
+    ],
+    "insurances": [],
+    "accessNote": "Segunda unidade publicada pelo Núcleo de Oftalmologia. Confirme convênio e agenda diretamente com a clínica.",
+    "professionals": [
+      {
+        "name": "Javier Alejo Montero",
+        "specialtyId": "oftalmologia",
+        "title": "Retina, catarata, retinopatia diabética e uveíte",
+        "registry": "CRM/CE 9267 · RQE 3180"
+      },
+      {
+        "name": "Abrahão da Rocha L.",
+        "specialtyId": "oftalmologia",
+        "title": "Catarata e cirurgia refrativa",
+        "registry": "CRM/CE 8020 · RQE 2533"
+      },
+      {
+        "name": "Cícero Narciso M. Leite",
+        "specialtyId": "oftalmologia",
+        "title": "Estrabismo e plástica ocular",
+        "registry": "CRM/CE 6986 · RQE 2491"
+      },
+      {
+        "name": "Daniel da Rocha Lucena",
+        "specialtyId": "oftalmologia",
+        "title": "Retina e uveíte",
+        "registry": "CRM/CE 6978 · RQE 5825"
+      },
+      {
+        "name": "Walder Braga Viana",
+        "specialtyId": "oftalmologia",
+        "title": "Catarata, glaucoma e retina",
+        "registry": "CRM/CE 5862 · RQE 1453"
+      },
+      {
+        "name": "Emília Lucena Macedo",
+        "specialtyId": "oftalmologia",
+        "title": "Oftalmopediatria e lentes de contato",
+        "registry": "CRM/CE 7983 · RQE 3185"
+      },
+      {
+        "name": "Ana Caroline de Freitas Machado",
+        "specialtyId": "oftalmologia",
+        "title": "Oftalmopediatria e estrabismo",
+        "registry": "CRM/CE 14679 · RQE 11346"
+      },
+      {
+        "name": "Pedro Veras",
+        "specialtyId": "oftalmologia",
+        "title": "Córnea, catarata e refrativa",
+        "registry": "CRM/CE 14705 · RQE 8150"
+      }
+    ],
+    "provenance": "official-website",
+    "phone": "+558530322564",
+    "website": "https://nucleodeoftalmologia.com.br/",
+    "sourceUrl": "https://nucleodeoftalmologia.com.br/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
+    "latitude": null,
+    "longitude": null,
+    "coordinatesVerifiedAt": null,
+    "coordinatesSourceUrl": null,
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-nucleo-oftalmologia-papicu",
+    "name": "Núcleo de Oftalmologia — Papicu",
+    "city": "Fortaleza",
+    "state": "CE",
+    "neighborhood": "Papicu",
+    "address": "Avenida Santos Dumont, 5753, Complexo São Mateus — Torre Saúde, 15º andar",
+    "specialties": [
+      "oftalmologia"
+    ],
+    "insurances": [],
+    "accessNote": "Consultas, exames e procedimentos oftalmológicos publicados pela unidade. Confirme convênio e agenda diretamente com a clínica.",
+    "professionals": [
+      {
+        "name": "Javier Alejo Montero",
+        "specialtyId": "oftalmologia",
+        "title": "Retina, catarata, retinopatia diabética e uveíte",
+        "registry": "CRM/CE 9267 · RQE 3180"
+      },
+      {
+        "name": "Abrahão da Rocha L.",
+        "specialtyId": "oftalmologia",
+        "title": "Catarata e cirurgia refrativa",
+        "registry": "CRM/CE 8020 · RQE 2533"
+      },
+      {
+        "name": "Cícero Narciso M. Leite",
+        "specialtyId": "oftalmologia",
+        "title": "Estrabismo e plástica ocular",
+        "registry": "CRM/CE 6986 · RQE 2491"
+      },
+      {
+        "name": "Daniel da Rocha Lucena",
+        "specialtyId": "oftalmologia",
+        "title": "Retina e uveíte",
+        "registry": "CRM/CE 6978 · RQE 5825"
+      },
+      {
+        "name": "Walder Braga Viana",
+        "specialtyId": "oftalmologia",
+        "title": "Catarata, glaucoma e retina",
+        "registry": "CRM/CE 5862 · RQE 1453"
+      },
+      {
+        "name": "Emília Lucena Macedo",
+        "specialtyId": "oftalmologia",
+        "title": "Oftalmopediatria e lentes de contato",
+        "registry": "CRM/CE 7983 · RQE 3185"
+      },
+      {
+        "name": "Ana Caroline de Freitas Machado",
+        "specialtyId": "oftalmologia",
+        "title": "Oftalmopediatria e estrabismo",
+        "registry": "CRM/CE 14679 · RQE 11346"
+      },
+      {
+        "name": "Pedro Veras",
+        "specialtyId": "oftalmologia",
+        "title": "Córnea, catarata e refrativa",
+        "registry": "CRM/CE 14705 · RQE 8150"
+      }
+    ],
+    "provenance": "official-website",
+    "phone": "+558530322564",
+    "website": "https://nucleodeoftalmologia.com.br/",
+    "sourceUrl": "https://nucleodeoftalmologia.com.br/corpo-clinicio/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
+    "latitude": null,
+    "longitude": null,
+    "coordinatesVerifiedAt": null,
+    "coordinatesSourceUrl": null,
+    "isDemo": false,
+    "active": true
+  },
+  {
     "id": "public-oftalmoclinica-conjunto-ceara",
     "name": "Oftalmoclínica — Conjunto Ceará",
     "city": "Fortaleza",
     "state": "CE",
     "neighborhood": "Conjunto Ceará",
     "address": "Rua 444, 42, 2ª etapa",
-    "specialties": ["oftalmologia"],
+    "specialties": [
+      "oftalmologia"
+    ],
     "insurances": [],
     "provenance": "official-website",
     "phone": "+558537712473",
@@ -586,7 +1463,9 @@
     "state": "CE",
     "neighborhood": "Farias Brito",
     "address": "Avenida Bezerra de Menezes, 2450, 607, 3º piso",
-    "specialties": ["oftalmologia"],
+    "specialties": [
+      "oftalmologia"
+    ],
     "insurances": [],
     "provenance": "official-website",
     "phone": "+558537712473",
@@ -607,7 +1486,9 @@
     "state": "CE",
     "neighborhood": "Parangaba",
     "address": "Avenida Dr. Silas Munguba, 400, 01",
-    "specialties": ["oftalmologia"],
+    "specialties": [
+      "oftalmologia"
+    ],
     "insurances": [],
     "provenance": "official-website",
     "phone": "+558537712473",
@@ -628,7 +1509,9 @@
     "state": "CE",
     "neighborhood": "Pici",
     "address": "Avenida Humberto Monte, 2929, 520 B",
-    "specialties": ["oftalmologia"],
+    "specialties": [
+      "oftalmologia"
+    ],
     "insurances": [],
     "provenance": "official-website",
     "phone": "+558537712473",
@@ -649,7 +1532,9 @@
     "state": "CE",
     "neighborhood": "Aldeota",
     "address": "Rua Carolina Sucupira, 1151",
-    "specialties": ["otorrinolaringologia"],
+    "specialties": [
+      "otorrinolaringologia"
+    ],
     "insurances": [],
     "provenance": "official-website",
     "phone": "+558534578288",
@@ -670,7 +1555,9 @@
     "state": "CE",
     "neighborhood": "Tamatanduba",
     "address": "Avenida Eusébio de Queiroz, 1890, Sala 14, Shopping Eusébio",
-    "specialties": ["otorrinolaringologia"],
+    "specialties": [
+      "otorrinolaringologia"
+    ],
     "insurances": [],
     "provenance": "official-website",
     "phone": "+558534578288",
@@ -691,7 +1578,9 @@
     "state": "CE",
     "neighborhood": "Parquelândia",
     "address": "Rua Dom Lino, 266",
-    "specialties": ["otorrinolaringologia"],
+    "specialties": [
+      "otorrinolaringologia"
+    ],
     "insurances": [],
     "provenance": "official-website",
     "phone": "+558534578288",
@@ -706,59 +1595,154 @@
     "coordinatesSourceUrl": "https://maps.google.com/maps?q=Rua%20Dom%20Lino%2C%20266%2C%20Fortaleza%2C%20CE%2C%20Brasil&output=embed"
   },
   {
-    "id": "public-policlinica-maracanau",
-    "name": "Policlínica Regional Senador Almir Pinto",
-    "city": "Maracanaú",
-    "state": "CE",
-    "neighborhood": "Pajuçara",
-    "address": "Avenida Airton Senna, 56",
-    "specialties": [
-      "cardiologia",
-      "clinica-medica",
-      "dermatologia",
-      "endocrinologia",
-      "ginecologia",
-      "oftalmologia",
-      "ortopedia",
-      "otorrinolaringologia",
-      "reumatologia",
-      "urologia",
-      "psicologia"
-    ],
-    "insurances": [],
-    "phone": "+5585992848440",
-    "website": "https://www.consorciodesaudemaracanau.com.br/policlinica/perguntas-e-respostas/",
-    "sourceUrl": "https://www.consorciodesaudemaracanau.com.br/policlinica/perguntas-e-respostas/",
-    "verifiedAt": "2026-09-28T10:00:00.000Z",
-    "provenance": "official-website",
-    "isDemo": false,
-    "active": true,
-    "accessNote": "Atendimento pelo SUS, com encaminhamento pela UBS e agendamento pela regulação municipal. Não há atendimento por demanda espontânea.",
-    "latitude": -3.8664389,
-    "longitude": -38.5920419,
-    "coordinatesVerifiedAt": "2026-09-28T10:30:00.000Z",
-    "coordinatesSourceUrl": "https://maps.google.com/maps?q=Avenida%20Airton%20Senna%2C%2056%2C%20Maracana%C3%BA%2C%20CE%2C%20Brasil&output=embed"
-  },
-  {
     "id": "public-premiere",
     "name": "Première Medicina e Saúde",
     "city": "Fortaleza",
     "state": "CE",
     "neighborhood": "Aldeota",
     "address": "Rua Tibúrcio Cavalcante, 1947",
-    "specialties": ["pneumologia"],
+    "specialties": [
+      "cardiologia",
+      "cirurgia-geral",
+      "cirurgia-vascular",
+      "clinica-medica",
+      "coloproctologia",
+      "dermatologia",
+      "endocrinologia",
+      "gastroenterologia",
+      "geriatria",
+      "ginecologia",
+      "neurologia",
+      "ortopedia",
+      "otorrinolaringologia",
+      "pneumologia",
+      "reumatologia",
+      "urologia"
+    ],
     "insurances": [],
     "phone": "+558530368080",
-    "website": "https://premieremedicina.com.br/equipe/diana-rangel/",
-    "sourceUrl": "https://premieremedicina.com.br/equipe/diana-rangel/",
-    "verifiedAt": "2026-09-28T10:00:00.000Z",
+    "website": "https://premieremedicina.com.br/",
+    "sourceUrl": "https://premieremedicina.com.br/especialidades/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
     "provenance": "official-website",
     "isDemo": false,
     "active": true,
     "latitude": -3.7417572,
     "longitude": -38.5043288,
     "coordinatesVerifiedAt": "2026-09-28T10:30:00.000Z",
-    "coordinatesSourceUrl": "https://maps.google.com/maps?q=Rua%20Tib%C3%BArcio%20Cavalcante%2C%201947%2C%20Fortaleza%2C%20CE%2C%20Brasil&output=embed"
+    "coordinatesSourceUrl": "https://maps.google.com/maps?q=Rua%20Tib%C3%BArcio%20Cavalcante%2C%201947%2C%20Fortaleza%2C%20CE%2C%20Brasil&output=embed",
+    "professionals": [
+      {
+        "name": "Bruno Amaral Medeiros",
+        "specialtyId": "coloproctologia",
+        "title": "Cirurgia Geral e Coloproctologia",
+        "registry": null
+      },
+      {
+        "name": "Camila Linhares dos Santos Medeiros",
+        "specialtyId": "cirurgia-vascular",
+        "title": "Cirurgia Vascular",
+        "registry": null
+      },
+      {
+        "name": "Carlos Alberto Viana Filho",
+        "specialtyId": "ortopedia",
+        "title": "Ortopedia e Traumatologia",
+        "registry": null
+      },
+      {
+        "name": "Diana Arrais de Souza Rangel",
+        "specialtyId": "pneumologia",
+        "title": "Pneumologia",
+        "registry": null
+      },
+      {
+        "name": "Jobson Lopes de Oliveira",
+        "specialtyId": "reumatologia",
+        "title": "Reumatologia",
+        "registry": null
+      },
+      {
+        "name": "Jose Mario de Lima Junior",
+        "specialtyId": "otorrinolaringologia",
+        "title": "Otorrinolaringologia",
+        "registry": null
+      },
+      {
+        "name": "Kelma Cristina da Silva Oliveira",
+        "specialtyId": "dermatologia",
+        "title": "Dermatologia",
+        "registry": null
+      },
+      {
+        "name": "Leo Pires Cortez",
+        "specialtyId": "neurologia",
+        "title": "Neurologia",
+        "registry": null
+      },
+      {
+        "name": "Danilo Gurgel do Amaral Pinheiro",
+        "specialtyId": "urologia",
+        "title": "Urologia",
+        "registry": null
+      },
+      {
+        "name": "Valeria Reboucas Carvalho",
+        "specialtyId": "endocrinologia",
+        "title": "Endocrinologia",
+        "registry": null
+      }
+    ]
+  },
+  {
+    "id": "public-provision",
+    "name": "Clínica Provision",
+    "city": "Fortaleza",
+    "state": "CE",
+    "neighborhood": "Aldeota",
+    "address": "Rua Tibúrcio Cavalcante, 1904",
+    "specialties": [
+      "oftalmologia"
+    ],
+    "insurances": [],
+    "accessNote": "Clínica oftalmológica com corpo clínico publicado. Confirme convênio e disponibilidade diretamente com a unidade.",
+    "professionals": [
+      {
+        "name": "Dácio Carvalho Costa",
+        "specialtyId": "oftalmologia",
+        "title": "Catarata, córnea e cirurgia refrativa",
+        "registry": "CRM/CE 8699 · RQE 6851"
+      },
+      {
+        "name": "Francisco Edison Andrade Costa",
+        "specialtyId": "oftalmologia",
+        "title": "Oftalmologia e catarata",
+        "registry": "CRM/CE 15921 · RQE 11494"
+      },
+      {
+        "name": "Ana Caroline de Freitas Machado",
+        "specialtyId": "oftalmologia",
+        "title": "Oftalmopediatria",
+        "registry": "CRM/CE 14679 · RQE 11346"
+      },
+      {
+        "name": "Marília Macedo",
+        "specialtyId": "oftalmologia",
+        "title": "Retina clínica e cirúrgica",
+        "registry": "CRM/CE 14453 · RQE 8149"
+      }
+    ],
+    "provenance": "official-website",
+    "phone": "+558533931099",
+    "website": "https://clinicaprovision.com.br/",
+    "sourceUrl": "https://clinicaprovision.com.br/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
+    "latitude": null,
+    "longitude": null,
+    "coordinatesVerifiedAt": null,
+    "coordinatesSourceUrl": null,
+    "isDemo": false,
+    "active": true
   },
   {
     "id": "public-reviva",
@@ -789,13 +1773,175 @@
     "coordinatesSourceUrl": "https://maps.google.com/maps?q=Avenida%205A%2C%2017%2C%20Maracana%C3%BA%2C%20CE%2C%20Brasil&output=embed"
   },
   {
+    "id": "public-salute",
+    "name": "Clínica Salute",
+    "city": "Fortaleza",
+    "state": "CE",
+    "neighborhood": "Fátima",
+    "address": "Rua General Silva Júnior, 235",
+    "specialties": [
+      "cardiologia",
+      "clinica-medica",
+      "endocrinologia"
+    ],
+    "insurances": [
+      "ASSEFAZ",
+      "Bradesco Saúde",
+      "CAFAZ",
+      "CAMED",
+      "CASSI",
+      "GEAP",
+      "ISSEC",
+      "Postal Saúde",
+      "Saúde Caixa",
+      "Unimed"
+    ],
+    "accessNote": "Convênios publicados no site; confirme cobertura do procedimento e agenda diretamente com a clínica.",
+    "professionals": [
+      {
+        "name": "Deborah Cabral",
+        "specialtyId": "cardiologia",
+        "title": "Cardiologia e ecocardiografia",
+        "registry": "CRM/CE 10845 · RQE 7261/7287"
+      },
+      {
+        "name": "Francisco Farias",
+        "specialtyId": "cardiologia",
+        "title": "Ecocardiografia",
+        "registry": "CRM/CE 10673 · RQE 9253/13165"
+      },
+      {
+        "name": "Francisco Nobre",
+        "specialtyId": "cardiologia",
+        "title": "Cardiologia e ecocardiografia",
+        "registry": "CRM/CE 2974 · RQE 1433"
+      },
+      {
+        "name": "Gustavo Verás",
+        "specialtyId": "cardiologia",
+        "title": "Cardiologia",
+        "registry": "CRM/CE 9604 · RQE 10983"
+      },
+      {
+        "name": "Ingrid Freitas",
+        "specialtyId": "cardiologia",
+        "title": "Cardiologia e ecocardiografia",
+        "registry": "CRM/CE 16856 · RQE 11365/14259"
+      },
+      {
+        "name": "Juliana Rolim",
+        "specialtyId": "cardiologia",
+        "title": "Cardiologia",
+        "registry": "CRM/CE 6773 · RQE 2946"
+      },
+      {
+        "name": "Ligia Silveira",
+        "specialtyId": "endocrinologia",
+        "title": "Endocrinologia",
+        "registry": "CRM/CE 12425 · RQE 7021"
+      },
+      {
+        "name": "Sandro Salgueiro",
+        "specialtyId": "cardiologia",
+        "title": "Cardiologia e hemodinâmica",
+        "registry": "CRM/CE 5391 · RQE 3957"
+      }
+    ],
+    "provenance": "official-website",
+    "phone": "+5585996996266",
+    "website": "https://clinicasalutefortaleza.com.br/",
+    "sourceUrl": "https://clinicasalutefortaleza.com.br/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
+    "latitude": null,
+    "longitude": null,
+    "coordinatesVerifiedAt": null,
+    "coordinatesSourceUrl": null,
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-san-lorenzo",
+    "name": "Clínica San Lorenzo",
+    "city": "Fortaleza",
+    "state": "CE",
+    "neighborhood": "Aldeota",
+    "address": "Rua Bárbara de Alencar, 1365",
+    "specialties": [
+      "cardiologia",
+      "cirurgia-geral",
+      "cirurgia-vascular",
+      "endocrinologia",
+      "ginecologia",
+      "mastologia"
+    ],
+    "insurances": [],
+    "professionals": [
+      {
+        "name": "Wellington Forte Alves",
+        "specialtyId": "cirurgia-vascular",
+        "title": "Angiologia, Cirurgia Vascular e Endovascular",
+        "registry": "CRM/CE 3334"
+      },
+      {
+        "name": "Raimunda Chaves Barroso",
+        "specialtyId": "cirurgia-vascular",
+        "title": "Angiologia e Cirurgia Vascular",
+        "registry": "CRM/CE 3089"
+      },
+      {
+        "name": "José Ferreira Bruno Júnior",
+        "specialtyId": "cirurgia-vascular",
+        "title": "Cirurgia Vascular e Endovascular",
+        "registry": "CRM/CE 6272"
+      },
+      {
+        "name": "José Antônio Carlos Otaviano David Morano",
+        "specialtyId": "cirurgia-geral",
+        "title": "Cirurgia Geral",
+        "registry": "CRM/CE 1475"
+      },
+      {
+        "name": "Catharine Louise Melo Araújo",
+        "specialtyId": "mastologia",
+        "title": "Ginecologia e Mastologia",
+        "registry": "CRM/CE 15908"
+      },
+      {
+        "name": "Desirée Castro Cordeiro",
+        "specialtyId": "mastologia",
+        "title": "Mastologia",
+        "registry": "CRM/CE 17569"
+      },
+      {
+        "name": "Lucas Carvalho de Oliveira",
+        "specialtyId": "cardiologia",
+        "title": "Cardiologia",
+        "registry": "CRM/CE 16003"
+      }
+    ],
+    "provenance": "official-website",
+    "phone": "+558532243505",
+    "website": "https://clinicasanlorenzo.com.br/",
+    "sourceUrl": "https://clinicasanlorenzo.com.br/corpo-clinico/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
+    "latitude": null,
+    "longitude": null,
+    "coordinatesVerifiedAt": null,
+    "coordinatesSourceUrl": null,
+    "isDemo": false,
+    "active": true
+  },
+  {
     "id": "public-santa-maria-maracanau",
     "name": "Clínica Santa Maria",
     "city": "Maracanaú",
     "state": "CE",
     "neighborhood": "Jereissati — Setor D",
     "address": "Rua 46, 60",
-    "specialties": ["ginecologia", "urologia"],
+    "specialties": [
+      "ginecologia",
+      "urologia"
+    ],
     "insurances": [],
     "phone": "+5585986692982",
     "website": "https://santamariaclinica.com.br/",
@@ -816,7 +1962,9 @@
     "state": "CE",
     "neighborhood": "Dionísio Torres",
     "address": "Rua Fotógrafo Ribeiro, 214",
-    "specialties": ["pneumologia"],
+    "specialties": [
+      "pneumologia"
+    ],
     "insurances": [],
     "phone": null,
     "website": "https://www.rededorsaoluiz.com.br/encontre-um-medico/pneumologista/em/fortaleza-ce",
@@ -837,7 +1985,9 @@
     "state": "CE",
     "neighborhood": "Dionísio Torres",
     "address": "Avenida Pontes Vieira, 2340",
-    "specialties": ["pneumologia"],
+    "specialties": [
+      "pneumologia"
+    ],
     "insurances": [],
     "phone": null,
     "website": "https://www.rededorsaoluiz.com.br/encontre-um-medico/pneumologista/em/fortaleza-ce",
@@ -850,5 +2000,57 @@
     "longitude": -38.5006849,
     "coordinatesVerifiedAt": "2026-09-28T10:30:00.000Z",
     "coordinatesSourceUrl": "https://maps.google.com/maps?q=Avenida%20Pontes%20Vieira%2C%202340%2C%20Fortaleza%2C%20CE%2C%20Brasil&output=embed"
+  },
+  {
+    "id": "public-unimed-espaco-saude",
+    "name": "Clínica Unimed — Espaço Saúde",
+    "city": "Fortaleza",
+    "state": "CE",
+    "neighborhood": "Meireles",
+    "address": "Avenida Barão de Studart, 800",
+    "specialties": [
+      "alergologia-imunologia",
+      "angiologia",
+      "cardiologia",
+      "cirurgia-cabeca-pescoco",
+      "cirurgia-geral",
+      "cirurgia-mao",
+      "cirurgia-oncologica",
+      "cirurgia-vascular",
+      "clinica-medica",
+      "coloproctologia",
+      "dermatologia",
+      "endocrinologia",
+      "gastroenterologia",
+      "geriatria",
+      "ginecologia",
+      "hematologia",
+      "mastologia",
+      "neurologia",
+      "oncologia-clinica",
+      "ortopedia",
+      "otorrinolaringologia",
+      "pediatria",
+      "pneumologia",
+      "psiquiatria",
+      "reumatologia",
+      "urologia"
+    ],
+    "insurances": [
+      "Unimed"
+    ],
+    "accessNote": "Unidade própria da Unimed Fortaleza. Confirme elegibilidade do plano e disponibilidade na central antes do atendimento.",
+    "professionals": [],
+    "provenance": "official-website",
+    "phone": "+558540201818",
+    "website": "https://www.unimedfortaleza.com.br/espaco-saude-unimed",
+    "sourceUrl": "https://www.unimedfortaleza.com.br/espaco-saude-unimed",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
+    "latitude": null,
+    "longitude": null,
+    "coordinatesVerifiedAt": null,
+    "coordinatesSourceUrl": null,
+    "isDemo": false,
+    "active": true
   }
 ]

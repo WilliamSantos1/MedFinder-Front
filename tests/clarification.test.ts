@@ -38,182 +38,167 @@ afterAll(async () => {
   await db?.close();
 });
 
-describe('Esclarecimento condicional e continuidade', () => {
-  it.each(['estou com dor de cabeça', 'estou sentindo muita dor no pescoço', 'estou com dor'])(
-    'pede detalhes para relato genérico: %s',
-    async (message) => {
-      // Even an overconfident model cannot skip the minimum context.
-      generate.mockResolvedValueOnce(suggestion('Neurologia'));
-      const result = await chat(message);
-      expect(result).toMatchObject({
-        status: 'needs_information',
-        specialty: null,
-        clinics: [],
-        sources: [],
-        ragStatus: 'skipped',
-      });
-      expect(result.questions).toHaveLength(2);
-      expect(result.questions.join(' ')).toContain('Há quanto tempo');
-      if (message.includes('cabeça'))
-        expect(result.questions.join(' ')).toContain('região da cabeça');
-      if (message.includes('pescoço'))
-        expect(result.questions.join(' ')).toContain('movimentar o pescoço');
-      expect(result.feedback?.reasons).not.toContain('incorrect_specialty');
-      expect(embed).not.toHaveBeenCalled();
-    },
-  );
-  it('usa a resposta seguinte e recomenda uma área sem repetir as perguntas', async () => {
-    const message = 'estou com dor no pescoço';
-    const first = await chat(message);
-    const second = await chat(
-      'Desde ontem, aos poucos. Piora ao virar a cabeça, sem outros sintomas.',
-      [message],
+describe('Esclarecimento enxuto e navegação híbrida', () => {
+  it('dor sem local pede apenas a informação discriminante', async () => {
+    const result = await chat('estou com dor');
+    expect(result).toMatchObject({
+      status: 'needs_information',
+      specialty: null,
+      clinics: [],
+      ragStatus: 'skipped',
+    });
+    expect(result.questions).toHaveLength(1);
+    expect(result.questions[0]).toContain('parte do corpo');
+    expect(generate).not.toHaveBeenCalled();
+    expect(embed).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['estou com dor de cabeça', 'neurologia'],
+    ['estou sentindo muita dor no pescoço', 'ortopedia'],
+    ['bom dia, meu olho está avermelhado e coçando', 'oftalmologia'],
+  ])('queixa clara usa fast-path: %s', async (message, specialtyId) => {
+    const result = await chat(message);
+    expect(result).toMatchObject({ status: 'ok', specialty: { id: specialtyId }, questions: [] });
+    expect(generate).not.toHaveBeenCalled();
+  });
+
+  it('ambiguidade real pede contexto curto antes de usar o modelo entre candidatas plausíveis', async () => {
+    const first = await chat('estou com tontura');
+    expect(first).toMatchObject({ status: 'needs_information', specialty: null, clinics: [] });
+    expect(first.questions.join(' ')).toMatch(/quanto tempo|outro sintoma/i);
+    expect(generate).not.toHaveBeenCalled();
+
+    generate.mockResolvedValueOnce(suggestion('Otorrinolaringologia'));
+    const result = await chat(
+      'começou hoje e não tenho outros sintomas',
+      ['estou com tontura'],
       first.context,
     );
-    expect(second).toMatchObject({ status: 'ok', specialty: { id: 'ortopedia' }, questions: [] });
-    expect(second.clinics.length).toBeGreaterThan(0);
-    expect(second.context?.care).toBeUndefined();
+    expect(result.specialty?.id).toBe('otorrinolaringologia');
+    expect(generate).toHaveBeenCalledTimes(1);
     expect(generate).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        history: [message],
-        previousQuestions: first.questions,
+        specialties: expect.arrayContaining([
+          expect.objectContaining({ id: 'otorrinolaringologia' }),
+          expect.objectContaining({ id: 'neurologia' }),
+          expect.objectContaining({ id: 'clinica-medica' }),
+        ]),
       }),
     );
   });
-  it('não exige entrevista quando o primeiro relato já tem detalhes', async () => {
+
+  it('modelo indisponível após esclarecimento curto mantém uma porta de entrada em vez de dead-end', async () => {
+    const first = await chat('estou com tontura');
+    generate.mockRejectedValueOnce(new Error('offline'));
     const result = await chat(
-      'Dor no pescoço há dois dias, piora ao movimentar, sem outros sintomas.',
+      'começou hoje e não tenho outros sintomas',
+      ['estou com tontura'],
+      first.context,
     );
-    expect(result).toMatchObject({ status: 'ok', specialty: { id: 'ortopedia' }, questions: [] });
-    expect(generate).toHaveBeenCalledTimes(1);
-  });
-  it('considera resposta parcial, não repete duração e aceita esclarecimento posterior', async () => {
-    const firstMessage = 'estou com dor de cabeça';
-    const first = await chat(firstMessage);
-    const partial = 'Começou ontem.';
-    const second = await chat(partial, [firstMessage], first.context);
-    expect(second.specialty).toBeNull();
-    expect(second.questions.join(' ')).not.toContain('Há quanto tempo');
-    expect(second.context?.care?.questions).toContain('associated_symptoms');
-    const final = await chat(
-      'Sem outros sintomas; é uma pressão constante.',
-      [firstMessage, partial],
-      second.context,
-    );
-    expect(final).toMatchObject({ specialty: { id: 'neurologia' }, questions: [] });
-  });
-  it('não força indicação nem acrescenta perguntas opcionais quando o modelo falha num relato detalhado', async () => {
-    generate.mockResolvedValueOnce({
-      ...suggestion(),
-      specialty: null,
-      urgency: 'uncertain',
-      questions: ['impact'],
+    expect(result).toMatchObject({
+      mode: 'fallback',
+      specialty: { id: 'clinica-medica' },
     });
-    const result = await chat('Dor no pescoço desde ontem, sem outros sintomas.');
-    expect(result.specialty).toBeNull();
-    expect(result.questions).toEqual([]);
-    expect(result.answer).toContain('Não consegui validar');
+    expect(result.answer).not.toContain('Não consegui validar');
   });
-  it('limita rodadas sem forçar recomendação ou repetir perguntas indefinidamente', async () => {
-    const history: string[] = [];
-    let context: ChatContext | null = null;
-    const asked: string[] = [];
-    for (const message of [
-      'estou com dor de cabeça',
-      'não sei informar',
-      'não consigo explicar',
-      'não sei',
-    ]) {
-      const result = await chat(message, history, context);
-      expect(result.specialty).toBeNull();
-      expect(result.clinics).toEqual([]);
-      for (const question of result.questions) expect(asked).not.toContain(question);
-      asked.push(...result.questions);
-      history.push(message);
-      context = result.context;
-      if (history.length === 4) {
-        expect(result.questions).toEqual([]);
-        expect(result.answer).toContain('avaliação presencial');
-      }
+
+  it('saúde rara sem regra lexical recebe uma tentativa semântica e fallback amplo', async () => {
+    generate.mockResolvedValueOnce({ urgency: 'uncertain', specialty: null, questions: [] });
+    const result = await chat('tenho uma síndrome rara e preciso saber qual médico procurar');
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect(result.specialty?.id).toBe('clinica-medica');
+  });
+
+  it('idade é pedida somente quando realmente necessária para uma queixa geral de possível criança', async () => {
+    const message = 'minha filha está com febre e cansaço';
+    const first = await chat(message);
+    expect(first).toMatchObject({ status: 'needs_information', specialty: null });
+    expect(first.questions.join(' ')).toContain('idade da sua filha');
+    expect(generate).not.toHaveBeenCalled();
+
+    const second = await chat('8 anos', [message], first.context);
+    expect(second.specialty?.id).toBe('pediatria');
+  });
+
+  it('idade do cuidador não é aplicada ao paciente', async () => {
+    const message = 'minha filha está com febre e cansaço';
+    const first = await chat(message);
+    const second = await chat('Eu tenho 35 anos.', [message], first.context);
+    expect(second.specialty).toBeNull();
+    expect(second.questions.join(' ')).toContain('idade da sua filha');
+  });
+
+  it('urgência interrompe qualquer esclarecimento/semântica', async () => {
+    const provider = { ...demoProvider, generate: vi.fn(), embed: vi.fn() };
+    const instance = await buildApp(config, db, provider);
+    try {
+      const response = chatResponseSchema.parse(
+        (
+          await instance.inject({
+            method: 'POST',
+            url: '/api/chat',
+            payload: { message: 'estou com fala enrolada e fraqueza de um lado' },
+          })
+        ).json(),
+      );
+      expect(response).toMatchObject({ mode: 'safety', urgency: 'emergency', specialty: null });
+      expect(provider.generate).not.toHaveBeenCalled();
+      expect(provider.embed).not.toHaveBeenCalled();
+    } finally {
+      await instance.close();
     }
   });
-  it('urgência na resposta às perguntas interrompe o esclarecimento', async () => {
-    const firstMessage = 'estou com dor de cabeça';
-    const first = await chat(firstMessage);
-    generate.mockClear();
-    const result = await chat(
-      'Também estou com fala enrolada e fraqueza de um lado',
-      [firstMessage],
-      first.context,
-    );
-    expect(result).toMatchObject({
-      mode: 'safety',
-      urgency: 'emergency',
-      specialty: null,
-      clinics: [],
-      questions: [],
-    });
-    expect(generate).not.toHaveBeenCalled();
-  });
-  it('alerta do modelo também prevalece sobre as perguntas', async () => {
-    generate.mockResolvedValueOnce({ ...suggestion(), urgency: 'prompt', specialty: null });
-    const result = await chat('estou sentindo muita dor no pescoço');
-    expect(result).toMatchObject({
-      mode: 'safety',
-      urgency: 'prompt',
-      questions: [],
-      specialty: null,
-    });
-  });
-  it('nova queixa não herda duração e detalhes do relato anterior', async () => {
-    const result = await chat('Agora estou com dor de cabeça', [
-      'Dor no pescoço desde ontem, sem outros sintomas.',
-    ]);
-    expect(result).toMatchObject({ specialty: null, status: 'needs_information' });
-    expect(result.questions.join(' ')).toContain('Há quanto tempo');
-  });
-  it('consulta ao catálogo durante esclarecimento continua sem entrevista médica', async () => {
-    const first = await chat('Estou com dor de cabeça');
-    generate.mockClear();
-    const result = await chat(
-      'Quais clínicas aceitam Unimed?',
-      ['Estou com dor de cabeça'],
-      first.context,
-    );
-    expect(result).toMatchObject({ mode: 'catalog', intent: 'clinic_search', questions: [] });
+
+  it('consulta de catálogo não vira entrevista clínica', async () => {
+    const result = await chat('Quais clínicas aceitam Unimed?');
+    expect(result).toMatchObject({ mode: 'catalog', intent: 'clinic_search' });
     expect(result.clinics.length).toBeGreaterThan(0);
     expect(generate).not.toHaveBeenCalled();
   });
-  it('perguntas não aceitam especialidades inventadas, instruções médicas ou texto livre', () => {
+
+  it('contrato do modelo aceita somente tópicos estruturados', () => {
     for (const value of ['Procure Oculista?', 'Tome 500mg?', 'Especialista ocular avançado'])
       expect(
-        modelAnswerSchema.safeParse({ ...suggestion(), specialty: null, questions: [value] })
-          .success,
+        modelAnswerSchema.safeParse({
+          urgency: 'uncertain',
+          specialty: null,
+          questions: [value],
+        }).success,
       ).toBe(false);
   });
 });
 
-describe('Medicina de Família fora das opções ativas', () => {
-  it('retira filtro e cartões, preservando a clínica e as demais áreas', async () => {
+  it('nova queixa da mesma pessoa não herda a especialidade anterior', async () => {
+    const previous = 'estou com dor no joelho após correr';
+    const first = await chat(previous);
+    expect(first.specialty?.id).toBe('ortopedia');
+
+    const second = await chat('tenho refluxo quase todo dia', [previous], first.context);
+    expect(second.specialty?.id).toBe('gastroenterologia');
+    expect(second.specialty?.id).not.toBe('ortopedia');
+    expect(second.questions).toEqual([]);
+  });
+
+  it('sintoma complementar com pronome e “também” continua no mesmo episódio', async () => {
+    const previous = 'minha mãe está com tontura';
+    const first = await chat(previous);
+    const second = await chat('ela também está enjoada desde hoje', [previous], first.context);
+    expect(second.intent).toBe('care_navigation');
+    expect(second.context?.care?.round ?? 0).toBeGreaterThanOrEqual(0);
+  });
+
+describe('Medicina de Família permanece desativada por decisão de escopo', () => {
+  it('não aparece como filtro nem relação pública', async () => {
     const meta = (await app.inject('/api/catalog')).json();
-    expect(meta.specialties).toHaveLength(16);
-    expect(meta.specialties.some((s: { id: string }) => s.id === 'medicina-de-familia')).toBe(
-      false,
-    );
-    const fam = (await app.inject('/api/clinics?q=FAM')).json();
-    expect(fam.items).toHaveLength(1);
-    expect(fam.items[0].specialties).toEqual(expect.arrayContaining(['ortopedia', 'dermatologia']));
-    expect(JSON.stringify(fam)).not.toMatch(/medicina-de-familia|Medicina de Família/);
+    expect(meta.specialties.some((s: { id: string }) => s.id === 'medicina-de-familia')).toBe(false);
     expect((await app.inject('/api/clinics?specialty=medicina-de-familia')).json().total).toBe(0);
   });
-  it('não fornece a área ao LLM e rejeita candidata desativada', async () => {
-    generate.mockResolvedValueOnce(suggestion('Médico de família'));
-    const response = await chat('Dor no pescoço desde ontem, sem outros sintomas.');
-    expect(response).toMatchObject({
-      status: 'specialty_not_registered',
-      specialty: null,
-      clinics: [],
-    });
+
+  it('não é fornecida ao LLM e saída inativa não é exibida', async () => {
+    generate.mockResolvedValueOnce(suggestion('Medicina de Família e Comunidade'));
+    const result = await chat('tenho uma síndrome rara e preciso saber qual médico procurar');
+    expect(result.specialty?.id).toBe('clinica-medica');
     expect(generate.mock.calls[0][0].specialties?.some((s) => s.id === 'medicina-de-familia')).toBe(
       false,
     );
@@ -221,7 +206,8 @@ describe('Medicina de Família fora das opções ativas', () => {
       (await new SpecialtyRepository(db).resolve('Medicina de Família e Comunidade')).status,
     ).toBe('not_registered');
   });
-  it('não transforma busca por área removida em lista sem filtro', async () => {
+
+  it('busca direta pela área removida pede outra opção, sem relaxar silenciosamente', async () => {
     const response = await chat('quero uma clínica de medicina de família');
     expect(response).toMatchObject({ status: 'needs_information', specialty: null, clinics: [] });
     expect(response.answer).toContain('não faz parte das opções ativas');

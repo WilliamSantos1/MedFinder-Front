@@ -19,6 +19,17 @@ export class SpecialtyRepository {
     ).rows;
   }
 
+  async listByIds(ids: string[]): Promise<Specialty[]> {
+    const unique = [...new Set(ids)];
+    if (!unique.length) return [];
+    return (
+      await this.db.query<Specialty>(
+        'SELECT id,name FROM specialties WHERE active AND id=ANY($1::text[]) ORDER BY array_position($1::text[],id),name,id',
+        [unique],
+      )
+    ).rows;
+  }
+
   async byId(id: string): Promise<Specialty | null> {
     return (
       (

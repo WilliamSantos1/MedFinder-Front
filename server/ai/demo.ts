@@ -1,14 +1,15 @@
 import { createHash } from 'node:crypto';
 import { normalize, tokens } from '../domain/text.js';
-import { EMBEDDING_DIMENSIONS, type AIProvider } from './provider.js';
-import { assessDetail } from '../domain/clarification.js';
+import { routeComplaint } from '../domain/specialty-routing.js';
 import { patientProfile } from '../domain/patient.js';
+import { EMBEDDING_DIMENSIONS, type AIProvider } from './provider.js';
 
-// Feature hashing is an offline test adapter, NOT a semantic language model.
+// Offline deterministic adapter used by tests/demo. It never represents clinical inference.
 export const demoProvider: AIProvider = {
   mode: 'demo',
   embeddingDimensions: EMBEDDING_DIMENSIONS,
-  embeddingModel: 'demo-feature-hash-v1:1536',
+  embeddingModel: 'demo-feature-hash-v2:1536',
+
   async embed(texts) {
     return texts.map((text) => {
       const values = Array<number>(EMBEDDING_DIMENSIONS).fill(0);
@@ -21,46 +22,31 @@ export const demoProvider: AIProvider = {
       return values.map((value) => value / norm);
     });
   },
-  async generate({ message, history, patient: reportedPatient }) {
-    // Synthetic examples for interface/integration checks, never a clinical inference engine.
-    const text = normalize([...history, message].join(' '));
-    const assessment = assessDetail([...history, message]);
-    const patient = reportedPatient ?? patientProfile([...history, message]);
-    const name =
-      !assessment.sufficient || patient.needsAge
-        ? null
-        : /ouvido|garganta|rouquidao/.test(text)
-          ? 'Otorrinolaringologia'
-          : /pele|coceira|cocando|manchas/.test(text) &&
-              patient.ageYears !== null &&
-              patient.ageYears < 18
-            ? 'Pediatria'
-            : /urinar|urinaria/.test(text)
-              ? 'Urologia'
-              : /pescoco|costas|lombar/.test(text)
-                ? 'Ortopedia'
-                : /pele|coceira|cocando|manchas/.test(text)
-                  ? 'Dermatologia'
-                  : /cabeca/.test(text)
-                    ? 'Neurologia'
-                    : /ouvido/.test(text)
-                      ? 'Otorrinolaringologia'
-                      : /estomago/.test(text)
-                        ? 'Gastroenterologia'
-                        : /olhos?/.test(text)
-                          ? 'Oftalmologia'
-                          : /ansiedade/.test(text)
-                            ? 'Psicologia'
-                            : null;
+
+  async generate({ message, history, specialties = [], patient: reportedPatient }) {
+    const messages = [...history, message];
+    const patient = reportedPatient ?? patientProfile(messages);
+    const routing = routeComplaint(messages, patient);
+    const allowed = new Map(specialties.map((specialty) => [specialty.id, specialty.name]));
+    const selected = [
+      ...routing.candidates.map((candidate) => candidate.id),
+      routing.fallbackId,
+    ].find((id) => allowed.has(id));
+
+    // Tiny semantic fallbacks for ambiguous demo-only examples.
+    const text = normalize(messages.join(' '));
+    const semanticId =
+      /\b(tontura|vertigem)\b/.test(text) && allowed.has('neurologia')
+        ? 'neurologia'
+        : /\b(ansiedade|depressao|panico|insonia)\b/.test(text) && allowed.has('psiquiatria')
+          ? 'psiquiatria'
+          : selected;
+    const name = semanticId ? allowed.get(semanticId) ?? null : null;
+
     return {
-      answer: name
-        ? `Exemplo demonstrativo: uma avaliação em ${name} pode ajudar a orientar o próximo passo. A indicação precisa ser avaliada por um profissional.`
-        : 'Descreva melhor o desconforto para continuar a demonstração. Se precisar de atendimento, procure uma unidade de saúde.',
       urgency: name ? 'routine' : 'uncertain',
-      specialty: name
-        ? { name, reason: 'Associação fictícia para testar o fluxo; não é uma avaliação clínica.' }
-        : null,
-      questions: name ? [] : patient.needsAge ? ['age_group'] : assessment.missing.slice(0, 2),
+      specialty: name ? { name } : null,
+      questions: [],
     };
   },
 };

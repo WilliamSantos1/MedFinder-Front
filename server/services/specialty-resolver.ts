@@ -5,6 +5,9 @@ export class SpecialtyResolver {
   list() {
     return this.repository.list();
   }
+  listByIds(ids: string[]) {
+    return this.repository.listByIds(ids);
+  }
   resolve(name: string) {
     return this.repository.resolve(name);
   }

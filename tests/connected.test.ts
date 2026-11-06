@@ -53,9 +53,8 @@ describe('OpenAI + RAG + catálogo público sem API de diretório', () => {
               {
                 type: 'output_text',
                 text: JSON.stringify({
-                  answer: 'Uma avaliação em ortopedia pode ajudar a orientar o próximo passo.',
                   urgency: 'routine',
-                  specialty: { name: 'Ortopedia', reason: 'Avaliação possível.' },
+                  specialty: { name: 'Ortopedia' },
                   questions: [],
                 }),
                 annotations: [],
@@ -68,7 +67,7 @@ describe('OpenAI + RAG + catálogo público sem API de diretório', () => {
     });
     const provider = createOpenAIProvider(connectedConfig, transport);
     const result = await setupConnected(db, connectedConfig, provider);
-    expect(result).toMatchObject({ publicClinics: 36, clinicRagOptional: true });
+    expect(result).toMatchObject({ publicClinics: 50, clinicRagOptional: true });
     const app = await buildApp(connectedConfig, db, provider);
     try {
       const meta = (await app.inject('/api/catalog')).json();

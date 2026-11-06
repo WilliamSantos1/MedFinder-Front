@@ -8,7 +8,6 @@ import {
 import { normalize } from '../domain/text.js';
 import { distanceKm } from '../domain/distance.js';
 import type { Database, SqlClient } from './database.js';
-import { SpecialtyRepository } from './specialties.js';
 
 export class CatalogRepository {
   constructor(
@@ -86,7 +85,7 @@ export class CatalogRepository {
           AND EXISTS (SELECT 1 FROM clinic_specialties cs JOIN specialties s ON s.id=cs.specialty_id
             WHERE cs.clinic_id=c.id AND s.active AND (cardinality($4::text[])=0 OR s.id=ANY($4::text[])))
           AND NOT EXISTS (SELECT 1 FROM unnest($5::text[]) AS term
-            WHERE strpos(translate(lower(concat_ws(' ',data->>'name',data->>'neighborhood',data->>'address')),
+            WHERE strpos(translate(lower(concat_ws(' ',data->>'name',data->>'neighborhood',data->>'address',COALESCE((SELECT string_agg(p.value->>'name',' ') FROM jsonb_array_elements(COALESCE(data->'professionals','[]'::jsonb)) AS p(value)),''))),
               'áàâãäéèêëíìîïóòôõöúùûüç', 'aaaaaeeeeiiiiooooouuuuc'),term)=0)`,
       [
         this.allowDemo,
@@ -102,6 +101,10 @@ export class CatalogRepository {
     // Small curated MVP catalog: filter in SQL, compute/sort ALL candidates, then paginate.
     const items = rows.map(({ data, latitude, longitude, details }) => ({
       ...data,
+      // Backward compatibility for operator/manual rows created before 2.4.
+      professionals: (data.professionals ?? []).filter(
+        (professional) => !ids.length || ids.includes(professional.specialtyId),
+      ),
       latitude,
       longitude,
       specialties: details.map((s) => s.id),
@@ -150,10 +153,19 @@ export class CatalogRepository {
       'dos',
       'das',
       'saude',
+      'sao',
+      'santo',
+      'santa',
+      'esses',
+      'essas',
+      'sintoma',
+      'sintomas',
+      'hoje',
+      'ontem',
     ]);
     const rows = (
-      await this.db.query<{ id: string; name: string }>(
-        `SELECT id,data->>'name' AS name FROM clinics WHERE ${this.visibility}`,
+      await this.db.query<{ id: string; name: string; professionals: string }>(
+        `SELECT id,data->>'name' AS name, COALESCE((SELECT string_agg(p.value->>'name',' ') FROM jsonb_array_elements(COALESCE(data->'professionals','[]'::jsonb)) AS p(value)),'') AS professionals FROM clinics WHERE ${this.visibility}`,
         [this.allowDemo],
       )
     ).rows;
@@ -165,7 +177,7 @@ export class CatalogRepository {
         for (const word of term.split(/\s+/)) generic.add(word);
     const matches = rows.map((row) => ({
       id: row.id,
-      score: normalize(row.name)
+      score: normalize(`${row.name} ${row.professionals}`)
         .replace(/[^a-z0-9]+/g, ' ')
         .split(/\s+/)
         .filter((word) => word.length >= 3 && !generic.has(word) && words.has(word)).length,
@@ -183,10 +195,22 @@ export class CatalogRepository {
           WHERE cs.clinic_id=c.id AND s.active)`,
       [this.allowDemo],
     );
+    const coveredSpecialties = (
+      await this.db.query<Specialty>(
+        `SELECT DISTINCT s.id,s.name FROM clinics c
+          JOIN clinic_specialties cs ON cs.clinic_id=c.id
+          JOIN specialties s ON s.id=cs.specialty_id
+          WHERE ${this.visibility} AND s.active
+          ORDER BY s.name,s.id`,
+        [this.allowDemo],
+      )
+    ).rows;
     return {
       cities: [...new Set(rows.map(({ data }) => data.city))].sort(),
       insurances: [...new Set(rows.flatMap(({ data }) => data.insurances))].sort(),
-      specialties: await new SpecialtyRepository(this.db).list(),
+      // Public filters show only specialties that have at least one visible clinic. The full CFM
+      // taxonomy remains resolvable by the care-navigation engine and direct specialty requests.
+      specialties: coveredSpecialties,
       demoData: rows.some(({ data }) => data.isDemo),
       total: rows.length,
       realRecords: rows.filter(({ data }) => !data.isDemo).length,

@@ -221,7 +221,7 @@ describe('Feedback isolado, sem conversa ou localização', () => {
     expect(rows[0]).toMatchObject({
       rating: 'negative',
       mode: 'demo',
-      prompt_version: 'care-navigation-2.3.0',
+      prompt_version: 'care-navigation-3.0.1',
     });
     expect(rows[0].comment).not.toMatch(/123\.456|pessoa@|99999|3333/);
     expect(rows[0].comment).toContain('Texto confuso');

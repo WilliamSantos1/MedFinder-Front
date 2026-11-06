@@ -1,147 +1,151 @@
-# MedFinder
+# MedFinder 3.0
 
-Aplicação web de navegação de cuidados em React, TypeScript e Node.js. A IA sugere uma especialidade para avaliação; o backend valida o nome e busca clínicas com filtros exatos. Não realiza diagnóstico, prescrição ou agendamento.
+MedFinder é um navegador de cuidados para encontrar **a especialidade mais adequada como porta de entrada** e, em seguida, **clínicas compatíveis com especialidade, cidade, convênio e proximidade**. O projeto não diagnostica, não prescreve e não substitui avaliação profissional.
 
-**Versão 2.3.1:** relatos detalhados dispensam o questionário obrigatório. A idade da pessoa com o sintoma é considerada quando pode mudar o atendimento, e a orientação inclui uma descrição breve. Medicina de Família e Comunidade saiu das opções ativas. A resposta continua com zero ou uma especialidade canônica, consultas diretas ao catálogo e continuidade da conversa. São 36 unidades reais com coordenadas verificadas, localização opcional e feedback. O RAG complementa os resultados com textos de clínicas: **não decide a especialidade**.
+A versão 3.0 foi redesenhada para resolver duas metas ao mesmo tempo: **cobertura ampla de queixas** e **baixa latência**. Casos de associação forte são resolvidos localmente sem LLM; casos ambíguos usam Qwen local apenas como árbitro semântico; se a IA falhar, o sistema conserva uma porta de entrada ampla em Clínica Médica ou Pediatria em vez de encerrar sem orientação.
 
-A versão 2.3.1 integra os commits `c15dc8d` e `9682928` da equipe: fontes maiores, interface simplificada e plugins React/Tailwind na configuração dos testes, preservando os ajustes recentes do chat. [Detalhes da integração e atualização](docs/INTEGRACAO-EQUIPE.md).
+## O que a versão 3.0 entrega
 
-## Rodar localmente no Windows, sem API paga
+- roteamento híbrido de queixas → especialidade;
+- taxonomia de referência baseada na relação vigente de especialidades médicas do CFM/CME;
+- fast-path determinístico para associações fortes como olhos, tireoide, joelho com dor/trauma, próstata, mama, varizes e outras;
+- Qwen3 1.7B local somente para ambiguidade real, com shortlist de especialidades autorizadas;
+- fallback de navegação em Clínica Médica ou Pediatria quando a queixa é reconhecível mas não permite uma área específica;
+- regras determinísticas de urgência antes de IA, catálogo ou RAG;
+- bloqueio de prescrição, dose e automedicação;
+- orientação de intoxicação com Disque-Intoxicação 0800 722 6001;
+- consulta direta ao catálogo sem chamar LLM;
+- filtros exatos por especialidade, cidade e convênio;
+- aliases conservadores para planos em texto livre;
+- ordenação por proximidade somente com coordenadas auditadas;
+- RAG com `bge-m3` restrito às clínicas já selecionadas pelo SQL;
+- profissionais vinculados às unidades somente quando a fonte pública permite esse vínculo;
+- feedback da resposta e feedback posterior sobre a visita;
+- dados de localização temporários e não persistidos;
+- testes unitários, integração, segurança, catálogo, roteamento e Playwright desktop/mobile;
+- auditoria de catálogo e benchmark do roteador.
 
-Na pasta que contém `package.json`, com Node.js >=22.16 e Ollama instalado:
+## Arquitetura resumida
+
+```text
+Mensagem
+  │
+  ├─► Emergência / intoxicação / medicamento ─► resposta segura imediata
+  │
+  ├─► Pedido explícito de catálogo ────────────► SQL (sem LLM)
+  │
+  └─► Navegação de cuidado
+        │
+        ├─► Queixa clara ──────────────────────► especialidade local (fast path)
+        │
+        ├─► Falta 1 detalhe discriminante ────► 1 pergunta objetiva
+        │
+        ├─► Ambiguidade ───────────────────────► Qwen local + shortlist
+        │
+        └─► Falha/baixa confiança ─────────────► Clínica Médica/Pediatria
+                                                   │
+                                                   ▼
+                                  SQL: especialidade + cidade + convênio
+                                                   │
+                                  localização: ordena coordenadas verificadas
+                                                   │
+                                                   ▼
+                                     RAG somente nas clínicas selecionadas
+                                                   │
+                                                   ▼
+                                    resposta + fontes + feedback
+```
+
+Detalhes: [docs/ARQUITETURA-3.0.md](docs/ARQUITETURA-3.0.md).
+
+## Cobertura de dados da distribuição 3.0
+
+- **50** unidades privadas/independentes no snapshot;
+- **50** documentos cadastrais no RAG, um por unidade;
+- **34** áreas com pelo menos uma clínica visível no catálogo local;
+- **35** nomes de convênios/planos publicados no snapshot;
+- **96** vínculos profissional–unidade e **85** nomes de profissionais únicos;
+- **35** unidades com coordenadas verificadas;
+- **39** URLs-fonte distintas, em **38** domínios;
+- cidades: Fortaleza, Maracanaú, Eusébio e Caucaia.
+
+O número de especialidades na taxonomia de navegação é maior que a cobertura local de clínicas. Isso é proposital: o MedFinder pode reconhecer uma área médica mesmo quando ainda não há unidade compatível cadastrada; nesse caso informa **nenhuma clínica encontrada sem relaxar os filtros**.
+
+## IA local e desempenho
+
+Configuração recomendada:
+
+```env
+AI_PROVIDER=ollama
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_MODEL=qwen3:1.7b
+OLLAMA_EMBEDDING_MODEL=bge-m3
+OLLAMA_EMBEDDING_DIMENSIONS=1024
+```
+
+O gerador usa `think:false`, contexto 4096, saída curta, temperatura baixa e `keep_alive`. O principal ganho de velocidade da 3.0, porém, não vem de reduzir mais o modelo: **o Qwen não é chamado nos casos de alta confiança nem nas consultas diretas ao catálogo**.
+
+## Instalação local
+
+Requisitos: Node.js 22.16+ e Ollama.
 
 ```powershell
 npm.cmd ci
-ollama pull qwen3:4b-instruct-2507-q4_K_M
+ollama pull qwen3:1.7b
 ollama pull bge-m3
+copy .env.example .env
 npm.cmd run setup:ollama
 npm.cmd run dev
 ```
 
-Abra **http://localhost:5173**. `setup:ollama` cria o `.env` quando necessário, aplica migrações, importa o catálogo e verifica a geração. `bge-m3` é usado somente na indexação/recuperação textual opcional; a indicação de especialidade não depende dele. Não há chave ou cobrança por mensagem com modelos locais. Memória, disco, energia e desempenho dependem do seu computador. [Passo a passo Ollama](docs/OLLAMA.md).
+Aplicação: `http://localhost:5173`.
 
-Para quem já está usando a versão anterior: pare o servidor, faça backup de `.data` e preserve seu `.env`; atualize o código e execute:
+Se você já possui `.env` e banco local, preserve-os. A migração é incremental.
+
+## Validação antes de apresentar ou enviar
 
 ```powershell
-npm.cmd ci
-npm.cmd run db:migrate
+npm.cmd run check
+npm.cmd run test:e2e
+npm.cmd run audit:catalog
+npm.cmd run audit:routing
+npm.cmd run benchmark:routing
+# com a API já rodando, opcional:
+npm.cmd run benchmark:live
 npm.cmd run setup:ollama
-npm.cmd run dev
 ```
 
-Não apague `.data` para atualizar. As migrações 1–9 permanecem intactas. A migração 9 mantém Medicina de Família e Comunidade desativada; a 10 habilita Pediatria sem sobrescrever uma configuração administrativa existente. `setup:ollama` também importa o catálogo ampliado e seus textos. Não rode API e manutenção simultaneamente no mesmo PGlite.
+Depois faça os testes manuais do [roteiro de demonstração](docs/ROTEIRO-DEMO.md).
 
-Em relatos como “minha filha está com coceira na pele e manchas desde ontem”, a idade é perguntada se estiver ausente. Uma resposta como “5” ou “8 meses” complementa o histórico. Idade conhecida não é perguntada novamente; uma filha adulta não é tratada automaticamente como criança. O serviço de Pediatria da Clínica Angellus foi confirmado na fonte oficial em 18/10/2026.
+## Casos de demonstração recomendados
 
-## Demonstração sem modelos
+1. `bom dia, meu olho está avermelhado e coçando` → Oftalmologia, sem depender do LLM;
+2. `tem certeza?` → confirmação rápida, sem repetir cards/RAG;
+3. `meu filho de 8 anos está com coriza desde ontem` → Pediatria, sem herdar a queixa anterior;
+4. `estou com tontura` → caso ambíguo, Qwen recebe shortlist controlada;
+5. `vou tomar Rivotril, pode ser?` → limite de segurança, sem prescrição;
+6. `tomei muitos comprimidos por engano` → orientação de intoxicação;
+7. `dor no peito e falta de ar` → emergência antes de IA;
+8. `quais clínicas aceitam Unimed?` → catálogo direto;
+9. localização ativada → ordenação apenas quando existe coordenada verificada;
+10. feedback positivo/negativo e avaliação posterior da visita.
 
-```powershell
-npm.cmd ci
-# Apenas se ainda não tiver um .env:
-Copy-Item .env.example .env
-npm.cmd run dev
-```
+## Limites assumidos explicitamente
 
-O modo `demo` usa exemplos determinísticos e feature hashing para testar o fluxo; **não é IA generativa nem um motor clínico**. O startup local carrega 36 unidades reais e 36 resumos textuais. Experimente “Quais clínicas aceitam Unimed?” ou “Qual clínica de oftalmologia está mais perto?”. O botão “Usar minha localização” pede permissão somente após clique.
+“Cobertura completa” significa que uma **queixa médica reconhecível sempre recebe um caminho de navegação**, não que o sistema diagnostica qualquer doença. Uma área específica só é mostrada quando há associação suficientemente forte ou resolução semântica válida; do contrário o MedFinder usa Clínica Médica/Pediatria como porta de entrada. Emergência e segurança sempre vencem o fluxo eletivo.
 
-## Stack
+Os dados de clínicas, planos, profissionais e coordenadas são snapshots com fonte/data e podem mudar. Confirme cobertura, agenda, profissional e disponibilidade diretamente com a unidade.
 
-| Camada         | Tecnologias e responsabilidade                                       |
-| -------------- | -------------------------------------------------------------------- |
-| Interface      | React 19, TypeScript, Vite, CSS/Tailwind, Lucide                     |
-| API            | Node.js, Fastify, Zod, CORS restrito e rate limits                   |
-| Banco          | PGlite local; PostgreSQL + pgvector em produção                      |
-| IA             | Ollama local ou OpenAI opcional, JSON Schema + Zod                   |
-| Especialidades | Taxonomia e aliases no banco; resolução exata normalizada            |
-| Proximidade    | Geolocation API no navegador; Haversine no servidor                  |
-| RAG            | Documentos de clínicas, chunks e busca híbrida restrita a candidatos |
-| Avaliação      | Feedback no banco, sem conversa ou coordenadas                       |
-| Qualidade      | TypeScript estrito, ESLint, Vitest e Playwright desktop/mobile       |
+## Documentação
 
-## Fluxo
-
-```mermaid
-flowchart TD
-  A[Mensagem e contexto recente] --> B{Alerta determinístico?}
-  B -->|Sim| C[Orientação de segurança]
-  B -->|Não| R{Intenção}
-  R -->|Sintomas| D[LLM sugere uma especialidade]
-  R -->|Busca ou informação| Q[Resolver entidades do catálogo]
-  D --> T{Há contexto suficiente?}
-  T -->|Não| P[Até duas perguntas curtas]
-  P --> A
-  T -->|Sim| E[Resolver valida nome ou alias]
-  E --> F{Especialidade ativa?}
-  F -->|Não| G[Informar limitação do cadastro]
-  F -->|Sim| H[SQL filtra clínicas]
-  Q --> H
-  H --> I[Localização opcional ordena candidatos]
-  I --> J[RAG textual opcional dessas clínicas]
-  J --> K[Resposta e cards com fontes]
-  C --> L[Feedback opcional]
-  G --> L
-  K --> L
-```
-
-A resposta apresenta **zero ou uma especialidade**, sempre validada no banco. “Oculista”, “oftalmo” e “oftalmologista” resolvem para **Oftalmologia**; nomes desconhecidos do modelo não são exibidos, inclusive no texto livre. Não há especialidades alternativas nem substituição para preencher resultados.
-
-O chat distingue `care_navigation`, `clinic_search` e `clinic_information`. Consultas como “Onde fica a Clínica CTI?” usam dados estruturados, sem inferência médica. “E que aceite Unimed?” e “Qual dessas fica mais perto?” refinam o contexto recente em memória. Convênio e cidade não são relaxados. Proximidade não representa qualidade médica: a distância é aproximada em linha reta, não trajeto nem tempo de viagem.
-
-## Esclarecimentos antes da recomendação
-
-“Estou com dor de cabeça” ou “estou sentindo muita dor no pescoço” não geram uma indicação imediata. O assistente pergunta, por exemplo, quando começou e como é o desconforto. Usa as respostas seguintes e não repete tópicos já respondidos. Com descrição suficiente, pode recomendar diretamente uma especialidade; consultas de catálogo continuam dispensando entrevista.
-
-O modelo seleciona tópicos de esclarecimento permitidos. O backend distingue relatos genéricos e idade necessária, publicando perguntas próprias, sem exigir um formulário completo nem exibir texto livre da IA. São até duas perguntas por resposta e três rodadas; se continuar faltando contexto, não força recomendação e orienta avaliação presencial. Alertas de urgência têm prioridade. A suficiência descritiva é um controle de software, não validação clínica.
-
-## Dados e manutenção
-
-O catálogo distribuído contém **36 unidades em Fortaleza, Eusébio, Maracanaú e Caucaia**, com fontes e datas próprias, cobrindo as 16 áreas ativas da taxonomia atual. Cadastrar uma especialidade não afirma que uma clínica a oferece. Psicologia é uma área de cuidado mantida do projeto, não uma especialidade médica do CFM.
-
-**36 de 36 unidades têm coordenadas verificadas.** O problema anterior era a ausência desses dados nas 20 unidades do snapshot. A preparação do catálogo conferiu o ponto da unidade ou do edifício oficialmente indicado, sem usar centros de cidade. A consulta apenas lê os pares, calcula Haversine e ordena antes de paginar. Cidade vazia permite municípios vizinhos; cidade selecionada restringe a busca. [Fontes, auditoria e limites](docs/CATALOGO.md).
-
-Comandos administrativos, sem servidor PGlite aberto:
-
-```powershell
-npm.cmd run data:import -- specialties caminho/especialidades.json
-npm.cmd run data:import -- clinics caminho/clinicas.json
-npm.cmd run data:import -- clinic-documents caminho/textos.json
-npm.cmd run rag:reindex
-npm.cmd run feedback:prune
-```
-
-Novas especialidades são cadastradas por JSON, sem recompilar. O importador de clínicas rejeita IDs não cadastrados/ativos. Veja exemplos e regras em [OPERACAO.md](docs/OPERACAO.md) e [RAG.md](docs/RAG.md).
-
-## OpenAI opcional
-
-O uso local com Ollama não precisa da OpenAI. Para optar pela API externa, configure `AI_PROVIDER=openai`, `OPENAI_API_KEY` no servidor, `OPENAI_MODEL` e `EMBEDDING_MODEL` no `.env`, depois execute `npm run setup:connected` e `npm run integrations:check`. A interface pede consentimento antes de enviar relatos ao provedor. Esse modo depende de acesso e cobrança da API; não publique a chave em `VITE_*`, no Git ou no navegador. [Ativação](docs/ATIVACAO.md).
-
-## APIs e organização
-
-`GET /api/catalog` entrega especialidades `{id,name}` do banco. `POST /api/chat` recebe mensagem, filtros e contexto opcional; `POST /api/clinics/search` recebe também localização opcional no corpo. `GET /api/clinics` não aceita posição do usuário. `POST /api/feedback` registra uma avaliação por resposta, com possibilidade de alteração. [Contratos completos](docs/API.md).
-
-- `shared/contracts.ts`: contratos Zod, sem enum fechado de especialidades.
-- `server/services/chat.ts`, `chat-intent.ts` e `specialty-resolver.ts`: navegação, roteamento e resolução.
-- `server/db/`: migrations incrementais e repositories de catálogo, taxonomia e feedback.
-- `server/rag/`: indexação e recuperação de documentos das clínicas selecionadas.
-- `src/hooks/useGeolocation.ts`: localização explícita, compartilhada e em memória.
-- `src/features/chat/ResponseFeedback.tsx`: avaliação acessível e isolada do chat.
-
-## Privacidade
-
-Conversas e localização ficam apenas na memória da aba e da requisição. Não usamos localStorage, sessionStorage, IndexedDB ou cookies para esses dados. Coordenadas não vão para URLs, logs, LLM ou RAG. Mensagens recebem redução de identificadores comuns antes do processamento; isso não garante anonimização.
-
-Feedback salva voto, motivo, comentário opcional redigido e identificadores técnicos. Um comprovante de resposta guarda apenas metadados e hash de um token para autorizar o voto. Não salva relato, histórico, resposta completa ou localização. Evite incluir dados pessoais ou sintomas no comentário. O feedback mede utilidade percebida, não acurácia médica, e não treina o modelo automaticamente.
-
-No modo Ollama, o adaptador aceita apenas loopback e modelos locais GGUF. No modo OpenAI, o relato e histórico recente são enviados após autorização; `store:false` não equivale a retenção zero de todos os sistemas do provedor. As regras determinísticas e de saída reduzem riscos, mas não substituem avaliação clínica independente.
-
-## Verificação e operação
-
-```bash
-npm run check
-npx playwright install chromium
-npm run test:e2e
-```
-
-Os testes usam PGlite/pgvector reais, provedores simulados no transporte HTTP e geolocalização mockada. Eles verificam implementação e contratos, sem demonstrar eficácia clínica. [Validação](docs/VALIDACAO.md).
-
-Produção exige PostgreSQL externo, provedor generativo, `ALLOW_DEMO_DATA=false`, `AUTO_SEED=false` e `WEB_ORIGIN` HTTPS. Aplique migrações antes de iniciar; `/api/ready` verifica banco, especialidades e catálogo. RAG é opcional e não bloqueia prontidão. Limites de uso são por processo; use gateway compartilhado para múltiplas réplicas. [Arquitetura](docs/ARQUITETURA.md) · [Operação](docs/OPERACAO.md).
+- [Arquitetura 3.0](docs/ARQUITETURA-3.0.md)
+- [Matriz de cobertura](docs/MATRIZ-COBERTURA.md)
+- [Catálogo e proveniência](docs/CATALOGO-3.0.md)
+- [Validação e métricas](docs/VALIDACAO-3.0.md)
+- [Validação executada no artefato](docs/VALIDACAO-ARTEFATO.md)
+- [Release notes 3.0](docs/RELEASE-NOTES-3.0.md)
+- [Relatório final](docs/RELATORIO-FINAL.md)
+- [Critérios de avaliação da disciplina](docs/CRITERIOS-AVALIACAO.md)
+- [Roteiro de demonstração](docs/ROTEIRO-DEMO.md)
+- [Fontes e governança](docs/FONTES-3.0.md)
+- [Operação Ollama](docs/OLLAMA.md)

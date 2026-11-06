@@ -1883,3 +1883,43 @@ h1 > span {
   gap: 0.75rem;
   align-items: center;
 }
+
+.clinic-professionals {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 9px;
+  background: #f7faf5;
+  border: 1px solid #e4ece0;
+  color: #52665f;
+}
+.clinic-professionals > strong {
+  display: block;
+  font-size: var(--text-sm);
+  color: #36593d;
+  margin-bottom: 7px;
+}
+.clinic-professionals ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 7px;
+}
+.clinic-professionals li {
+  display: grid;
+  gap: 1px;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+.clinic-professionals li small,
+.clinic-professionals > p {
+  color: #778477;
+  font-size: var(--text-xs);
+}
+.clinic-professionals > p {
+  margin: 8px 0 0;
+}
+.compact .clinic-professionals {
+  margin-top: 8px;
+  padding: 9px 10px;
+}

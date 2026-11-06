@@ -1,10 +1,11 @@
 import { clinicSchema, type Clinic, type ModelAnswer } from '../shared/contracts.js';
+
 export const suggestion = (name = 'Urologia'): ModelAnswer => ({
-  answer: `Uma avaliação em ${name} pode ajudar a orientar o próximo passo.`,
   urgency: 'routine',
-  specialty: { name, reason: 'Uma área possível para avaliação profissional.' },
+  specialty: { name },
   questions: [],
 });
+
 export const clinic = (fields: Partial<Clinic> = {}): Clinic =>
   clinicSchema.parse({
     id: 'demo-fixture',

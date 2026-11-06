@@ -40,6 +40,24 @@ export function ClinicCard({
       </p>
       {clinic.accessNote && <p className="result-note">{clinic.accessNote}</p>}
       <p className="clinic-specialties">{clinic.specialtyDetails.map((s) => s.name).join(' · ')}</p>
+      {!!clinic.professionals.length && (
+        <div className="clinic-professionals">
+          <strong>Profissionais publicados pela clínica</strong>
+          <ul>
+            {clinic.professionals.slice(0, compact ? 3 : 5).map((professional) => (
+              <li key={`${professional.name}-${professional.specialtyId}`}>
+                <span>{professional.name}</span>
+                <small>
+                  {[professional.title, professional.registry].filter(Boolean).join(' · ')}
+                </small>
+              </li>
+            ))}
+          </ul>
+          {clinic.professionals.length > (compact ? 3 : 5) && (
+            <p>+ {clinic.professionals.length - (compact ? 3 : 5)} profissional(is) publicado(s)</p>
+          )}
+        </div>
+      )}
       {showDistance && (
         <p className="clinic-distance">
           {clinic.distanceKm === null

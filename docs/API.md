@@ -80,11 +80,12 @@ A resposta inclui:
 - `context`: `{specialtyId,clinicIds,city,insurance,care?}` ou `null`, para a próxima mensagem. `care` contém somente metadados dos esclarecimentos, descritos abaixo.
 - `status` da resposta: `ok`, `llm_unavailable`, `invalid_output`, `needs_information`, `specialty_unrecognized`, `specialty_not_registered` ou `no_matching_clinics`.
 - `clinics`: até três resultados do catálogo; `sources`: trechos textuais associados a seus `clinicId` e, quando aplicável, fontes editoriais de explicação/segurança sem `clinicId`. Essas referências gerais não integram o RAG de clínicas.
+- Cada clínica pode incluir `professionals: [{name,specialtyId,title,registry}]` quando o site oficial publica esse vínculo. A ausência do campo/lista não afirma ausência de profissionais; o cadastro deve ser reconfirmado na fonte. A busca textual também considera esses nomes.
 - `ragStatus`: `skipped`, `not_indexed`, `available`, `no_matches` ou `unavailable`.
 - `locationUsed`: booleano, sem devolver a posição enviada.
 - `feedback`: `{token,reasons}` ou `null` quando emissão indisponível. `reasons` contém apenas os motivos aplicáveis àquela resposta.
 
-O LLM retorna `{answer,urgency,specialty:{name,reason}|null,questions}`. O contrato antigo de múltiplas sugestões é rejeitado pelo schema estrito. A aplicação resolve a candidata no banco e publica textos controlados pelo backend; nenhum texto livre do modelo chega à interface. Atualize backend e frontend juntos. `routine` não significa ausência de urgência. Fallbacks de orientação usam HTTP 200 com estado explícito; erros de transporte/banco são HTTP 4xx/5xx.
+O LLM retorna somente `{urgency,specialty:{name}|null,questions}`. O contrato antigo com texto livre ou múltiplas sugestões é rejeitado pelo schema estrito. A aplicação resolve a candidata no banco e publica textos controlados pelo backend; nenhum texto livre do modelo chega à interface. Atualize backend e frontend juntos. `routine` não significa ausência de urgência. Fallbacks de orientação usam HTTP 200 com estado explícito; erros de transporte/banco são HTTP 4xx/5xx.
 
 ## Esclarecimento de relato genérico
 

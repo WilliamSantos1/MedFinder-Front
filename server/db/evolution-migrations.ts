@@ -149,4 +149,108 @@ export const evolutionMigrations = [
       );
     `,
   },
+  {
+    version: 12,
+    sql: `
+      -- Expand the active navigation taxonomy using specialties published by verified local clinics.
+      INSERT INTO specialty_reference(id,name,normalized_name,aliases) VALUES
+        ('alergologia-imunologia','Alergologia e Imunologia','alergologia e imunologia',ARRAY['alergologia','alergista','imunologia','imunologista','alergologista']),
+        ('psiquiatria','Psiquiatria','psiquiatria',ARRAY['psiquiatra']),
+        ('hematologia','Hematologia','hematologia',ARRAY['hematologista']),
+        ('oncologia-clinica','Oncologia Clínica','oncologia clinica',ARRAY['oncologia','oncologista','oncologista clinico']),
+        ('infectologia','Infectologia','infectologia',ARRAY['infectologista']),
+        ('cirurgia-vascular','Cirurgia Vascular e Angiologia','cirurgia vascular e angiologia',ARRAY['cirurgia vascular','cirurgiao vascular','angiologia','angiologista','vascular']),
+        ('mastologia','Mastologia','mastologia',ARRAY['mastologista']),
+        ('coloproctologia','Coloproctologia','coloproctologia',ARRAY['proctologia','proctologista','coloproctologista']),
+        ('cirurgia-geral','Cirurgia Geral','cirurgia geral',ARRAY['cirurgiao geral']),
+        ('neurocirurgia','Neurocirurgia','neurocirurgia',ARRAY['neurocirurgiao'])
+      ON CONFLICT(id) DO UPDATE SET name=excluded.name, normalized_name=excluded.normalized_name,
+        aliases=excluded.aliases;
+
+      INSERT INTO specialties(id,name,normalized_name,aliases)
+      SELECT id,name,normalized_name,aliases FROM specialty_reference
+      WHERE id IN ('geriatria','alergologia-imunologia','psiquiatria','hematologia','oncologia-clinica',
+        'infectologia','cirurgia-vascular','mastologia','coloproctologia','cirurgia-geral','neurocirurgia')
+      ON CONFLICT(id) DO NOTHING;
+    `,
+  },
+
+  {
+    version: 13,
+    sql: `
+      -- CFM/CME 2026 reference taxonomy (Resolução CFM 2.472/2026).
+      -- Keep Psicologia as a separate MedFinder care area; preserve operator activation states.
+      INSERT INTO specialty_reference(id,name,normalized_name,aliases) VALUES
+        ('acupuntura','Acupuntura','acupuntura',ARRAY['acupunturista']),
+        ('alergologia-imunologia','Alergia e Imunologia','alergia e imunologia',ARRAY['alergologia','alergista','imunologia','imunologista','alergologista']),
+        ('anestesiologia','Anestesiologia','anestesiologia',ARRAY['anestesista','anestesiologista']),
+        ('angiologia','Angiologia','angiologia',ARRAY['angiologista']),
+        ('cardiologia','Cardiologia','cardiologia',ARRAY['cardiologista','cardio']),
+        ('cirurgia-cardiovascular','Cirurgia Cardiovascular','cirurgia cardiovascular',ARRAY['cirurgiao cardiovascular']),
+        ('cirurgia-mao','Cirurgia da Mão','cirurgia da mao',ARRAY['cirurgiao da mao']),
+        ('cirurgia-cabeca-pescoco','Cirurgia de Cabeça e Pescoço','cirurgia de cabeca e pescoco',ARRAY['cirurgiao de cabeca e pescoco']),
+        ('cirurgia-aparelho-digestivo','Cirurgia do Aparelho Digestivo','cirurgia do aparelho digestivo',ARRAY['cirurgiao do aparelho digestivo']),
+        ('cirurgia-geral','Cirurgia Geral','cirurgia geral',ARRAY['cirurgiao geral']),
+        ('cirurgia-oncologica','Cirurgia Oncológica','cirurgia oncologica',ARRAY['cirurgiao oncologico','cirurgia do cancer']),
+        ('cirurgia-pediatrica','Cirurgia Pediátrica','cirurgia pediatrica',ARRAY['cirurgiao pediatrico']),
+        ('cirurgia-plastica','Cirurgia Plástica','cirurgia plastica',ARRAY['cirurgiao plastico']),
+        ('cirurgia-toracica','Cirurgia Torácica','cirurgia toracica',ARRAY['cirurgiao toracico']),
+        ('cirurgia-vascular','Cirurgia Vascular','cirurgia vascular',ARRAY['cirurgiao vascular','vascular']),
+        ('clinica-medica','Clínica Médica','clinica medica',ARRAY['clinico geral','clinica geral','clinico','internista']),
+        ('coloproctologia','Coloproctologia','coloproctologia',ARRAY['proctologia','proctologista','coloproctologista']),
+        ('dermatologia','Dermatologia','dermatologia',ARRAY['dermatologista','dermato']),
+        ('endocrinologia','Endocrinologia e Metabologia','endocrinologia e metabologia',ARRAY['endocrinologia','endocrinologista','endocrino']),
+        ('endoscopia','Endoscopia','endoscopia',ARRAY['endoscopista']),
+        ('gastroenterologia','Gastroenterologia','gastroenterologia',ARRAY['gastroenterologista','gastro']),
+        ('genetica-medica','Genética Médica','genetica medica',ARRAY['geneticista','geneticista medico']),
+        ('geriatria','Geriatria','geriatria',ARRAY['geriatra']),
+        ('ginecologia','Ginecologia e Obstetrícia','ginecologia e obstetricia',ARRAY['ginecologia','ginecologista','obstetricia','obstetra','gineco']),
+        ('hematologia','Hematologia e Hemoterapia','hematologia e hemoterapia',ARRAY['hematologia','hematologista','hemoterapia']),
+        ('homeopatia','Homeopatia','homeopatia',ARRAY['homeopata']),
+        ('infectologia','Infectologia','infectologia',ARRAY['infectologista']),
+        ('mastologia','Mastologia','mastologia',ARRAY['mastologista']),
+        ('medicina-emergencia','Medicina de Emergência','medicina de emergencia',ARRAY['medico emergencista','emergencista']),
+        ('medicina-de-familia','Medicina de Família e Comunidade','medicina de familia e comunidade',ARRAY['medicina de familia','medico de familia']),
+        ('medicina-trabalho','Medicina do Trabalho','medicina do trabalho',ARRAY['medico do trabalho']),
+        ('medicina-trafego','Medicina do Tráfego','medicina do trafego',ARRAY['medico do trafego']),
+        ('medicina-esportiva','Medicina Esportiva','medicina esportiva',ARRAY['medicina do esporte','medico do esporte']),
+        ('medicina-fisica-reabilitacao','Medicina Física e Reabilitação','medicina fisica e reabilitacao',ARRAY['fisiatria','fisiatra']),
+        ('medicina-intensiva','Medicina Intensiva','medicina intensiva',ARRAY['intensivista','medico intensivista']),
+        ('medicina-legal-pericia','Medicina Legal e Perícia Médica','medicina legal e pericia medica',ARRAY['medicina legal','pericia medica','medico perito']),
+        ('medicina-nuclear','Medicina Nuclear','medicina nuclear',ARRAY['medico nuclear']),
+        ('medicina-preventiva-social','Medicina Preventiva e Social','medicina preventiva e social',ARRAY['medicina preventiva']),
+        ('nefrologia','Nefrologia','nefrologia',ARRAY['nefrologista','nefro']),
+        ('neurocirurgia','Neurocirurgia','neurocirurgia',ARRAY['neurocirurgiao']),
+        ('neurologia','Neurologia','neurologia',ARRAY['neurologista','neuro']),
+        ('nutrologia','Nutrologia','nutrologia',ARRAY['nutrologo','nutrologa']),
+        ('oftalmologia','Oftalmologia','oftalmologia',ARRAY['oftalmologista','oculista','oftalmo']),
+        ('oncologia-clinica','Oncologia Clínica','oncologia clinica',ARRAY['oncologia','oncologista','oncologista clinico']),
+        ('ortopedia','Ortopedia e Traumatologia','ortopedia e traumatologia',ARRAY['ortopedia','ortopedista','traumatologia','traumatologista']),
+        ('otorrinolaringologia','Otorrinolaringologia','otorrinolaringologia',ARRAY['otorrino','otorrinolaringologista']),
+        ('patologia','Patologia','patologia',ARRAY['patologista']),
+        ('patologia-clinica','Patologia Clínica/Medicina Laboratorial','patologia clinica medicina laboratorial',ARRAY['patologia clinica','medicina laboratorial','patologista clinico']),
+        ('pediatria','Pediatria','pediatria',ARRAY['pediatra']),
+        ('pneumologia','Pneumologia','pneumologia',ARRAY['pneumologista','pneumo']),
+        ('psiquiatria','Psiquiatria','psiquiatria',ARRAY['psiquiatra']),
+        ('radiologia','Radiologia e Diagnóstico por Imagem','radiologia e diagnostico por imagem',ARRAY['radiologia','radiologista','diagnostico por imagem']),
+        ('radioterapia','Radioterapia','radioterapia',ARRAY['radioterapeuta']),
+        ('reumatologia','Reumatologia','reumatologia',ARRAY['reumatologista','reumato']),
+        ('urologia','Urologia','urologia',ARRAY['urologista','uro'])
+      ON CONFLICT(id) DO UPDATE SET name=excluded.name,normalized_name=excluded.normalized_name,
+        aliases=excluded.aliases;
+
+      -- Align labels/aliases without changing an operator's active/inactive decision.
+      UPDATE specialties s SET name=r.name,normalized_name=r.normalized_name,aliases=r.aliases,updated_at=now()
+        FROM specialty_reference r WHERE s.id=r.id;
+
+      -- Make all missing CFM specialties resolvable for direct navigation. The product's prior
+      -- decision keeps Medicina de Família e Comunidade inactive, and existing operator rows keep
+      -- their current activation state.
+      INSERT INTO specialties(id,name,normalized_name,aliases,active)
+      SELECT id,name,normalized_name,aliases,true FROM specialty_reference
+      WHERE id<>'medicina-de-familia' AND id<>'psicologia'
+      ON CONFLICT(id) DO NOTHING;
+      UPDATE specialties SET active=false,updated_at=now() WHERE id='medicina-de-familia';
+    `,
+  },
 ];

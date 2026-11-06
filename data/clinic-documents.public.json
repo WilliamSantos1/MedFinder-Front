@@ -1,11 +1,11 @@
 [
   {
-    "id": "public-cti-servicos",
-    "clinicId": "public-cti",
-    "title": "Clínica CTI: ortopedia e reabilitação",
-    "content": "A página institucional apresenta serviços de reabilitação e um setor voltado ao acompanhamento após cirurgias. Entre as atividades divulgadas estão fisioterapia, exercícios terapêuticos em piscina e trabalho de recuperação funcional da mão e da musculatura. O texto descreve atuação de várias áreas no mesmo estabelecimento. Este resumo descreve o conteúdo publicado, sem afirmar adequação de tratamentos ao caso do usuário.",
-    "sourceUrl": "https://cticlinica.com.br/",
-    "verifiedAt": "2026-09-28T01:55:29Z",
+    "id": "public-alberto-lima-cadastro",
+    "clinicId": "public-alberto-lima",
+    "title": "Clínica Pediátrica Alberto Lima: especialidades pediátricas",
+    "content": "A Clínica Pediátrica Alberto Lima publica cuidado de crianças e adolescentes, com Pediatria Geral e áreas pediátricas como Alergologia e Imunologia, Dermatologia, Endocrinologia, Hematologia, Neurocirurgia, Neurologia, Psiquiatria, Oftalmologia, Ortopedia, Otorrinolaringologia e Pneumologia. A unidade publicada fica no Shopping Iguatemi Bosque, Avenida Washington Soares, 85, Loja SS0018, Edson Queiroz, Fortaleza.",
+    "sourceUrl": "https://albertolima.com/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
     "isDemo": false,
     "active": true
   },
@@ -36,6 +36,16 @@
     "content": "Hospital Campos Elísios — Consultas, Maracanaú: Clínica Médica, Dermatologia, Endocrinologia e Metabologia, Ginecologia e Obstetrícia, Neurologia, Ortopedia e Traumatologia, Otorrinolaringologia, Reumatologia, Urologia. Endereço publicado: Avenida Antônio Alves de Lacerda, 315.",
     "sourceUrl": "https://www.hospitalcamposelisios.com.br/",
     "verifiedAt": "2026-09-28T10:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-cardio-fortaleza-cadastro",
+    "clinicId": "public-cardio-fortaleza",
+    "title": "Clínica Cardio Fortaleza: especialidades e convênios",
+    "content": "A Clínica Cardio Fortaleza publica atendimento em Cardiologia e também lista Cirurgia Vascular e Neurologia entre as especialidades. O site informa endereço na Rua Vicente Linhares, 521, Aldeota, Fortaleza, e os convênios Unimed, Cafaz e Famed. O responsável técnico Ricardo Pereira Silva é identificado com CRM e RQE.",
+    "sourceUrl": "https://clinicacardiofortaleza.com.br/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
     "isDemo": false,
     "active": true
   },
@@ -100,12 +110,32 @@
     "active": true
   },
   {
+    "id": "public-cti-servicos",
+    "clinicId": "public-cti",
+    "title": "Clínica CTI: ortopedia e reabilitação",
+    "content": "A página institucional apresenta serviços de reabilitação e um setor voltado ao acompanhamento após cirurgias. Entre as atividades divulgadas estão fisioterapia, exercícios terapêuticos em piscina e trabalho de recuperação funcional da mão e da musculatura. O texto descreve atuação de várias áreas no mesmo estabelecimento. Este resumo descreve o conteúdo publicado, sem afirmar adequação de tratamentos ao caso do usuário.",
+    "sourceUrl": "https://cticlinica.com.br/",
+    "verifiedAt": "2026-09-28T01:55:29Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
     "id": "public-domus-cadastro",
     "clinicId": "public-domus",
     "title": "Domus Saúde: cadastro institucional",
     "content": "Domus Saúde, Eusébio: Cardiologia, Oftalmologia, Clínica Médica, Ginecologia e Obstetrícia, Neurologia. Endereço publicado: Avenida Nova do Contorno, 3260, Catarina Mall.",
     "sourceUrl": "https://www.domussaude.com.br/",
     "verifiedAt": "2026-09-28T10:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-fabiane-alergia-cadastro",
+    "clinicId": "public-fabiane-alergia",
+    "title": "Dra. Fabiane Pomiecinski: alergia e imunologia",
+    "content": "A clínica da Dra. Fabiane Pomiecinski publica investigação e acompanhamento de alergias alimentares, respiratórias, oculares e de pele, alergias a medicamentos e avaliação do sistema imunológico. A profissional é apresentada como alergologista, RQE 7999. Endereço: Rua Marcos Macedo, 1333, sala 617, Torre II, Pátio Dom Luís, Aldeota, Fortaleza.",
+    "sourceUrl": "https://alergiafortaleza.com.br/a-clinica/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
     "isDemo": false,
     "active": true
   },
@@ -130,12 +160,32 @@
     "active": true
   },
   {
+    "id": "public-haroldo-juacaba-cadastro",
+    "clinicId": "public-haroldo-juacaba",
+    "title": "Hospital Haroldo Juaçaba: centro de especialidades",
+    "content": "O Centro de Especialidades do Hospital Haroldo Juaçaba informa atendimento a clientes de convênios e particular e publica mais de 30 especialidades. Entre as áreas cadastradas no MedFinder estão Cardiologia, Cirurgia Geral, Coloproctologia, Dermatologia, Endocrinologia, Gastroenterologia, Ginecologia, Hematologia, Infectologia, Mastologia, Nefrologia, Neurologia, Neurocirurgia, Oncologia Clínica, Ortopedia, Otorrinolaringologia, Pneumologia, Reumatologia e Urologia. Rua Papi Júnior, 1222, Rodolfo Teófilo, Fortaleza.",
+    "sourceUrl": "https://www.haroldojuacaba.com.br/servicos/centro-de-especialidades/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
     "id": "public-iclinic-cadastro",
     "clinicId": "public-iclinic",
-    "title": "iClinic Fortaleza: cadastro institucional",
-    "content": "iClinic Fortaleza, Fortaleza: Psicologia. Endereço publicado: Rua João Emídio da Silveira, 46.",
-    "sourceUrl": "https://www.iclinicfortaleza.com.br/",
-    "verifiedAt": "2026-09-24T00:00:00.000Z",
+    "title": "iClinic Fortaleza: psicologia e psiquiatria",
+    "content": "iClinic Fortaleza, no Dionísio Torres, publica atendimento multidisciplinar. No corpo de profissionais parceiros constam Psicologia, Neuropsicologia e Psiquiatria, com cinco psiquiatras publicados pela clínica. Endereço: Rua João Emídio da Silveira, 46, Fortaleza. Confirme agenda, modalidade e cobertura diretamente com a recepção.",
+    "sourceUrl": "https://www.iclinicfortaleza.com.br/nossa-equipe/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-inmune-cadastro",
+    "clinicId": "public-inmune",
+    "title": "INMUNE: alergologia e imunologia",
+    "content": "A INMUNE Clínica de Alergia e Imunologia publica atendimento em alergias alimentares, respiratórias, cutâneas, a medicamentos, insetos e pelos de animais, além de investigação imunológica e exames para alergias. A diretora clínica publicada é Dra. Fátima Teresa, alergologista e imunologista. Atendimento particular, com emissão de recibo e nota fiscal. Rua Pereira Valente, 578, salas 505/506, Aldeota, Fortaleza.",
+    "sourceUrl": "https://www.clinicainmune.com.br/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
     "isDemo": false,
     "active": true
   },
@@ -180,6 +230,16 @@
     "active": true
   },
   {
+    "id": "public-massilon-vasconcelos-cadastro",
+    "clinicId": "public-massilon-vasconcelos",
+    "title": "Clínica de Olhos Massilon Vasconcelos: equipe e convênios",
+    "content": "A Clínica de Olhos Massilon Vasconcelos publica atendimento em oftalmologia em Fortaleza, com equipe de especialistas em catarata, refrativa, córnea, ceratocone, glaucoma, retina, plástica ocular e oftalmologia geral. O site publica Unimed, Hapvida, Camed e SulAmérica entre os convênios e endereço na Avenida Dom Luís, 500, Shopping Aldeota Expansão.",
+    "sourceUrl": "https://clinicadeolhosvasconcelos.com.br/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
     "id": "public-medclinica-eusebio-cadastro",
     "clinicId": "public-medclinica-eusebio",
     "title": "Medclínica Eusébio: cadastro institucional",
@@ -210,6 +270,16 @@
     "active": true
   },
   {
+    "id": "public-neusa-rocha-cadastro",
+    "clinicId": "public-neusa-rocha",
+    "title": "Hospital de Olhos Neusa Rocha: oftalmologia",
+    "content": "Hospital de Olhos Neusa Rocha, São Gerardo, Fortaleza: hospital/clínica especializada em oftalmologia, com atendimento e centro cirúrgico publicados para condições e procedimentos oculares. O site oficial identifica o diretor técnico oftalmologista com CRM/RQE e publica diversos convênios, incluindo Amil, Assefaz, Cafaz, Camed, Hapvida, Issec, Mediservice, SulAmérica, Postal Saúde, Unimed e Saúde Caixa. Confirme cobertura específica e disponibilidade antes de ir.",
+    "sourceUrl": "https://www.hospitaldeolhosneusarocha.com.br/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
     "id": "public-new-medical-cadastro",
     "clinicId": "public-new-medical",
     "title": "New Medical: cadastro institucional",
@@ -220,12 +290,52 @@
     "active": true
   },
   {
+    "id": "public-nohc-jose-lourenco-cadastro",
+    "clinicId": "public-nohc-jose-lourenco",
+    "title": "NOHC José Lourenço: oncologia, hematologia e especialidades",
+    "content": "NOHC José Lourenço, em Fortaleza: unidade privada com atendimento publicado em oncologia clínica, hematologia, reumatologia, mastologia, endocrinologia, urologia e áreas cirúrgicas relacionadas, incluindo cirurgia oncológica e do aparelho digestivo; a equipe publicada também inclui radioterapia. O corpo clínico oficial informa médicos, especialidades e CRM por unidade. O site institucional publica diversos convênios; a cobertura de cada procedimento deve ser confirmada diretamente.",
+    "sourceUrl": "https://nohc.com.br/corpo-clinico/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-nohc-santos-dumont-cadastro",
+    "clinicId": "public-nohc-santos-dumont",
+    "title": "NOHC Santos Dumont: hematologia, oncologia e especialidades",
+    "content": "NOHC Santos Dumont, em Fortaleza: unidade privada com equipe publicada em oncologia clínica, hematologia, reumatologia, dermatologia, endocrinologia, gastroenterologia, nefrologia, cirurgia geral e nutrologia oncológica. O corpo clínico oficial informa médicos, especialidades e CRM por unidade. O site institucional publica diversos convênios; confirme cobertura e disponibilidade diretamente.",
+    "sourceUrl": "https://nohc.com.br/corpo-clinico/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
     "id": "public-nova-cadastro",
     "clinicId": "public-nova",
     "title": "Clínica Nova: cadastro institucional",
     "content": "Clínica Nova, Fortaleza: Cardiologia, Clínica Médica, Dermatologia, Endocrinologia e Metabologia, Gastroenterologia, Ginecologia e Obstetrícia, Neurologia, Reumatologia, Ortopedia e Traumatologia, Otorrinolaringologia, Urologia, Nefrologia, Psicologia. Endereço publicado: Rua Guilherme Rocha, 326.",
     "sourceUrl": "https://clinicanova.med.br/",
     "verifiedAt": "2026-09-28T10:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-nucleo-oftalmologia-fatima-cadastro",
+    "clinicId": "public-nucleo-oftalmologia-fatima",
+    "title": "Núcleo de Oftalmologia — Fátima: unidade publicada",
+    "content": "O Núcleo de Oftalmologia publica uma unidade em Fátima, Fortaleza, na Avenida Treze de Maio, 1189, salas 29 e 30. O site institucional informa atendimento oftalmológico, exames e corpo clínico especializado com CRM e RQE.",
+    "sourceUrl": "https://nucleodeoftalmologia.com.br/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-nucleo-oftalmologia-papicu-cadastro",
+    "clinicId": "public-nucleo-oftalmologia-papicu",
+    "title": "Núcleo de Oftalmologia — Papicu: serviços e corpo clínico",
+    "content": "A unidade Papicu do Núcleo de Oftalmologia publica consultas, exames e procedimentos oftalmológicos no Complexo São Mateus, Torre Saúde. O corpo clínico oficial reúne especialistas com CRM e RQE em retina, catarata, glaucoma, córnea, estrabismo, plástica ocular e oftalmopediatria. Endereço publicado: Avenida Santos Dumont, 5753, 15º andar, Fortaleza.",
+    "sourceUrl": "https://nucleodeoftalmologia.com.br/corpo-clinicio/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
     "isDemo": false,
     "active": true
   },
@@ -300,22 +410,22 @@
     "active": true
   },
   {
-    "id": "public-policlinica-maracanau-cadastro",
-    "clinicId": "public-policlinica-maracanau",
-    "title": "Policlínica Regional Senador Almir Pinto: cadastro institucional",
-    "content": "Policlínica Regional Senador Almir Pinto, Maracanaú: Cardiologia, Clínica Médica, Dermatologia, Endocrinologia e Metabologia, Ginecologia e Obstetrícia, Oftalmologia, Ortopedia e Traumatologia, Otorrinolaringologia, Reumatologia, Urologia, Psicologia. Endereço publicado: Avenida Airton Senna, 56. Atendimento pelo SUS, com encaminhamento pela UBS e agendamento pela regulação municipal. Não há atendimento por demanda espontânea.",
-    "sourceUrl": "https://www.consorciodesaudemaracanau.com.br/policlinica/perguntas-e-respostas/",
-    "verifiedAt": "2026-09-28T10:00:00.000Z",
+    "id": "public-premiere-cadastro",
+    "clinicId": "public-premiere",
+    "title": "Première Medicina e Saúde: especialidades e equipe",
+    "content": "Première Medicina e Saúde, na Aldeota, publica Clínica Médica, Cardiologia, Cirurgia Geral, Cirurgia Vascular, Coloproctologia, Dermatologia, Endocrinologia, Gastroenterologia, Geriatria, Ginecologia, Neurologia, Ortopedia e Traumatologia, Otorrinolaringologia, Pneumologia, Reumatologia e Urologia. O site também publica profissionais por especialidade. Endereço: Rua Tibúrcio Cavalcante, 1947, Fortaleza.",
+    "sourceUrl": "https://premieremedicina.com.br/especialidades/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
     "isDemo": false,
     "active": true
   },
   {
-    "id": "public-premiere-cadastro",
-    "clinicId": "public-premiere",
-    "title": "Première Medicina e Saúde: cadastro institucional",
-    "content": "Première Medicina e Saúde, Fortaleza: Pneumologia. Endereço publicado: Rua Tibúrcio Cavalcante, 1947.",
-    "sourceUrl": "https://premieremedicina.com.br/equipe/diana-rangel/",
-    "verifiedAt": "2026-09-28T10:00:00.000Z",
+    "id": "public-provision-cadastro",
+    "clinicId": "public-provision",
+    "title": "Clínica Provision: oftalmologia e corpo clínico",
+    "content": "A Clínica Provision publica atendimento oftalmológico em Fortaleza e corpo clínico em áreas como catarata, córnea, cirurgia refrativa, oftalmopediatria e retina. Endereço institucional: Rua Tibúrcio Cavalcante, 1904, Fortaleza.",
+    "sourceUrl": "https://clinicaprovision.com.br/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
     "isDemo": false,
     "active": true
   },
@@ -326,6 +436,26 @@
     "content": "Reviva Clínica Popular, Maracanaú: Cardiologia, Clínica Médica, Endocrinologia e Metabologia, Gastroenterologia, Ginecologia e Obstetrícia, Neurologia. Endereço publicado: Avenida 5A, 17.",
     "sourceUrl": "https://www.revivaclinicapopular.com.br/",
     "verifiedAt": "2026-09-28T10:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-salute-cadastro",
+    "clinicId": "public-salute",
+    "title": "Clínica Salute: cardiologia, endocrinologia e clínica médica",
+    "content": "A Clínica Salute publica atendimento em Cardiologia, Endocrinologia e Clínica Médica na Rua General Silva Júnior, 235, Fátima, Fortaleza. O corpo clínico divulgado inclui cardiologistas e endocrinologista com CRM/RQE. O site também publica convênios como Unimed, Cassi, Camed, Cafaz, Geap, Issec, Postal Saúde e Saúde Caixa, entre outros.",
+    "sourceUrl": "https://clinicasalutefortaleza.com.br/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-san-lorenzo-cadastro",
+    "clinicId": "public-san-lorenzo",
+    "title": "Clínica San Lorenzo: vascular e especialidades",
+    "content": "A Clínica San Lorenzo publica atendimento em Angiologia, Cirurgia Vascular e Endovascular e também especialidades como Cardiologia, Cirurgia Geral, Endocrinologia, Ginecologia e Mastologia. O corpo clínico oficial lista médicos com CRM e, em vários casos, RQE. Endereço: Rua Bárbara de Alencar, 1365, Aldeota, Fortaleza.",
+    "sourceUrl": "https://clinicasanlorenzo.com.br/corpo-clinico/",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
     "isDemo": false,
     "active": true
   },
@@ -356,6 +486,16 @@
     "content": "Centro Médico São Carlos — Edifício Uno, Fortaleza: Pneumologia. Endereço publicado: Avenida Pontes Vieira, 2340.",
     "sourceUrl": "https://www.rededorsaoluiz.com.br/encontre-um-medico/pneumologista/em/fortaleza-ce",
     "verifiedAt": "2026-09-28T10:00:00.000Z",
+    "isDemo": false,
+    "active": true
+  },
+  {
+    "id": "public-unimed-espaco-saude-cadastro",
+    "clinicId": "public-unimed-espaco-saude",
+    "title": "Clínica Unimed no Espaço Saúde: especialidades",
+    "content": "Clínica Unimed no Espaço Saúde, Fortaleza: a página oficial publica consultas em ampla variedade de especialidades, incluindo Clínica Médica, Pediatria, Cardiologia, Dermatologia, Endocrinologia, Gastroenterologia, Geriatria, Ginecologia e Obstetrícia, Hematologia, Neurologia, Oncologia Clínica, Ortopedia e Traumatologia, Otorrinolaringologia, Pneumologia, Psiquiatria, Reumatologia, Urologia e áreas cirúrgicas como cabeça e pescoço, mão, geral, vascular/angiologia e oncologia. Unidade própria da Unimed Fortaleza; confirme elegibilidade e agenda.",
+    "sourceUrl": "https://www.unimedfortaleza.com.br/espaco-saude-unimed",
+    "verifiedAt": "2026-11-05T00:00:00.000Z",
     "isDemo": false,
     "active": true
   }

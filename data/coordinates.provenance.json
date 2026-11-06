@@ -331,17 +331,6 @@
     "responseSha256": "9cca5a525d893fd50af9d819de7a2f7fb5a9b4dec74f51f00e35d2514ed93d79"
   },
   {
-    "clinicId": "public-policlinica-maracanau",
-    "officialSourceUrl": "https://www.consorciodesaudemaracanau.com.br/policlinica/perguntas-e-respostas/",
-    "coordinatesSourceUrl": "https://maps.google.com/maps?q=Avenida%20Airton%20Senna%2C%2056%2C%20Maracana%C3%BA%2C%20CE%2C%20Brasil&output=embed",
-    "matchedPlace": "Av. Airton Senna, 56 - Pajuçara, Maracanaú - CE, 61933-315",
-    "latitude": -3.8664389,
-    "longitude": -38.5920419,
-    "verifiedAt": "2026-09-28T10:30:00.000Z",
-    "method": "Ponto de endereço ou edifício retornado pelo mapa, conferido com o endereço institucional; não é o centro da visualização.",
-    "responseSha256": "22fc4c6b677ecacc72813f8e876d5bd0eb1ad17085985e32dc5b93c4c4242cf0"
-  },
-  {
     "clinicId": "public-premiere",
     "officialSourceUrl": "https://premieremedicina.com.br/equipe/diana-rangel/",
     "coordinatesSourceUrl": "https://maps.google.com/maps?q=Rua%20Tib%C3%BArcio%20Cavalcante%2C%201947%2C%20Fortaleza%2C%20CE%2C%20Brasil&output=embed",
