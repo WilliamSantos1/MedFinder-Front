@@ -1,12 +1,13 @@
 {
   "name": "medfinder",
   "private": true,
-  "version": "2.3.1",
+  "version": "3.0.0",
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n api,web \"npm:dev:api\" \"npm:dev:web\"",
     "dev:web": "vite --host 127.0.0.1",
-    "dev:api": "node --watch --import tsx server/index.ts",
+    "dev:api": "node --import tsx server/index.ts",
+    "dev:api:watch": "node --watch --import tsx server/index.ts",
     "build": "npm run typecheck && vite build && tsc -p tsconfig.server.json",
     "start": "node build/server/index.js",
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.node.json --noEmit",
@@ -28,7 +29,11 @@
     "catalog:load": "node --import tsx scripts/manage.ts catalog-load",
     "setup:local": "node --import tsx scripts/manage.ts setup-local",
     "setup:ollama": "node --import tsx scripts/setup-ollama.ts",
-    "feedback:prune": "node --import tsx scripts/manage.ts feedback-prune"
+    "feedback:prune": "node --import tsx scripts/manage.ts feedback-prune",
+    "audit:catalog": "node --import tsx scripts/audit-catalog.ts",
+    "benchmark:routing": "node --import tsx scripts/benchmark-routing.ts",
+    "benchmark:live": "node --import tsx scripts/benchmark-live.ts",
+    "audit:routing": "node --import tsx scripts/audit-routing.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",

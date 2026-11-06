@@ -1,4 +1,5 @@
 import { z } from 'zod';
+
 import { modelAnswerFormat, modelAnswerSchema } from '../../shared/contracts.js';
 import type { Config } from '../config.js';
 import { careInput, careInstructions } from './prompt.js';
@@ -6,21 +7,30 @@ import { vectorLiteral, type AIProvider } from './provider.js';
 
 export class OllamaError extends Error {}
 
+const KEEP_ALIVE = '15m';
+const MODEL_CHECK_TTL_MS = 60_000;
+
 const modelDetails = z.object({
   remote_model: z.string().optional(),
   remote_host: z.string().optional(),
   details: z.object({ format: z.string() }).optional(),
   capabilities: z.array(z.string()).default([]),
 });
+
 const chatResult = z.object({
   done: z.literal(true),
   done_reason: z.literal('stop'),
-  message: z.object({ role: z.literal('assistant'), content: z.string().min(1).max(16000) }),
+  message: z.object({
+    role: z.literal('assistant'),
+    content: z.string().min(1).max(8000),
+  }),
 });
+
 const embeddingResult = z.object({ embeddings: z.array(z.array(z.number().finite())) });
 
 export function createOllamaProvider(config: Config, transport: typeof fetch = fetch): AIProvider {
   const base = new URL(config.OLLAMA_BASE_URL).origin;
+  const modelChecks = new Map<string, number>();
 
   async function post(
     path: string,
@@ -35,16 +45,18 @@ export function createOllamaProvider(config: Config, transport: typeof fetch = f
         redirect: 'error',
         signal: AbortSignal.timeout(timeout),
       });
+
       if (response.status === 404)
         throw new OllamaError(`Modelo local ausente. Execute: ollama pull ${String(body.model)}`);
+
       if (!response.ok)
         throw new OllamaError(
           'O Ollama não concluiu a solicitação. Confira os modelos instalados e a memória disponível.',
         );
+
       return await response.json();
     } catch (error) {
       if (error instanceof OllamaError) throw error;
-      // Never expose upstream bodies, prompts or identifiers in diagnostics.
       throw new OllamaError(
         'Ollama indisponível ou tempo esgotado. Abra o Ollama e confira http://127.0.0.1:11434.',
       );
@@ -52,7 +64,9 @@ export function createOllamaProvider(config: Config, transport: typeof fetch = f
   }
 
   async function requireLocalModel(model: string, capability: 'embedding' | 'completion') {
-    // Check each operation before sending text: aliases can point to cloud models.
+    const cacheKey = `${model}:${capability}`;
+    if ((modelChecks.get(cacheKey) ?? 0) > Date.now()) return;
+
     const details = modelDetails.safeParse(await post('show', { model }, 10000));
     if (
       !details.success ||
@@ -63,19 +77,24 @@ export function createOllamaProvider(config: Config, transport: typeof fetch = f
       throw new OllamaError(
         'O MedFinder exige modelos locais GGUF. Modelos remotos/cloud não são permitidos neste modo.',
       );
+
     if (!details.data.capabilities.includes(capability))
       throw new OllamaError(
         `O modelo ${model} não oferece a capacidade ${capability}. Confira os modelos no .env.`,
       );
+
+    modelChecks.set(cacheKey, Date.now() + MODEL_CHECK_TTL_MS);
   }
 
   return {
     mode: 'ollama',
     embeddingDimensions: config.OLLAMA_EMBEDDING_DIMENSIONS,
     embeddingModel: `ollama:${config.OLLAMA_EMBEDDING_MODEL}:${config.OLLAMA_EMBEDDING_DIMENSIONS}`,
+
     async checkAvailability() {
       await requireLocalModel(config.OLLAMA_MODEL, 'completion');
     },
+
     async embed(texts) {
       if (!texts.length) return [];
       await requireLocalModel(config.OLLAMA_EMBEDDING_MODEL, 'embedding');
@@ -84,15 +103,19 @@ export function createOllamaProvider(config: Config, transport: typeof fetch = f
           model: config.OLLAMA_EMBEDDING_MODEL,
           input: texts,
           truncate: false,
-          keep_alive: '2m',
+          keep_alive: KEEP_ALIVE,
         }),
       );
+
       if (result.embeddings.length !== texts.length)
         throw new OllamaError('Lote de embeddings locais incompleto.');
+
       for (const embedding of result.embeddings)
         vectorLiteral(embedding, config.OLLAMA_EMBEDDING_DIMENSIONS);
+
       return result.embeddings;
     },
+
     async generate(input) {
       await requireLocalModel(config.OLLAMA_MODEL, 'completion');
       const format = z.toJSONSchema(modelAnswerFormat);
@@ -109,10 +132,15 @@ export function createOllamaProvider(config: Config, transport: typeof fetch = f
             },
             { role: 'user', content: careInput(input) },
           ],
-          options: { temperature: 0.2, num_ctx: 8192, num_predict: 900 },
-          keep_alive: '2m',
+          options: {
+            temperature: 0.1,
+            num_ctx: 4096,
+            num_predict: 160,
+          },
+          keep_alive: KEEP_ALIVE,
         }),
       );
+
       return modelAnswerSchema.parse(JSON.parse(response.message.content));
     },
   };

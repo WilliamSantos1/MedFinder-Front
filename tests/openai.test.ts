@@ -33,9 +33,8 @@ describe('Contrato HTTP do adaptador OpenAI (sem chamadas pagas)', () => {
   });
   it('usa Responses API estruturada com store=false e contexto delimitado', async () => {
     const answer = {
-      answer: 'Clínica médica pode iniciar a avaliação.',
       urgency: 'routine',
-      specialty: { name: 'Clínica Médica', reason: 'Avaliação inicial.' },
+      specialty: { name: 'Clínica Médica' },
       questions: [],
     };
     let sent: Record<string, unknown> = {};

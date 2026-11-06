@@ -17,7 +17,6 @@ const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 const localDetails = { details: { format: 'gguf' }, capabilities: ['completion', 'embedding'] };
 const answer = {
-  answer: 'Faltam informações para orientar.',
   urgency: 'uncertain',
   specialty: null,
   questions: [],
@@ -80,7 +79,8 @@ describe('Ollama local, sem credenciais ou saída para nuvem', () => {
         stream: false,
         think: false,
         format: { type: 'object' },
-        options: { num_ctx: 8192 },
+        options: { num_ctx: 4096, num_predict: 160 },
+        keep_alive: '15m',
       });
       expect(body.messages[0].role).toBe('system');
       expect(JSON.parse(body.messages[1].content).currentMessage).toBe('teste');
@@ -154,16 +154,15 @@ describe('Geração local e catálogo independentes de embeddings', () => {
       }
       expect(body.messages[1].content).not.toContain('retrievedEvidence');
       return chat({
-        answer: 'Uma avaliação em ortopedia pode orientar o próximo passo.',
         urgency: 'routine',
         questions: [],
-        specialty: { name: 'Ortopedista', reason: 'Avaliação possível.' },
+        specialty: { name: 'Ortopedista' },
       });
     });
     const provider = createOllamaProvider(config, transport);
     expect(await setupConnected(db, config, provider)).toMatchObject({
-      indexed: 36,
-      publicClinics: 36,
+      indexed: 50,
+      publicClinics: 50,
     });
     const app = await buildApp(config, db, provider);
     try {

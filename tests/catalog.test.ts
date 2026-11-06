@@ -34,28 +34,46 @@ afterAll(async () => {
 });
 
 describe('Catálogo real independente de provedores de diretório', () => {
-  it('carrega 36 unidades, quatro cidades e dezesseis especialidades com fontes próprias', async () => {
+  it('carrega 50 unidades, quatro cidades e especialidades cobertas com fontes próprias', async () => {
     await loadPublicCatalog(db);
-    expect(clinics).toHaveLength(36);
-    expect(new Set(clinics.map((c) => c.id)).size).toBe(36);
+    expect(clinics).toHaveLength(50);
+    expect(new Set(clinics.map((c) => c.id)).size).toBe(50);
     expect(new Set(clinics.flatMap((c) => c.specialties))).toEqual(
       new Set([
-        'clinica-medica',
-        'ortopedia',
-        'dermatologia',
-        'neurologia',
-        'gastroenterologia',
-        'otorrinolaringologia',
-        'oftalmologia',
-        'psicologia',
+        'alergologia-imunologia',
+        'angiologia',
         'cardiologia',
-        'urologia',
-        'reumatologia',
+        'cirurgia-aparelho-digestivo',
+        'cirurgia-cabeca-pescoco',
+        'cirurgia-geral',
+        'cirurgia-mao',
+        'cirurgia-oncologica',
+        'cirurgia-vascular',
+        'clinica-medica',
+        'coloproctologia',
+        'dermatologia',
         'endocrinologia',
-        'pneumologia',
-        'nefrologia',
+        'gastroenterologia',
+        'geriatria',
         'ginecologia',
+        'hematologia',
+        'infectologia',
+        'mastologia',
+        'nefrologia',
+        'neurocirurgia',
+        'neurologia',
+        'nutrologia',
+        'oftalmologia',
+        'oncologia-clinica',
+        'ortopedia',
+        'otorrinolaringologia',
         'pediatria',
+        'pneumologia',
+        'psicologia',
+        'psiquiatria',
+        'radioterapia',
+        'reumatologia',
+        'urologia',
       ]),
     );
     expect(
@@ -68,11 +86,11 @@ describe('Catálogo real independente de provedores de diretório', () => {
       ),
     ).toBe(true);
     expect(await catalog.metadata()).toMatchObject({
-      total: 36,
-      realRecords: 36,
+      total: 50,
+      realRecords: 50,
       demoData: false,
       cities: ['Caucaia', 'Eusébio', 'Fortaleza', 'Maracanaú'],
-      sourceCount: 26,
+      sourceCount: 38,
     });
   });
   it('mantém coordenadas verificadas, fontes, taxonomia e unidades únicas; ordena o catálogo real antes de paginar', async () => {
@@ -82,18 +100,26 @@ describe('Catálogo real independente de provedores de diretório', () => {
       longitude: number;
       coordinatesSourceUrl: string;
     }[];
-    expect(audit).toHaveLength(clinics.length);
+    expect(audit).toHaveLength(35);
     expect(new Set(clinics.map((c) => `${c.city}|${c.address}`)).size).toBe(clinics.length);
     await loadPublicCatalog(db);
     const meta = await catalog.metadata();
     for (const clinic of clinics) {
-      expect(clinic.latitude).not.toBeNull();
-      expect(clinic.longitude).not.toBeNull();
-      expect(audit.find((a) => a.clinicId === clinic.id)).toMatchObject({
-        latitude: clinic.latitude,
-        longitude: clinic.longitude,
-        coordinatesSourceUrl: clinic.coordinatesSourceUrl,
-      });
+      const audited = audit.find((a) => a.clinicId === clinic.id);
+      if (audited) {
+        expect(clinic.latitude).not.toBeNull();
+        expect(clinic.longitude).not.toBeNull();
+        expect(audited).toMatchObject({
+          latitude: clinic.latitude,
+          longitude: clinic.longitude,
+          coordinatesSourceUrl: clinic.coordinatesSourceUrl,
+        });
+      } else {
+        // New catalog entries do not get invented coordinates; proximity stays unavailable
+        // until an operator verifies the exact unit point and records its source.
+        expect(clinic.latitude).toBeNull();
+        expect(clinic.longitude).toBeNull();
+      }
       expect(clinic.specialties.every((id) => meta.specialties.some((s) => s.id === id))).toBe(
         true,
       );
@@ -104,13 +130,15 @@ describe('Catálogo real independente de provedores de diretório', () => {
     }
     const search = { ...filters, location: { latitude: -3.88, longitude: -38.46 } };
     const items = [];
-    for (let page = 1; page <= 6; page++)
+    for (let page = 1; page <= 9; page++)
       items.push(...(await catalog.search({ ...search, page })).items);
-    expect(items.every((c) => c.distanceKm !== null)).toBe(true);
-    expect(items[0].city).toBe('Eusébio');
-    expect(items.map((c) => c.distanceKm)).toEqual(
-      items.map((c) => c.distanceKm).sort((a, b) => a! - b!),
+    const knownDistances = items.filter((c) => c.distanceKm !== null);
+    expect(knownDistances).toHaveLength(35);
+    expect(knownDistances[0].city).toBe('Eusébio');
+    expect(knownDistances.map((c) => c.distanceKm)).toEqual(
+      knownDistances.map((c) => c.distanceKm).sort((a, b) => a! - b!),
     );
+    expect(items.slice(knownDistances.length).every((c) => c.distanceKm === null)).toBe(true);
     expect(
       (await catalog.search({ ...search, city: 'Fortaleza' })).items.every(
         (c) => c.city === 'Fortaleza',
@@ -118,7 +146,9 @@ describe('Catálogo real independente de provedores de diretório', () => {
     ).toBe(true);
   });
   it('preserva coordenadas verificadas mais recentemente pelo operador', async () => {
-    const clinic = clinics[0];
+    const clinic = clinics.find(
+      (candidate) => candidate.latitude !== null && candidate.longitude !== null,
+    )!;
     await catalog.import([
       {
         ...clinic,
@@ -133,12 +163,12 @@ describe('Catálogo real independente de provedores de diretório', () => {
   it('página, busca e filtros exatos funcionam sem perder ou repetir registros', async () => {
     await loadPublicCatalog(db);
     const ids: string[] = [];
-    for (let page = 1; page <= 6; page++) {
+    for (let page = 1; page <= 9; page++) {
       const result = await catalog.search({ ...filters, page });
-      expect(result.total).toBe(36);
+      expect(result.total).toBe(50);
       ids.push(...result.items.map((clinic) => clinic.id));
     }
-    expect(new Set(ids).size).toBe(36);
+    expect(new Set(ids).size).toBe(50);
     expect((await catalog.search({ ...filters, q: 'clinica assis' })).items[0].id).toBe(
       'public-mario-de-assis',
     );
@@ -153,6 +183,13 @@ describe('Catálogo real independente de provedores de diretório', () => {
         })
       ).items[0].id,
     ).toBe('public-cti');
+    expect((await catalog.search({ ...filters, q: 'Fabiane Pomiecinski' })).items[0].id).toBe(
+      'public-fabiane-alergia',
+    );
+    expect((await catalog.search({ ...filters, q: 'Ana Carolina Queiroz' })).items[0].id).toBe(
+      'public-nohc-jose-lourenco',
+    );
+    expect(clinics.flatMap((clinic) => clinic.professionals).length).toBe(96);
     expect((await catalog.search({ ...filters, q: "%' OR 1=1 --" })).total).toBe(0);
     expect((await catalog.search({ ...filters, insurance: 'Plano inexistente' })).total).toBe(0);
   });
@@ -192,7 +229,7 @@ describe('Catálogo real independente de provedores de diretório', () => {
     for (const data of [[], [clinics[0], clinics[0]], [{ ...clinics[0], sourceUrl: null }]]) {
       await writeFile(path, JSON.stringify(data));
       await expect(loadPublicCatalog(db, path)).rejects.toThrow();
-      expect((await catalog.search(filters)).total).toBe(36);
+      expect((await catalog.search(filters)).total).toBe(50);
     }
     expect(
       clinicSchema.safeParse({

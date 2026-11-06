@@ -19,6 +19,16 @@ export const locationSchema = z
   })
   .strict();
 export type Location = z.infer<typeof locationSchema>;
+
+export const professionalSchema = z
+  .object({
+    name: z.string().trim().min(2).max(160),
+    specialtyId: idSchema,
+    title: z.string().trim().min(2).max(120).nullable().default(null),
+    registry: z.string().trim().min(2).max(80).nullable().default(null),
+  })
+  .strict();
+export type Professional = z.infer<typeof professionalSchema>;
 export const clarificationTopicSchema = z.enum([
   'location',
   'onset_duration',
@@ -75,6 +85,7 @@ const clinicFields = z
     insurances: z.array(z.string().trim().min(2).max(80)).max(100),
     accessNote: z.string().trim().min(10).max(300).nullable().default(null),
     professionalName: z.string().trim().min(2).max(200).nullable().optional(),
+    professionals: z.array(professionalSchema).max(30).default([]),
     provenance: z.enum(['manual', 'public-directory', 'official-website']).optional(),
     phone: z
       .string()
@@ -92,6 +103,11 @@ const clinicFields = z
   })
   .strict();
 export const clinicSchema = clinicFields.superRefine((clinic, ctx) => {
+  if (clinic.professionals.some((professional) => !clinic.specialties.includes(professional.specialtyId)))
+    ctx.addIssue({
+      code: 'custom',
+      message: 'A especialidade de cada profissional precisa estar entre as especialidades da unidade.',
+    });
   if (!clinic.isDemo && (!clinic.sourceUrl || !clinic.verifiedAt))
     ctx.addIssue({ code: 'custom', message: 'Clínicas reais exigem fonte e data de verificação.' });
   if ((clinic.latitude === null) !== (clinic.longitude === null))
@@ -155,12 +171,10 @@ const urgencySchema = z.enum(['emergency', 'prompt', 'routine', 'uncertain']);
 // Providers get one candidate only; the backend resolves it against the active database taxonomy.
 export const modelAnswerFormat = z
   .object({
-    answer: z.string().min(1).max(1800),
     urgency: urgencySchema,
     specialty: z
       .object({
-        name: z.string().min(2).max(120),
-        reason: z.string().min(1).max(240),
+        name: z.string().trim().min(2).max(120),
       })
       .strict()
       .nullable(),
@@ -168,13 +182,7 @@ export const modelAnswerFormat = z
     questions: z.array(clarificationTopicSchema).max(2),
   })
   .strict();
-export const modelAnswerSchema = modelAnswerFormat.superRefine((value, ctx) => {
-  if (
-    !value.answer.trim() ||
-    (value.specialty && (!value.specialty.name.trim() || !value.specialty.reason.trim()))
-  )
-    ctx.addIssue({ code: 'custom', message: 'Campos de texto não podem ser vazios.' });
-});
+export const modelAnswerSchema = modelAnswerFormat;
 export type ModelAnswer = z.infer<typeof modelAnswerSchema>;
 
 export const feedbackReasonSchema = z.enum([

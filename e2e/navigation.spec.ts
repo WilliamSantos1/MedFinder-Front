@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('relato ocular, especialidade única canônica e continuidade por proximidade', async ({
+test('relato ocular claro, especialidade canônica e continuidade por proximidade', async ({
   page,
   context,
 }) => {
@@ -13,87 +13,184 @@ test('relato ocular, especialidade única canônica e continuidade por proximida
 
   await page.goto('/');
 
-  await page.getByRole('button', { name: 'Usar minha localização', exact: true }).click();
+  await page
+    .getByRole('button', {
+      name: 'Usar minha localização',
+      exact: true,
+    })
+    .click();
 
-  await expect(page.getByText(/Localização ativa/)).toBeVisible();
+  await expect(
+    page.getByText(/Localização ativa/),
+  ).toBeVisible();
 
-  const input = page.getByLabel('Descreva o que você está sentindo');
+  const input = page.getByLabel(
+    'Descreva o que você está sentindo',
+  );
 
-  await input.fill('meu pai está com dor no olho, onde devo levar ele. ele tem 60 anos');
+  const pendingFirst =
+    page.waitForResponse((r) =>
+      r.url().endsWith('/api/chat'),
+    );
 
-  await page.getByRole('button', { name: 'Enviar mensagem' }).click();
+  await input.fill(
+    'meu pai de 60 anos está com dor e ardência no olho desde ontem',
+  );
 
-  await expect(page.locator('.assistant-message').first().locator('.follow-up li')).toHaveCount(2);
+  await page
+    .getByRole('button', {
+      name: 'Enviar mensagem',
+    })
+    .click();
 
-  await expect(page.locator('.specialty-suggestions')).toHaveCount(0);
+  const firstPayload =
+    await (await pendingFirst).json();
 
-  await input.fill('Desde ontem, com ardência e sem outros sintomas.');
+  expect(
+    firstPayload.specialty?.id,
+  ).toBe('oftalmologia');
 
-  await page.getByRole('button', { name: 'Enviar mensagem' }).click();
+  const first = page
+    .locator('.assistant-message')
+    .first();
 
-  const first = page.locator('.assistant-message').nth(1);
+  await expect(
+    first.getByRole('heading', {
+      name: 'Oftalmologia',
+      exact: true,
+    }),
+  ).toBeVisible();
 
-  await expect(first.getByRole('heading', { name: 'Oftalmologia', exact: true })).toBeVisible();
+  await expect(
+    first.locator(
+      '.specialty-suggestions section',
+    ),
+  ).toHaveCount(1);
 
-  await expect(first.locator('.specialty-suggestions section')).toHaveCount(1);
+  await expect(
+    first.locator('.follow-up'),
+  ).toHaveCount(0);
 
   await expect(first).not.toContainText(
     /Oculista|Outra possibilidade|Especialidade principal|Distância não disponível/i,
   );
 
-  await expect(first.locator('.clinic-distance')).toHaveCount(3);
+  await expect(
+    first.locator('.clinic-distance'),
+  ).toHaveCount(3);
 
-  const pending = page.waitForResponse((r) => r.url().endsWith('/api/chat'));
+  const pending =
+    page.waitForResponse((r) =>
+      r.url().endsWith('/api/chat'),
+    );
 
-  await input.fill('e qual dessas fica mais perto?');
+  await input.fill(
+    'e qual dessas fica mais perto?',
+  );
 
-  await page.getByRole('button', { name: 'Enviar mensagem' }).click();
+  await page
+    .getByRole('button', {
+      name: 'Enviar mensagem',
+    })
+    .click();
 
-  const response = await (await pending).json();
+  const response =
+    await (await pending).json();
 
-  expect(response.intent).toBe('clinic_search');
+  expect(response.intent).toBe(
+    'clinic_search',
+  );
 
-  expect(response.specialty.id).toBe('oftalmologia');
+  expect(response.specialty.id).toBe(
+    'oftalmologia',
+  );
 
-  const distances = response.clinics.map((c: { distanceKm: number }) => c.distanceKm);
+  const distances =
+    response.clinics.map(
+      (c: { distanceKm: number }) =>
+        c.distanceKm,
+    );
 
-  expect(distances).toEqual([...distances].sort((a: number, b: number) => a - b));
+  expect(distances).toEqual(
+    [...distances].sort(
+      (a: number, b: number) =>
+        a - b,
+    ),
+  );
 
   await expect(
-    page.locator('.assistant-message').last().locator('.clinic-distance').first(),
+    page
+      .locator('.assistant-message')
+      .last()
+      .locator('.clinic-distance')
+      .first(),
   ).toContainText(/\d/);
 
-  await expect(page.locator('.assistant-message').last()).not.toContainText(
+  await expect(
+    page
+      .locator('.assistant-message')
+      .last(),
+  ).not.toContainText(
     'Distância não disponível',
   );
 });
 
-test('consulta direta por convênio e informação de clínica sem pedir sintomas', async ({
-  page,
-}) => {
+test('consulta direta por convênio e informação de clínica sem pedir sintomas', async ({ page }) => {
   await page.goto('/');
 
-  const input = page.getByLabel('Descreva o que você está sentindo');
+  const input = page.getByLabel(
+    'Descreva o que você está sentindo',
+  );
 
-  await input.fill('quais clínicas aceitam Unimed?');
+  await input.fill(
+    'quais clínicas aceitam Unimed?',
+  );
 
-  await page.getByRole('button', { name: 'Enviar mensagem' }).click();
-
-  await expect(page.locator('.assistant-message').first().locator('.clinic-card')).toHaveCount(3);
+  await page
+    .getByRole('button', {
+      name: 'Enviar mensagem',
+    })
+    .click();
 
   await expect(
-    page.locator('.assistant-message').first().locator('.specialty-suggestions'),
+    page
+      .locator('.assistant-message')
+      .first()
+      .locator('.clinic-card'),
+  ).toHaveCount(3);
+
+  await expect(
+    page
+      .locator('.assistant-message')
+      .first()
+      .locator('.specialty-suggestions'),
   ).toHaveCount(0);
 
-  await input.fill('onde fica a Clínica CTI?');
+  await input.fill(
+    'onde fica a Clínica CTI?',
+  );
 
-  await page.getByRole('button', { name: 'Enviar mensagem' }).click();
+  await page
+    .getByRole('button', {
+      name: 'Enviar mensagem',
+    })
+    .click();
 
-  await expect(page.locator('.assistant-message').last().locator('.answer-text')).toContainText(
+  await expect(
+    page
+      .locator('.assistant-message')
+      .last()
+      .locator('.answer-text'),
+  ).toContainText(
     'Rua Júlio Lima, 675',
   );
 
-  await expect(page.locator('.assistant-message').last().locator('.clinic-card')).toHaveCount(1);
+  await expect(
+    page
+      .locator('.assistant-message')
+      .last()
+      .locator('.clinic-card'),
+  ).toHaveCount(1);
 });
 
 test('tipografia de 16px, cards legíveis e ausência de overflow em zoom de texto', async ({
@@ -102,30 +199,70 @@ test('tipografia de 16px, cards legíveis e ausência de overflow em zoom de tex
   await page.goto('/');
 
   await page
-    .getByLabel('Descreva o que você está sentindo')
-    .fill('qual clínica de oftalmologia fica mais perto?');
+    .getByLabel(
+      'Descreva o que você está sentindo',
+    )
+    .fill(
+      'qual clínica de oftalmologia fica mais perto?',
+    );
 
-  await page.getByRole('button', { name: 'Enviar mensagem' }).click();
+  await page
+    .getByRole('button', {
+      name: 'Enviar mensagem',
+    })
+    .click();
 
-  await expect(page.locator('.assistant-message')).toHaveCount(1);
+  await expect(
+    page.locator('.assistant-message'),
+  ).toHaveCount(1);
 
-  const sizes = await page.evaluate(() => ({
-    root: getComputedStyle(document.documentElement).fontSize,
-    body: getComputedStyle(document.body).fontSize,
-    message: getComputedStyle(document.querySelector('.answer-text')!).fontSize,
-    card: getComputedStyle(document.querySelector('.clinic-title-row h3')!).fontSize,
-    input: getComputedStyle(document.querySelector('textarea')!).fontSize,
-  }));
+  const sizes = await page.evaluate(
+    () => ({
+      root: getComputedStyle(
+        document.documentElement,
+      ).fontSize,
+
+      body: getComputedStyle(
+        document.body,
+      ).fontSize,
+
+      message: getComputedStyle(
+        document.querySelector(
+          '.answer-text',
+        )!,
+      ).fontSize,
+
+      card: getComputedStyle(
+        document.querySelector(
+          '.clinic-title-row h3',
+        )!,
+      ).fontSize,
+
+      input: getComputedStyle(
+        document.querySelector(
+          'textarea',
+        )!,
+      ).fontSize,
+    }),
+  );
 
   expect(sizes.root).toBe('16px');
   expect(sizes.body).toBe('16px');
   expect(sizes.message).toBe('16px');
 
-  expect(parseFloat(sizes.card)).toBeGreaterThanOrEqual(18);
+  expect(
+    parseFloat(sizes.card),
+  ).toBeGreaterThanOrEqual(18);
 
   expect(sizes.input).toBe('16px');
 
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement
+          .scrollWidth,
+    ),
+  ).toBeLessThanOrEqual(
     page.viewportSize()!.width,
   );
 
@@ -134,49 +271,113 @@ test('tipografia de 16px, cards legíveis e ausência de overflow em zoom de tex
     fullPage: true,
   });
 
-  await page.getByRole('button', { name: 'Encontrar clínicas', exact: true }).click();
+  await page
+    .getByRole('button', {
+      name: 'Encontrar clínicas',
+      exact: true,
+    })
+    .click();
 
-  await expect(page.locator('.directory .clinic-card').first()).toBeVisible();
+  await expect(
+    page
+      .locator('.directory .clinic-card')
+      .first(),
+  ).toBeVisible();
 
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement
+          .scrollWidth,
+    ),
+  ).toBeLessThanOrEqual(
     page.viewportSize()!.width,
   );
 
   await page.evaluate(() => {
-    document.documentElement.style.fontSize = '200%';
+    document.documentElement.style.fontSize =
+      '200%';
   });
 
-  expect(await page.evaluate(() => getComputedStyle(document.body).fontSize)).toBe('32px');
+  expect(
+    await page.evaluate(
+      () =>
+        getComputedStyle(
+          document.body,
+        ).fontSize,
+    ),
+  ).toBe('32px');
 
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement
+          .scrollWidth,
+    ),
+  ).toBeLessThanOrEqual(
     page.viewportSize()!.width,
   );
 
-  await page.getByRole('button', { name: 'Assistente de saúde', exact: true }).click();
+  await page
+    .getByRole('button', {
+      name: 'Assistente de saúde',
+      exact: true,
+    })
+    .click();
 
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement
+          .scrollWidth,
+    ),
+  ).toBeLessThanOrEqual(
     page.viewportSize()!.width,
   );
 
   expect(
     await page
       .locator('.conversation')
-      .evaluate((element) => element.scrollWidth <= element.clientWidth),
+      .evaluate(
+        (element) =>
+          element.scrollWidth <=
+          element.clientWidth,
+      ),
   ).toBe(true);
 
-  await page.getByRole('button', { name: 'Como funciona', exact: true }).click();
+  await page
+    .getByRole('button', {
+      name: 'Como funciona',
+      exact: true,
+    })
+    .click();
 
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement
+          .scrollWidth,
+    ),
+  ).toBeLessThanOrEqual(
     page.viewportSize()!.width,
   );
 
+  const storage = await page.evaluate(
+    () => ({
+      local: Object.keys(localStorage),
+      session: Object.keys(
+        sessionStorage,
+      ),
+    }),
+  );
+
+  expect(storage.session).toEqual([]);
+
   expect(
-    await page.evaluate(() => ({
-      local: Object.keys(localStorage).filter((key) => key !== 'medfinder.followup.v1'),
-      session: Object.keys(sessionStorage),
-    })),
-  ).toEqual({
-    local: [],
-    session: [],
-  });
+    storage.local.filter(
+      (key) =>
+        key !==
+        'medfinder.followup.v1',
+    ),
+  ).toEqual([]);
 });

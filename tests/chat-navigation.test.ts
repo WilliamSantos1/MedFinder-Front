@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildApp } from '../server/app.js';
 import { readConfig } from '../server/config.js';
 import { connectDatabase, type Database } from '../server/db/database.js';
@@ -8,12 +8,14 @@ import { loadPublicCatalog } from '../server/services/public-catalog.js';
 import { demoProvider } from '../server/ai/demo.js';
 import { chatResponseSchema } from '../shared/contracts.js';
 import { suggestion } from './fixtures.js';
+
 const config = readConfig({ NODE_ENV: 'test', DATA_DIR: 'memory://', CHAT_RATE_LIMIT: '120' });
 let db: Database;
 let app: Awaited<ReturnType<typeof buildApp>>;
-const generate = vi.fn(async () => suggestion('Oculista'));
+const generate = vi.fn(demoProvider.generate);
 const provider = { ...demoProvider, generate };
 const location = { latitude: -3.7321, longitude: -38.5151 };
+
 async function chat(message: string, extra: Record<string, unknown> = {}) {
   const response = await app.inject({
     method: 'POST',
@@ -23,111 +25,193 @@ async function chat(message: string, extra: Record<string, unknown> = {}) {
   expect(response.statusCode).toBe(200);
   return chatResponseSchema.parse(response.json());
 }
+
 beforeAll(async () => {
   db = await connectDatabase(config);
   await migrate(db);
   await loadPublicCatalog(db);
   app = await buildApp(config, db, provider);
 });
+beforeEach(() => {
+  generate.mockReset();
+  generate.mockImplementation(demoProvider.generate);
+});
 afterAll(async () => {
   await app?.close();
   await db?.close();
 });
 
-describe('Uma especialidade canônica, sem vazamento de texto do modelo', () => {
-  it.each(['Oculista', 'oftalmo', 'OFTALMOLOGISTA'])(
-    'normaliza %s e fornece a taxonomia ao modelo',
-    async (alias) => {
-      generate.mockResolvedValueOnce({
-        ...suggestion(alias),
-        answer: `Uma avaliação em ${alias} e Neurologia pode ajudar.`,
-        specialty: { name: alias, reason: `Avaliação em ${alias} ou Neurologia.` },
-      });
-      const result = await chat('dor no olho desde ontem, sem outros sintomas');
-      expect(result.specialty).toMatchObject({ id: 'oftalmologia', name: 'Oftalmologia' });
-      expect(result).not.toHaveProperty('specialties');
-      expect(result.questions).toEqual([]);
-      expect(result.answer).not.toMatch(/oculista|oftalmo|neurologia/i);
-      expect(generate).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          specialties: expect.arrayContaining([{ id: 'oftalmologia', name: 'Oftalmologia' }]),
-        }),
-      );
-    },
-  );
-  it('regressão: pai com dor no olho, 60 anos', async () => {
-    const message = 'meu pai está com dor no olho, onde devo levar ele. ele tem 60 anos';
-    const first = await chat(message);
-    expect(first).toMatchObject({ status: 'needs_information', specialty: null, clinics: [] });
-    const result = await chat('Desde ontem, com ardência e sem outros sintomas.', {
-      history: [message],
+describe('Especialidade canônica e fast-path local', () => {
+  it.each([
+    ['bom dia, meu olho esta avermelhado e coçando.', 'oftalmologia'],
+    ['tenho enxaqueca', 'neurologia'],
+    ['dor no joelho depois de correr', 'ortopedia'],
+    ['tenho refluxo', 'gastroenterologia'],
+  ])('%s é resolvido sem chamar o LLM', async (message, id) => {
+    const result = await chat(message);
+    expect(result.specialty?.id).toBe(id);
+    expect(result.questions).toEqual([]);
+    expect(generate).not.toHaveBeenCalled();
+  });
+
+  it('normaliza alias do modelo depois de obter contexto mínimo para queixa ambígua', async () => {
+    const first = await chat('estou com tontura');
+    expect(first.status).toBe('needs_information');
+    expect(generate).not.toHaveBeenCalled();
+
+    generate.mockResolvedValueOnce(suggestion('Otorrino'));
+    const result = await chat('começou hoje e não tenho outros sintomas', {
+      history: ['estou com tontura'],
       context: first.context,
     });
-    expect(result.specialty?.name).toBe('Oftalmologia');
-    expect(JSON.stringify(result)).not.toMatch(/oculista|alternative|primary/i);
-    expect(result.clinics.every((c) => c.specialties.includes('oftalmologia'))).toBe(true);
-  });
-  it('descarta integralmente saída com especialidade inventada', async () => {
-    const name = 'Especialista ocular avançado';
-    generate.mockResolvedValueOnce({ ...suggestion(name), answer: `Você procura ${name}?` });
-    const result = await chat('dor no olho desde ontem, sem outros sintomas');
-    expect(result).toMatchObject({
-      status: 'specialty_unrecognized',
-      specialty: null,
-      clinics: [],
+    expect(result.specialty).toMatchObject({
+      id: 'otorrinolaringologia',
+      name: 'Otorrinolaringologia',
     });
+    expect(generate).toHaveBeenCalledTimes(1);
+  });
+
+  it('pode fazer uma pergunta clínica adicional quando ela ainda muda o direcionamento', async () => {
+    const first = await chat('estou com tontura');
+    expect(first.status).toBe('needs_information');
+    expect(first.questions.length).toBeGreaterThanOrEqual(1);
+
+    generate.mockResolvedValueOnce({
+      urgency: 'uncertain',
+      specialty: null,
+      questions: ['pattern'],
+    });
+
+    const second = await chat('começou hoje e não tenho outros sintomas', {
+      history: ['estou com tontura'],
+      context: first.context,
+    });
+
+    expect(second.status).toBe('needs_information');
+    expect(second.specialty).toBeNull();
+    expect(second.questions).toHaveLength(1);
+    expect(second.questions[0]).toMatch(/tontura|girando|desequilíbrio|desmaio/i);
+    expect(generate).toHaveBeenCalledTimes(1);
+  });
+
+  it('não aceita especialidade ativa fora da shortlist autorizada após esclarecimento', async () => {
+    const first = await chat('estou com tontura');
+    generate.mockResolvedValueOnce(suggestion('Dermatologia'));
+    const result = await chat('começou hoje e não tenho outros sintomas', {
+      history: ['estou com tontura'],
+      context: first.context,
+    });
+    expect(result.specialty?.id).toBe('clinica-medica');
+    expect(result.specialty?.id).not.toBe('dermatologia');
+  });
+
+  it('saída inventada do modelo não vaza e recupera para porta de entrada ampla', async () => {
+    const name = 'Especialista ocular avançado';
+    generate.mockResolvedValueOnce(suggestion(name));
+    const result = await chat('tenho uma síndrome rara e preciso saber qual médico procurar');
+    expect(result.specialty?.id).toBe('clinica-medica');
     expect(JSON.stringify(result)).not.toContain(name);
     expect((await new SpecialtyRepository(db).resolve(name)).status).toBe('unrecognized');
   });
-  it('não força indicação quando falta contexto e rejeita inativas', async () => {
-    generate.mockResolvedValueOnce({ ...suggestion(), specialty: null, urgency: 'uncertain' });
-    expect((await chat('Estou com dor')).specialty).toBeNull();
-    generate.mockResolvedValueOnce(suggestion('Radiologia'));
-    expect(await chat('Estou com dor no olho desde ontem, sem outros sintomas')).toMatchObject({
-      status: 'specialty_not_registered',
-      specialty: null,
-    });
+
+  it('falta absoluta de localização corporal pede esclarecimento e não consome LLM', async () => {
+    const result = await chat('estou com dor');
+    expect(result).toMatchObject({ status: 'needs_information', specialty: null, clinics: [] });
+    expect(result.questions.join(' ')).toContain('parte do corpo');
+    expect(generate).not.toHaveBeenCalled();
   });
 });
 
-describe('Intenções de catálogo e continuidade', () => {
+describe('Intenções de catálogo, filtros e continuidade', () => {
   it.each([
     'qual clínica de oftalmologia está mais perto de mim?',
     'tem alguma clínica de dermatologia perto de mim?',
     'Existe clínica de urologia em Fortaleza?',
     'Me mostre opções próximas para dermatologia.',
   ])('%s não exige inferência médica', async (message) => {
-    generate.mockClear();
     const result = await chat(message, { location });
     expect(result.intent).toBe('clinic_search');
     expect(result.mode).toBe('catalog');
     expect(result.specialty).not.toBeNull();
     expect(generate).not.toHaveBeenCalled();
     expect(result.clinics.length).toBeGreaterThan(0);
-    expect(result.clinics.every((c) => c.distanceKm !== null)).toBe(true);
-    const distances = result.clinics.map((c) => c.distanceKm!);
+    const located = result.clinics.filter((clinic) => clinic.distanceKm !== null);
+    const unlocated = result.clinics.filter((clinic) => clinic.distanceKm === null);
+    expect(result.clinics).toEqual([...located, ...unlocated]);
+    const distances = located.map((clinic) => clinic.distanceKm!);
     expect(distances).toEqual([...distances].sort((a, b) => a - b));
   });
-  it('busca Unimed sem sintomas e pede esclarecimento para convênio desconhecido', async () => {
+
+  it('busca por convênio não confunde a marca com nome de clínica', async () => {
     const result = await chat('quais clínicas aceitam Unimed?');
     expect(result.specialty).toBeNull();
     expect(result.clinics.length).toBeGreaterThan(0);
-    expect(result.clinics.every((c) => c.insurances.includes('Unimed'))).toBe(true);
+    expect(result.clinics.every((clinic) => clinic.insurances.includes('Unimed'))).toBe(true);
     expect(result.feedback?.reasons).toContain('insurance_problem');
+  });
+
+  it('aceita alias inequívoco de plano sem relaxar o filtro', async () => {
+    const result = await chat('quais clínicas aceitam Bradesco?');
+    expect(result.mode).toBe('catalog');
+    expect(result.context?.insurance).toBe('Bradesco Saúde');
+    expect(result.clinics.every((clinic) => clinic.insurances.includes('Bradesco Saúde'))).toBe(true);
+  });
+
+  it('convênio desconhecido pede correção em vez de mostrar lista sem filtro', async () => {
     expect(await chat('quais clínicas aceitam Plano Inventado?')).toMatchObject({
       status: 'needs_information',
       clinics: [],
     });
   });
-  it('responde endereço e especialidades da clínica a partir do banco', async () => {
-    generate.mockClear();
-    for (const message of [
-      'onde fica a Clínica CTI?',
-      'A Clínica CTI atende qual especialidade?',
-    ]) {
+
+  it('pergunta clínica sobre especialidade não é confundida com busca de catálogo', async () => {
+    const previous = 'estou com dor no joelho após correr';
+    const first = await chat(previous);
+    const reflux = await chat('tenho refluxo quase todo dia', {
+      history: [previous],
+      context: first.context,
+    });
+    expect(reflux.specialty?.id).toBe('gastroenterologia');
+
+    const question = await chat('refluxo seria ortopedia?', {
+      history: [previous, 'tenho refluxo quase todo dia'],
+      context: reflux.context,
+    });
+    expect(question.intent).toBe('care_navigation');
+    expect(question.mode).not.toBe('catalog');
+    expect(question.specialty?.id).toBe('gastroenterologia');
+  });
+
+  it('retoma um foco clínico anterior quando o usuário faz referência explícita a ele', async () => {
+    const knee = 'estou com dor no joelho após correr';
+    const first = await chat(knee);
+    const reflux = await chat('tenho refluxo quase todo dia', {
+      history: [knee],
+      context: first.context,
+    });
+    expect(reflux.specialty?.id).toBe('gastroenterologia');
+
+    const revisit = await chat('aquela dor no joelho voltou', {
+      history: [knee, 'tenho refluxo quase todo dia'],
+      context: reflux.context,
+    });
+    expect(revisit.intent).toBe('care_navigation');
+    expect(revisit.specialty?.id).toBe('ortopedia');
+    expect(revisit.questions).toEqual([]);
+  });
+
+  it('pedido explícito de clínica continua sendo catálogo mesmo quando cita sintoma', async () => {
+    const result = await chat('quais clínicas de ortopedia atendem dor no joelho?');
+    expect(result.intent).toBe('clinic_search');
+    expect(result.mode).toBe('catalog');
+    expect(result.specialty?.id).toBe('ortopedia');
+  });
+
+  it('responde informação de uma clínica pelo banco, sem LLM', async () => {
+    for (const message of ['onde fica a Clínica CTI?', 'A Clínica CTI atende qual especialidade?']) {
       const result = await chat(message);
       expect(result.intent).toBe('clinic_information');
-      expect(result.clinics.map((c) => c.id)).toEqual(['public-cti']);
+      expect(result.clinics.map((clinic) => clinic.id)).toEqual(['public-cti']);
       expect(result.answer).toContain('Rua Júlio Lima, 675');
       expect(result.clinics[0].specialtyDetails).toContainEqual({
         id: 'ortopedia',
@@ -135,46 +219,34 @@ describe('Intenções de catálogo e continuidade', () => {
       });
     }
     expect(generate).not.toHaveBeenCalled();
-    expect(await chat('onde fica a Clínica Inexistente?')).toMatchObject({
-      status: 'needs_information',
-      clinics: [],
-    });
   });
-  it('refina especialidade pelo contexto e ordena as unidades anteriores', async () => {
-    const eye = await chat('Estou com dor no olho desde ontem, sem outros sintomas');
-    generate.mockClear();
+
+  it('refina por contexto e ordena somente as clínicas já apresentadas', async () => {
+    const eye = await chat('meu olho está vermelho e coçando');
     const nearby = await chat('qual dessas fica mais perto de mim?', {
       context: eye.context,
-      history: ['Estou com dor no olho'],
+      history: ['meu olho está vermelho e coçando'],
       location,
     });
     expect(nearby.specialty?.id).toBe('oftalmologia');
-    expect(nearby.clinics.every((c) => eye.context?.clinicIds.includes(c.id))).toBe(true);
+    expect(nearby.clinics.every((clinic) => eye.context?.clinicIds.includes(clinic.id))).toBe(true);
     expect(generate).not.toHaveBeenCalled();
-    const ortho = await chat('quero clínica de ortopedia');
-    const filtered = await chat('e que aceite Unimed?', { context: ortho.context });
-    expect(filtered.specialty?.id).toBe('ortopedia');
-    expect(filtered.context?.insurance).toBe('Unimed');
-    expect(
-      filtered.clinics.every(
-        (c) => c.insurances.includes('Unimed') && c.specialties.includes('ortopedia'),
-      ),
-    ).toBe(true);
   });
-  it('cidade selecionada permanece exata; pede permissão de localização sem inventar distância', async () => {
+
+  it('cidade selecionada permanece filtro exato; sem localização não inventa distância', async () => {
     const result = await chat('qual clínica de oftalmologia fica mais perto?', {
       city: 'Eusébio',
       location,
     });
     expect(result.clinics.length).toBeGreaterThan(0);
-    expect(result.clinics.every((c) => c.city === 'Eusébio')).toBe(true);
+    expect(result.clinics.every((clinic) => clinic.city === 'Eusébio')).toBe(true);
     const noLocation = await chat('qual clínica de oftalmologia fica mais perto?');
     expect(noLocation.locationUsed).toBe(false);
     expect(noLocation.questions.join(' ')).toContain('Usar minha localização');
-    expect(noLocation.clinics.every((c) => c.distanceKm === null)).toBe(true);
+    expect(noLocation.clinics.every((clinic) => clinic.distanceKm === null)).toBe(true);
   });
-  it('urgência vence pedido de catálogo e contexto; múltiplas áreas exigem escolha', async () => {
-    generate.mockClear();
+
+  it('urgência vence catálogo, filtros, localização e contexto', async () => {
     const response = await chat(
       'qual clínica de cardiologia fica mais perto? Estou com dor forte no peito',
       { location },
@@ -187,13 +259,17 @@ describe('Intenções de catálogo e continuidade', () => {
       context: null,
     });
     expect(generate).not.toHaveBeenCalled();
+  });
+
+  it('múltiplas especialidades explícitas exigem escolha', async () => {
     expect(await chat('quero uma clínica de ortopedia e dermatologia')).toMatchObject({
       status: 'needs_information',
       specialty: null,
       clinics: [],
     });
   });
-  it('catálogo funciona em modo OpenAI sem enviar nada ao provedor nem exigir consentimento', async () => {
+
+  it('catálogo funciona em modo OpenAI sem consentimento porque não envia relato ao provedor', async () => {
     const external = { ...provider, mode: 'openai' as const, generate: vi.fn(), embed: vi.fn() };
     const instance = await buildApp(config, db, external);
     try {

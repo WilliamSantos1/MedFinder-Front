@@ -40,7 +40,7 @@ export function createOpenAIProvider(config: Config, transport?: typeof fetch): 
             content: careInput(input),
           },
         ],
-        max_output_tokens: 900,
+        max_output_tokens: 300,
         text: { format: zodTextFormat(modelAnswerFormat, 'care_navigation') },
       });
       if (!response.output_parsed || response.status !== 'completed')

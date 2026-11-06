@@ -1,52 +1,86 @@
 import { expect, test } from '@playwright/test';
 
 test('retorno após ausência pergunta qual clínica foi e envia a avaliação', async ({ page }) => {
-  const old = Date.now() - 8 * 60 * 60 * 1000;
+  const old =
+    Date.now() -
+    8 * 60 * 60 * 1000;
 
-  await page.addInitScript((time) => {
-    localStorage.setItem(
-      'medfinder.followup.v1',
-      JSON.stringify({
-        lastSeen: time,
-        items: [
-          {
-            responseId: 'd5358b14-5d54-4d16-9d97-81aa2d757572',
-            token: 'a'.repeat(64),
-            shownAt: time,
-            clinics: [{ id: 'demo-visita', name: 'Clínica Visita' }],
-          },
-        ],
-      }),
-    );
-  }, old);
+  await page.addInitScript(
+    (time) => {
+      localStorage.setItem(
+        'medfinder.followup.v1',
+        JSON.stringify({
+          lastSeen: time,
+          items: [
+            {
+              responseId:
+                'd5358b14-5d54-4d16-9d97-81aa2d757572',
 
-  let body: Record<string, unknown> | undefined;
+              token:
+                'a'.repeat(64),
 
-  await page.route('**/api/visit-feedback', async (route) => {
-    body = route.request().postDataJSON();
+              shownAt: time,
 
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: '{"status":"saved"}',
-    });
-  });
+              clinics: [
+                {
+                  id: 'demo-visita',
+                  name: 'Clínica Visita',
+                },
+              ],
+            },
+          ],
+        }),
+      );
+    },
+    old,
+  );
+
+  let body:
+    | Record<string, unknown>
+    | undefined;
+
+  await page.route(
+    '**/api/visit-feedback',
+    async (route) => {
+      body =
+        route.request().postDataJSON();
+
+      await route.fulfill({
+        status: 200,
+        contentType:
+          'application/json',
+        body: '{"status":"saved"}',
+      });
+    },
+  );
 
   await page.goto('/');
 
-  const dialog = page.getByRole('dialog');
+  const dialog =
+    page.getByRole('dialog');
 
-  await expect(dialog.getByText('Qual clínica você visitou?')).toBeVisible();
+  await expect(
+    dialog.getByText(
+      'Qual clínica você visitou?',
+    ),
+  ).toBeVisible();
 
-  await dialog.getByLabel('Clínica Visita').check();
+  await dialog
+    .getByLabel('Clínica Visita')
+    .check();
 
-  const rating = dialog.getByRole('radio', { name: '4 estrelas' });
+  await dialog
+    .locator('.star-rating label')
+    .filter({
+      hasText: '4 estrelas',
+    })
+    .click();
 
-  await rating.check({ force: true });
-
-  await expect(rating).toBeChecked();
-
-  await dialog.getByRole('button', { name: 'Enviar avaliação' }).click();
+  await dialog
+    .getByRole('button', {
+      name: 'Enviar avaliação',
+    })
+    .click();
 
   await expect(dialog).toBeHidden();
 
@@ -55,5 +89,9 @@ test('retorno após ausência pergunta qual clínica foi e envia a avaliação',
     rating: 4,
   });
 
-  expect(await page.evaluate(() => localStorage.length)).toBe(0);
+  expect(
+    await page.evaluate(
+      () => localStorage.length,
+    ),
+  ).toBe(0);
 });

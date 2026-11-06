@@ -1,0 +1,351 @@
+[
+  {
+    "message": "meu olho está vermelho e lacrimejando",
+    "type": "deterministic",
+    "expected": "oftalmologia"
+  },
+  {
+    "message": "tenho catarata",
+    "type": "deterministic",
+    "expected": "oftalmologia"
+  },
+  {
+    "message": "estou com zumbido no ouvido",
+    "type": "deterministic",
+    "expected": "otorrinolaringologia"
+  },
+  {
+    "message": "estou rouco e com problema na garganta",
+    "type": "deterministic",
+    "expected": "otorrinolaringologia"
+  },
+  {
+    "message": "tenho urticária e alergia alimentar",
+    "type": "deterministic",
+    "expected": "alergologia-imunologia"
+  },
+  {
+    "message": "tenho rinite alérgica",
+    "type": "deterministic",
+    "expected": "alergologia-imunologia"
+  },
+  {
+    "message": "meu cabelo está caindo muito",
+    "type": "deterministic",
+    "expected": "dermatologia"
+  },
+  {
+    "message": "tenho micose nas unhas",
+    "type": "deterministic",
+    "expected": "dermatologia"
+  },
+  {
+    "message": "bati o joelho e ele está inchado",
+    "type": "deterministic",
+    "expected": "ortopedia"
+  },
+  {
+    "message": "tenho dor lombar quando me movimento",
+    "type": "deterministic",
+    "expected": "ortopedia"
+  },
+  {
+    "message": "tenho tremor nas mãos",
+    "type": "deterministic",
+    "expected": "neurologia"
+  },
+  {
+    "message": "tenho epilepsia",
+    "type": "deterministic",
+    "expected": "neurologia"
+  },
+  {
+    "message": "minha pressão está alta e tenho hipertensão",
+    "type": "deterministic",
+    "expected": "cardiologia"
+  },
+  {
+    "message": "tenho arritmia",
+    "type": "deterministic",
+    "expected": "cardiologia"
+  },
+  {
+    "message": "tenho bronquite e chiado",
+    "type": "deterministic",
+    "expected": "pneumologia"
+  },
+  {
+    "message": "tenho DPOC",
+    "type": "deterministic",
+    "expected": "pneumologia"
+  },
+  {
+    "message": "tenho refluxo e gastrite",
+    "type": "deterministic",
+    "expected": "gastroenterologia"
+  },
+  {
+    "message": "estou com hemorroida",
+    "type": "deterministic",
+    "expected": "coloproctologia"
+  },
+  {
+    "message": "tenho aumento da próstata",
+    "type": "deterministic",
+    "expected": "urologia"
+  },
+  {
+    "message": "faço hemodiálise por doença renal",
+    "type": "deterministic",
+    "expected": "nefrologia"
+  },
+  {
+    "message": "tenho diabetes e uso insulina",
+    "type": "deterministic",
+    "expected": "endocrinologia"
+  },
+  {
+    "message": "tenho endometriose",
+    "type": "deterministic",
+    "expected": "ginecologia"
+  },
+  {
+    "message": "apareceu um nódulo na mama",
+    "type": "deterministic",
+    "expected": "mastologia"
+  },
+  {
+    "message": "estou com anemia e plaquetas baixas",
+    "type": "deterministic",
+    "expected": "hematologia"
+  },
+  {
+    "message": "tenho artrite reumatoide",
+    "type": "deterministic",
+    "expected": "reumatologia"
+  },
+  {
+    "message": "preciso acompanhar HIV com infectologista",
+    "type": "deterministic",
+    "expected": "infectologia"
+  },
+  {
+    "message": "tenho câncer e faço quimioterapia",
+    "type": "deterministic",
+    "expected": "oncologia-clinica"
+  },
+  {
+    "message": "tenho crises de pânico",
+    "type": "deterministic",
+    "expected": "psiquiatria"
+  },
+  {
+    "message": "sou idoso frágil e tenho quedas frequentes",
+    "type": "deterministic",
+    "expected": "geriatria"
+  },
+  {
+    "message": "tenho varizes nas pernas",
+    "type": "deterministic",
+    "expected": "cirurgia-vascular"
+  },
+  {
+    "message": "tenho hérnia e preciso de cirurgião geral",
+    "type": "deterministic",
+    "expected": "cirurgia-geral"
+  },
+  {
+    "message": "tenho uma doença hereditária e quero aconselhamento genético",
+    "type": "deterministic",
+    "expected": "genetica-medica"
+  },
+  {
+    "message": "preciso de fisiatra por espasticidade",
+    "type": "deterministic",
+    "expected": "medicina-fisica-reabilitacao"
+  },
+  {
+    "message": "sou atleta e preciso avaliação para retorno ao esporte",
+    "type": "deterministic",
+    "expected": "medicina-esportiva"
+  },
+  {
+    "message": "apareceu uma massa no pescoço",
+    "type": "deterministic",
+    "expected": "cirurgia-cabeca-pescoco"
+  },
+  {
+    "message": "tenho síndrome do túnel do carpo",
+    "type": "deterministic",
+    "expected": "cirurgia-mao"
+  },
+  {
+    "message": "vou fazer ponte de safena e preciso de cirurgia cardiovascular",
+    "type": "deterministic",
+    "expected": "cirurgia-cardiovascular"
+  },
+  {
+    "message": "preciso de cirurgia bariátrica",
+    "type": "deterministic",
+    "expected": "cirurgia-aparelho-digestivo"
+  },
+  {
+    "message": "preciso de cirurgia para retirar tumor maligno",
+    "type": "deterministic",
+    "expected": "cirurgia-oncologica"
+  },
+  {
+    "message": "preciso de cirurgia torácica",
+    "type": "deterministic",
+    "expected": "cirurgia-toracica"
+  },
+  {
+    "message": "preciso fazer colonoscopia",
+    "type": "deterministic",
+    "expected": "endoscopia"
+  },
+  {
+    "message": "preciso de avaliação pré-anestésica",
+    "type": "deterministic",
+    "expected": "anestesiologia"
+  },
+  {
+    "message": "preciso fazer exame admissional",
+    "type": "deterministic",
+    "expected": "medicina-trabalho"
+  },
+  {
+    "message": "preciso renovar CNH com médico do tráfego",
+    "type": "deterministic",
+    "expected": "medicina-trafego"
+  },
+  {
+    "message": "preciso de perícia médica",
+    "type": "deterministic",
+    "expected": "medicina-legal-pericia"
+  },
+  {
+    "message": "preciso fazer PET scan",
+    "type": "deterministic",
+    "expected": "medicina-nuclear"
+  },
+  {
+    "message": "preciso fazer ressonância magnética",
+    "type": "deterministic",
+    "expected": "radiologia"
+  },
+  {
+    "message": "preciso de análise anatomopatológica com patologista",
+    "type": "deterministic",
+    "expected": "patologia"
+  },
+  {
+    "message": "quero tratamento com acupuntura",
+    "type": "deterministic",
+    "expected": "acupuntura"
+  },
+  {
+    "message": "quero tratamento homeopático",
+    "type": "deterministic",
+    "expected": "homeopatia"
+  },
+  {
+    "message": "preciso de médico intensivista",
+    "type": "deterministic",
+    "expected": "medicina-intensiva"
+  },
+  {
+    "message": "meu filho de 8 anos está com coriza desde ontem",
+    "type": "deterministic",
+    "expected": "pediatria"
+  },
+  {
+    "message": "estou com febre e cansaço",
+    "type": "deterministic",
+    "expected": "clinica-medica"
+  },
+  {
+    "message": "estou com rinite",
+    "type": "candidate",
+    "expectedAny": [
+      "otorrinolaringologia",
+      "alergologia-imunologia"
+    ]
+  },
+  {
+    "message": "estou com tontura",
+    "type": "candidate",
+    "expectedAny": [
+      "neurologia",
+      "otorrinolaringologia"
+    ]
+  },
+  {
+    "message": "estou com coceira no joelho",
+    "type": "candidate",
+    "expectedAny": [
+      "dermatologia",
+      "ortopedia"
+    ]
+  },
+  {
+    "message": "estou tossindo",
+    "type": "candidate",
+    "expectedAny": [
+      "pneumologia"
+    ]
+  },
+  {
+    "message": "estou com diarreia",
+    "type": "candidate",
+    "expectedAny": [
+      "gastroenterologia"
+    ]
+  },
+  {
+    "message": "sinto ardência ao urinar",
+    "type": "candidate",
+    "expectedAny": [
+      "urologia"
+    ]
+  },
+  {
+    "message": "estou com insônia",
+    "type": "candidate",
+    "expectedAny": [
+      "psiquiatria",
+      "psicologia"
+    ]
+  },
+  {
+    "message": "estou com dor",
+    "type": "clarification",
+    "expectedTopics": [
+      "location"
+    ]
+  },
+  {
+    "message": "estou com coceira",
+    "type": "clarification",
+    "expectedTopics": [
+      "location"
+    ]
+  },
+  {
+    "message": "minha filha está com febre e cansaço desde ontem",
+    "type": "clarification",
+    "expectedTopics": [
+      "age_group"
+    ]
+  },
+  {
+    "message": "tenho uma síndrome rara e não sei qual médico procurar",
+    "type": "semantic-fallback",
+    "expectedFallback": "clinica-medica"
+  },
+  {
+    "message": "estou com um problema de saúde que não sei explicar",
+    "type": "semantic-fallback",
+    "expectedFallback": "clinica-medica"
+  }
+]
