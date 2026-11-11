@@ -15,7 +15,10 @@ export function useChat(timeoutMs = 60000) {
   const controller = useRef<AbortController | null>(null);
   useEffect(() => () => controller.current?.abort(), []);
 
-  async function send(input: Omit<ChatRequest, 'history' | 'context'>) {
+  async function send(
+    input: Omit<ChatRequest, 'history' | 'context'>,
+    options: { newPatient?: boolean } = {},
+  ) {
     if (controller.current) return false;
     const current = new AbortController();
     controller.current = current;
@@ -23,7 +26,7 @@ export function useChat(timeoutMs = 60000) {
     const history = messages
       .filter((item) => item.role === 'user')
       .map((item) => item.text)
-      .slice(-6);
+      .slice(-12);
     setMessages((previous) => [...previous, userMessage]);
     setError('');
     setPending(true);
@@ -31,7 +34,7 @@ export function useChat(timeoutMs = 60000) {
     try {
       const previous = [...messages].reverse().find((item) => item.role === 'assistant');
       const context =
-        previous?.role === 'assistant' && previous.response.context
+        !options.newPatient && previous?.role === 'assistant' && previous.response.context
           ? {
               ...previous.response.context,
               city:
@@ -48,7 +51,7 @@ export function useChat(timeoutMs = 60000) {
       lastFilters.current = { city: input.city, insurance: input.insurance };
       setMessages((previous) => [...previous, { id: response.id, role: 'assistant', response }]);
       rememberRecommendation(response);
-      return true;
+      return response;
     } catch (failure) {
       setMessages((previous) => previous.filter((item) => item.id !== userMessage.id));
       setError(

@@ -19,10 +19,14 @@ test('relato realmente genérico pede só o detalhe discriminante e usa a respos
   const response = await pending;
   expect(response.request().postDataJSON().history).toEqual(['estou com dor']);
   const second = page.locator('.assistant-message').nth(1);
+  await expect(second.locator('.follow-up li').first()).toBeVisible();
+  await input.fill('Começou ontem, depois de um esforço, sem outros sintomas.');
+  await submit.click();
+  const third = page.locator('.assistant-message').nth(2);
   await expect(
-    second.getByRole('heading', { name: 'Ortopedia e Traumatologia', exact: true }),
+    third.getByRole('heading', { name: 'Ortopedia e Traumatologia', exact: true }),
   ).toBeVisible();
-  await expect(second.locator('.follow-up')).toHaveCount(0);
+  await expect(third.locator('.follow-up')).toHaveCount(0);
   expect(
     await page.evaluate(() => ({
       local: Object.keys(localStorage).filter((key) => key !== 'medfinder.followup.v1'),

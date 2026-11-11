@@ -53,9 +53,15 @@ describe('Esclarecimento enxuto e navegação híbrida', () => {
     expect(embed).not.toHaveBeenCalled();
   });
 
+  it('dor de cabeça sem início nem sinais associados faz perguntas antes do encaminhamento', async () => {
+    const result = await chat('estou com dor de cabeça');
+    expect(result).toMatchObject({ status: 'needs_information', specialty: null, clinics: [] });
+    expect(result.questions.join(' ')).toMatch(/quanto tempo|outro sintoma/i);
+    expect(generate).not.toHaveBeenCalled();
+  });
+
   it.each([
-    ['estou com dor de cabeça', 'neurologia'],
-    ['estou sentindo muita dor no pescoço', 'ortopedia'],
+    ['estou sentindo dor no pescoço desde ontem, piora ao movimentar, sem outros sintomas', 'ortopedia'],
     ['bom dia, meu olho está avermelhado e coçando', 'oftalmologia'],
   ])('queixa clara usa fast-path: %s', async (message, specialtyId) => {
     const result = await chat(message);
@@ -118,7 +124,17 @@ describe('Esclarecimento enxuto e navegação híbrida', () => {
     expect(generate).not.toHaveBeenCalled();
 
     const second = await chat('8 anos', [message], first.context);
-    expect(second.specialty?.id).toBe('pediatria');
+    // Knowing age alone does not answer how long the fever has lasted.
+    expect(second).toMatchObject({ status: 'needs_information', specialty: null });
+    expect(second.context?.care?.answeredTopics).toContain('age_group');
+    expect(second.questions.join(' ')).toMatch(/quanto tempo|começou/i);
+
+    const third = await chat(
+      'Começou ontem, não tenho outros sintomas.',
+      [message, '8 anos'],
+      second.context,
+    );
+    expect(third.specialty?.id).toBe('pediatria');
   });
 
   it('idade do cuidador não é aplicada ao paciente', async () => {
@@ -170,7 +186,7 @@ describe('Esclarecimento enxuto e navegação híbrida', () => {
 });
 
   it('nova queixa da mesma pessoa não herda a especialidade anterior', async () => {
-    const previous = 'estou com dor no joelho após correr';
+    const previous = 'estou com dor no joelho desde ontem após correr, sem outros sintomas';
     const first = await chat(previous);
     expect(first.specialty?.id).toBe('ortopedia');
 

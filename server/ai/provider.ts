@@ -13,7 +13,14 @@ export interface AIProvider {
     history: string[];
     specialties?: Specialty[];
     previousQuestions?: string[];
+    interview?: Array<{ topics: import('../../shared/contracts.js').ClarificationTopic[]; answer: string }>;
     patient?: PatientProfile;
+    navigationHints?: Array<{
+      specialtyId: string;
+      reason: string;
+      relativePriority: 'primary' | 'alternative';
+    }>;
+    clinicalGuidance?: Array<{ id: string; title: string; sourceUrl: string; summary: string }>;
   }): Promise<ModelAnswer>;
 }
 

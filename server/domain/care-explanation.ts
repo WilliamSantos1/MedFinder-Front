@@ -1,5 +1,8 @@
 import type { Source, Specialty } from '../../shared/contracts.js';
 import { normalize } from './text.js';
+import { patientProfile } from './patient.js';
+import { currentReferralEvidence, symptomLedgerFromMessages } from './symptom-ledger.js';
+import { matchClinicalCases } from './clinical-casebook.js';
 
 const earSource: Source = {
   id: 'care-earache',
@@ -63,6 +66,19 @@ export function careExplanation(messages: string[], specialty?: Specialty | null
       text: 'A coceira e as alterações na pele podem estar relacionadas a irritação, ressecamento ou outras condições. A aparência da pele e os demais sintomas precisam ser avaliados para esclarecer a causa.',
       sources: [skinSource],
     };
+  // Give a short, grounded explanation of WHY this specialty was selected,
+  // without asking the small local LLM to invent a diagnosis or a rationale.
+  // These reasons are editorial navigation rules, not official publisher advice.
+  if (specialty) {
+    const evidence = currentReferralEvidence(messages, symptomLedgerFromMessages(messages));
+    const scenario = matchClinicalCases(evidence, patientProfile(messages)).find((candidate) =>
+      candidate.referrals.some((referral) => referral.id === specialty.id),
+    );
+    if (scenario) return {
+      text: `O encaminhamento considera o conjunto das informações relatadas: ${scenario.reason}. Essa associação serve para orientar a avaliação presencial; não determina a causa nem confirma um diagnóstico.`,
+      sources: [] as Source[],
+    };
+  }
   return {
     text: 'O desconforto relatado pode ter diferentes causas. A avaliação na especialidade indicada ajuda a investigar o problema; a orientação pelo chat não confirma um diagnóstico.',
     sources: [] as Source[],

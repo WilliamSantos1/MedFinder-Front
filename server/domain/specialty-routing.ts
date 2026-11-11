@@ -1,6 +1,11 @@
 import type { ClarificationTopic } from '../../shared/contracts.js';
 import type { PatientProfile } from './patient.js';
 import { normalize } from './text.js';
+import { positiveEvidenceText } from './negated-evidence.js';
+import { hasVocabularyHealthTerm, vocabularyMatches } from './clinical-vocabulary.js';
+import { rankWholePresentation } from './multisystem-referral.js';
+import { matchClinicalCases } from './clinical-casebook.js';
+import { assessAnatomicalDifferential } from './anatomical-differential.js';
 
 export interface RoutingCandidate {
   id: string;
@@ -135,12 +140,12 @@ const rules: Rule[] = [
     id: 'ortopedia',
     patterns: [
       [
-        /(?:\b(?:dor|doendo|dolorid\w*|trauma|batida|bati|machuquei|pancada|lesao|inchaco|inchad\w*|rigidez|estalo|instabilidade|dificuldade (?:para|de) movimentar)\b.{0,45}\b(?:joelho|ombro|tornozelo|quadril|cotovelo|punho|mao|dedos?|pe|pes|osso|ossos|articulacao|articulacoes|coluna|lombar|pescoco|cervical|musculo|tendao|ligamento)\b)|(?:\b(?:joelho|ombro|tornozelo|quadril|cotovelo|punho|mao|dedos?|pe|pes|osso|ossos|articulacao|articulacoes|coluna|lombar|pescoco|cervical|musculo|tendao|ligamento)\b.{0,45}\b(?:dor|doendo|dolorid\w*|trauma|batida|bati|machuquei|pancada|lesao|inchaco|inchad\w*|rigidez|estalo|instabilidade|movimento)\b)/,
+        /(?:\b(?:dor|doendo|dolorid\w*|trauma|batida|bati|machuquei|pancada|lesao|inchaco|inchad\w*|rigidez|estalo|instabilidade|dificuldade (?:para|de) movimentar)\b.{0,45}\b(?:joelho|ombro|tornozelo|quadril|cotovelo|punho|mao|dedos?|pe|pes|osso|ossos|articulacao|articulacoes|coluna|costas|lombar|pescoco|cervical|musculo|tendao|ligamento)\b)|(?:\b(?:joelho|ombro|tornozelo|quadril|cotovelo|punho|mao|dedos?|pe|pes|osso|ossos|articulacao|articulacoes|coluna|costas|lombar|pescoco|cervical|musculo|tendao|ligamento)\b.{0,45}\b(?:dor|doendo|dolorid\w*|trauma|batida|bati|machuquei|pancada|lesao|inchaco|inchad\w*|rigidez|estalo|instabilidade|movimento)\b)/,
         12,
         'queixa musculoesquelética localizada',
       ],
       [
-        /\b(joelho|ombro|tornozelo|quadril|cotovelo|punho|mao|dedos?|pe|pes|osso|ossos|articulacao|articulacoes|coluna|lombar|pescoco|cervical|musculo|tendao|ligamento)\b/,
+        /\b(joelho|ombro|tornozelo|quadril|cotovelo|punho|mao|dedos?|pe|pes|osso|ossos|articulacao|articulacoes|coluna|costas|lombar|pescoco|cervical|musculo|tendao|ligamento)\b/,
         5,
         'região musculoesquelética',
       ],
@@ -804,10 +809,10 @@ const rules: Rule[] = [
 ];
 
 const genericSymptoms =
-  /\b(dor|dores|doendo|febre|coceira|cocando|ardencia|vermelh\w*|inchaco|tontura|vertigem|nausea|enjoo|vomito|diarreia|toss\w*|coriza|espirros?|cansaco|fadiga|fraqueza|sangramento|caroco|nodulo|formigamento|dormencia|desconforto|mal estar|indisposicao|sintoma|sintomas|secrecao|catarro|palpitacao|desmaio|tremor|calafrio|perda de peso|ganho de peso|ferida|lesao|rigidez|espasmo|caibra|soluco)\b/;
+  /\b(dor|dores|doendo|febre|coceira|cocando|ardencia|vermelh\w*|inchaco|tontura|vertigem|nausea|enjoo|vomito|diarreia|toss\w*|coriza|espirros?|cansaco|fadiga|fraqueza|sangramento|caroco|nodulo|formigamento|dormencia|desconforto|mal estar|indisposicao|sintoma|sintomas|secrecao|catarro|palpitacao|desmaio|tremor|calafrio|perda de peso|ganho de peso|ferida|lesao|rigidez|espasmos?|caibras?|soluco)\b/;
 
 const bodyTerms =
-  /\b(cabeca|rosto|face|maxilar|mandibula|pescoco|nuca|olho|olhos|ouvido|ouvidos|nariz|garganta|boca|lingua|pele|cabelo|unha|peito|torax|coracao|pulmao|estomago|barriga|abdomen|intestino|reto|anus|figado|vesicula|pancreas|rim|rins|urina|urinar|urinario|urinaria|uretra|bexiga|mama|mamas|seio|seios|vagina|vulva|utero|ovario|prostata|testiculo|penis|joelho|ombro|braco|cotovelo|punho|mao|dedo|perna|quadril|panturrilha|pe|tornozelo|coluna|lombar|articulacao|musculo|osso|dente|dentes|gengiva)\b/;
+  /\b(cabeca|rosto|face|maxilar|mandibula|pescoco|nuca|olho|olhos|ouvido|ouvidos|nariz|garganta|boca|lingua|pele|cabelo|unha|peito|torax|coracao|pulmao|estomago|barriga|abdomen|intestino|reto|anus|figado|vesicula|pancreas|rim|rins|urina|urinar|urinario|urinaria|uretra|bexiga|mama|mamas|seio|seios|vagina|vulva|utero|ovario|prostata|testiculo|penis|joelho|ombro|braco|cotovelo|punho|mao|dedo|perna|quadril|panturrilha|pe|tornozelo|coluna|costas|lombar|articulacao|musculo|osso|virilha|pelve|pelvica|pelvico|perineo|bacia|pe da barriga|pubis|pubica|pubico|pubiana|pubiano|suprapubiana|suprapubiano|suprapubica|axila|flanco|sacro|gluteo|dente|dentes|gengiva)\b/;
 
 const healthConcepts =
   /\b(diabetes|tireoide|alergia|asma|anemia|cancer|depressao|ansiedade|hipertensao|arritmia|refluxo|hernia|varizes|lupus|artrite|hiv|aids|tuberculose|gravidez|menstruacao|menopausa|obesidade|memoria|insonia|epilepsia|parkinson|glaucoma|catarata|psoriase|endometriose|fibromialgia|autismo|tdah|doenca|sindrome|transtorno|infeccao|inflamacao|problema de saude|diagnostico|exame alterado|resultado alterado)\b/;
@@ -859,12 +864,69 @@ function scoreRules(
     }
   }
 
+  // Supplement, do not replace, the existing clinical router with anatomical and
+  // symptom synonyms. Take the strongest evidence per specialty; repeating body
+  // words must not accumulate into a false high-confidence referral.
+  const supplement = new Map<string, { score: number; reasons: string[] }>();
+  const mentionsSymptom = /\b(?:dor|dores|doendo|doi|sinto|sentindo|tenho|esta com|esta sentindo|sente|lesao|machuquei|pancada|trauma|problema|queixa|sintoma)\b/.test(text);
+  for (const hit of vocabularyMatches(text)) {
+    if (hit.kind === 'anatomy' && !mentionsSymptom) continue;
+    const score = hit.weight + (hit.kind === 'anatomy' && mentionsSymptom ? 3 : 0);
+    const current = supplement.get(hit.specialtyId);
+    if (!current || score > current.score) {
+      supplement.set(hit.specialtyId, { score, reasons: [`vocabulário clínico: ${hit.term}`] });
+    }
+  }
+  for (const [id, addition] of supplement) {
+    const current = scored.get(id);
+    if (!current || addition.score > current.score) scored.set(id, addition);
+  }
+
+  // Evidence-based scenario combinations are weighted after broad lexical
+  // recognition. A mechanism+impairment combination can override a misleading
+  // organ word (e.g. "unha" must not turn a crushed finger into Dermatologia).
+  // These are navigation hints, not identified medical diagnoses.
+  for (const scenario of matchClinicalCases(text, patient)) {
+    for (const id of scenario.exclude ?? []) scored.delete(id);
+    for (const referral of scenario.referrals) {
+      const id = patient.ageYears !== null && patient.ageYears < 18 &&
+        referral.id === 'clinica-medica' ? 'pediatria' : referral.id;
+      const existing = scored.get(id);
+      if (!existing || referral.score > existing.score) {
+        scored.set(id, {
+          score: referral.score,
+          reasons: [scenario.reason],
+        });
+      }
+    }
+  }
+
+  // Cross-system locations must never become a specific high-confidence
+  // referral from an anatomical word alone. Keep clear mechanism/system
+  // combinations (casebook above) but remove unsupported specialty anchors.
+  const anatomy = assessAnatomicalDifferential(text);
+  if (anatomy.unresolved) {
+    const unsafeAnchors: Record<string, readonly string[]> = {
+      'pubic-pelvic': ['urologia', 'ginecologia', 'ortopedia', 'gastroenterologia'],
+      axillary: ['dermatologia', 'mastologia', 'ortopedia'],
+      flank: ['urologia', 'nefrologia', 'gastroenterologia', 'ortopedia'],
+      jaw: ['otorrinolaringologia', 'ortopedia', 'cardiologia'],
+    };
+    for (const id of unsafeAnchors[anatomy.areaId ?? ''] ?? []) scored.delete(id);
+    const fallback = patient.ageYears !== null && patient.ageYears < 18 ? 'pediatria' : 'clinica-medica';
+    const prior = scored.get(fallback);
+    if (!prior || prior.score < 26) scored.set(fallback, {
+      score: 26,
+      reasons: ['região anatômica compartilhada entre sistemas; investigar sinais associados'],
+    });
+  }
+
   const isChild =
     patient.ageYears !== null &&
     patient.ageYears < 18;
 
   const childGeneral =
-    /\b(febre|coriza|tosse|vomito|diarreia|mal estar|cansaco|sem apetite|falta de apetite|resfriado|gripe)\b/.test(
+    /\b(febre|coriza|tosse|vomito|diarreia|disenteria|desinteria|disinteria|dissenteria|amigdalas?|garganta|dor de garganta|mal estar|cansaco|sem apetite|falta de apetite|resfriado|gripe)\b/.test(
       text,
     );
 
@@ -894,7 +956,7 @@ function scoreRules(
 
   if (
     (patient.ageYears !== null &&
-      patient.ageYears >= 75) ||
+      patient.ageYears >= 65) ||
     explicitOlder
   ) {
     const current =
@@ -950,6 +1012,7 @@ export function broadFallbackId(
 export function routeComplaint(
   messages: string[],
   patient: PatientProfile,
+  currentEvidence?: string,
 ): ComplaintRouting {
   const text = normalize(
     messages.join('\n'),
@@ -963,13 +1026,16 @@ export function routeComplaint(
     );
 
   const lexicalHealth =
+    hasVocabularyHealthTerm(text) ||
     genericSymptoms.test(text) ||
     bodyTerms.test(text) ||
     healthConcepts.test(text) ||
     careVerbs.test(text);
 
-  const candidates =
-    scoreRules(text, patient);
+  // Excluded symptoms ("sem febre", "não tenho tosse") must not become
+  // positive evidence for ENT/Pneumology/etc. Safety still sees the RAW text.
+  const positive = positiveEvidenceText(currentEvidence ?? messages.map(normalize).join('\n'));
+  const candidates = rankWholePresentation(scoreRules(positive, patient), positive, patient);
 
   const fallbackId =
     broadFallbackId(patient);
@@ -1018,6 +1084,22 @@ export function routeComplaint(
         'age_group',
       ],
       confidence: 'medium',
+      healthComplaint: true,
+      socialOnly: false,
+    };
+  }
+
+  // A pubic/inguinal, axillary, flank or jaw complaint without mechanism
+  // or associated evidence needs a discriminating question, not a forced
+  // urologic, dermatologic, or other organ-based specialty.
+  if (healthComplaint && assessAnatomicalDifferential(positive).unresolved) {
+    return {
+      candidates: candidates.slice(0, 5),
+      deterministicId: null,
+      fallbackId,
+      needsClarification: true,
+      clarificationTopics: ['associated_symptoms', 'trigger'],
+      confidence: 'fallback',
       healthComplaint: true,
       socialOnly: false,
     };

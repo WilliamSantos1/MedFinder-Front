@@ -1,4 +1,5 @@
 import { normalize } from './text.js';
+import { casebookUrgency } from './clinical-casebook.js';
 
 const emergencyPatterns = [
   /\b(?:dor|aperto|pressao|peso) (?:forte |intens[ao] )?(?:no|em meu|em) peito\b/g,
@@ -61,6 +62,11 @@ function affirmed(text: string, pattern: RegExp) {
 export function detectUrgency(
   messages: string[],
 ): 'emergency' | 'prompt' | null {
+  // Mechanism+sign combinations from reviewed clinical referral scenarios.
+  // Runs BEFORE the LLM and the elective catalog.
+  const casebookAlert = casebookUrgency(messages);
+  if (casebookAlert) return casebookAlert;
+
   const normalizedMessages =
     messages.map(normalize);
 
@@ -74,7 +80,7 @@ export function detectUrgency(
     normalizedMessages.some((text) =>
       affirmed(
         text,
-        /\b(?:fraqueza nas duas pernas|dormencia nas duas pernas|perda de sensibilidade (?:genital|nos genitais)|nao consigo controlar (?:a urina|as fezes))\b/g,
+        /\b(?:fraqueza (?:nas duas|em ambas as) pernas|(?:formigamento|dormencia) (?:nas duas|em ambas as) pernas|perda de sensibilidade (?:genital|nos genitais)|(?:nao consigo|nao consegue) urinar|(?:perdi|perdeu|perda de|nao consigo controlar) (?:o controle d[ae] )?(?:a )?(?:urina|fezes)|incontinencia urinaria subita)\b/g,
       ),
     )
   ) {
@@ -116,6 +122,13 @@ export function detectUrgency(
       return 'emergency';
     }
   }
+
+  // Fever with back pain can require urgent same-day evaluation even without
+  // other declared red flags; it must not turn into an elective clinic list.
+  if (
+    normalizedMessages.some((text) => affirmed(text, /\b(?:dor nas costas|dor lombar)\b/g)) &&
+    normalizedMessages.some((text) => affirmed(text, /\bfebre\b/g))
+  ) return 'prompt';
 
   for (const message of messages) {
     const text = normalize(message);

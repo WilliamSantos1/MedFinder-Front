@@ -6,6 +6,7 @@ import { migrate } from '../server/db/migrations.js';
 import { CatalogRepository } from '../server/db/catalog.js';
 import { distanceKm } from '../server/domain/distance.js';
 import { demoProvider } from '../server/ai/demo.js';
+import { PROMPT_VERSION } from '../server/ai/prompt.js';
 import { clinicSearchSchema, chatResponseSchema } from '../shared/contracts.js';
 import { clinic, suggestion } from './fixtures.js';
 
@@ -139,13 +140,14 @@ describe('Geolocalização temporária e Haversine', () => {
       },
     });
     expect(result.json().locationUsed).toBe(true);
-    expect(provider.generate).toHaveBeenCalledWith({
+    expect(provider.generate).toHaveBeenCalledWith(expect.objectContaining({
       message: 'ardência ao urinar desde ontem, sem febre [e-mail removido]',
       history: [],
       previousQuestions: [],
       patient: { relationship: null, ageYears: null, adultReported: false, needsAge: false },
       specialties: expect.arrayContaining([{ id: 'urologia', name: 'Urologia' }]),
-    });
+    }));
+    expect(JSON.stringify(provider.generate.mock.calls)).not.toMatch(/57\.123456|99\.898989/);
     expect(provider.embed).not.toHaveBeenCalled();
     const tables = (
       await db.query<{ table_name: string }>(
@@ -221,7 +223,7 @@ describe('Feedback isolado, sem conversa ou localização', () => {
     expect(rows[0]).toMatchObject({
       rating: 'negative',
       mode: 'demo',
-      prompt_version: 'care-navigation-3.0.1',
+      prompt_version: PROMPT_VERSION,
     });
     expect(rows[0].comment).not.toMatch(/123\.456|pessoa@|99999|3333/);
     expect(rows[0].comment).toContain('Texto confuso');

@@ -9,7 +9,9 @@ import {
 import type { AIProvider } from '../ai/provider.js';
 import type { CatalogRepository } from '../db/catalog.js';
 import { detectUrgency } from '../domain/safety.js';
-import { redactIdentifiers } from '../domain/text.js';
+import { normalize, redactIdentifiers } from '../domain/text.js';
+import { hasUnrecognizedInsurance, resolveInsurances } from '../domain/insurance.js';
+import { clearsInsuranceFilter, requestsSpecialtyWithoutClinics } from '../domain/language-intents.js';
 import { patientProfile } from '../domain/patient.js';
 import { careExplanation, earObjectConcern } from '../domain/care-explanation.js';
 import {
@@ -25,9 +27,16 @@ import {
   toxicSubstanceAdviceRequest,
 } from '../domain/guardrails.js';
 import { broadFallbackId, routeComplaint } from '../domain/specialty-routing.js';
+import { isSupportedReferral, modelCandidateIds } from '../domain/referral-validation.js';
+import { selectEvidenceBackedReferral } from '../domain/referral-decision.js';
+import { currentReferralEvidence, symptomLedgerFromMessages, updateSymptomLedger } from '../domain/symptom-ledger.js';
+import { needsMusculoskeletalIntake } from '../domain/musculoskeletal-interview.js';
+import { adaptiveIntakeTopics } from '../domain/adaptive-interview.js';
+import { assessAnatomicalDifferential } from '../domain/anatomical-differential.js';
+import { retrieveClinicalGuidance } from '../domain/clinical-guidance.js';
 import type { Retriever } from '../rag/retrieve.js';
 import type { SpecialtyResolver } from './specialty-resolver.js';
-import { routeCatalog, type CatalogIntent } from './chat-intent.js';
+import { catalogContext, routeCatalog, type CatalogIntent } from './chat-intent.js';
 
 const notice =
   'O MedFinder ajuda a encontrar atendimento e não substitui avaliação médica. A ausência de alerta não descarta uma urgência.';
@@ -150,7 +159,7 @@ export class ChatService {
     // A new person must never inherit symptoms, urgency or specialty from the previous patient.
     const conversation = careConversation(request);
     const scopedMessages = [...conversation.history, request.message];
-    const activeRequest: ChatRequest = conversation.newEpisode
+    let activeRequest: ChatRequest = conversation.newEpisode
       ? { ...request, context: undefined }
       : request;
 
@@ -158,9 +167,10 @@ export class ChatService {
     // but it only evaluates the current clinical episode.
     const urgency = detectUrgency(scopedMessages);
     if (urgency) return safetyResponse(urgency);
-    if (possibleMedicationPoisoning(request.message)) return medicationPoisoningResponse();
+    if (scopedMessages.some(possibleMedicationPoisoning)) return medicationPoisoningResponse();
     if (toxicSubstanceAdviceRequest(request.message)) return toxicSubstanceBoundaryResponse();
-    if (medicationAdviceRequest(request.message)) return medicationBoundaryResponse(activeRequest);
+    if (medicationAdviceRequest(request.message, conversation.history))
+      return medicationBoundaryResponse(activeRequest);
 
     if (earObjectConcern(scopedMessages)) {
       const explanation = careExplanation(scopedMessages);
@@ -186,7 +196,9 @@ export class ChatService {
       activeRequest.context?.specialtyId
     ) {
       const specialty = await this.resolver.byId(activeRequest.context.specialtyId);
-      if (specialty)
+      if (specialty && (specialty.id !== 'pediatria' ||
+          (patientProfile(scopedMessages, conversation.care?.askedTopics.includes('age_group')).ageYears !== null &&
+          patientProfile(scopedMessages, conversation.care?.askedTopics.includes('age_group')).ageYears! < 18)))
         return {
           ...empty(),
           urgency: 'routine',
@@ -202,23 +214,272 @@ export class ChatService {
         };
     }
 
+    if (
+      specialtyConfirmationRequest(request.message) &&
+      activeRequest.context?.specialtyId === 'pediatria' &&
+      !conversation.newEpisode
+    ) {
+      const currentPatient = patientProfile(scopedMessages, conversation.care?.askedTopics.includes('age_group'));
+      if (currentPatient.ageYears === null) return this.clarificationResponse(
+        activeRequest, conversation.care, ['age_group'], true, scopedMessages.join('\n'),
+      );
+      if (currentPatient.ageYears >= 18) {
+        const general = await this.resolver.byId('clinica-medica');
+        if (general) return this.specialtyAnswer(activeRequest, general, scopedMessages, 'uncertain', this.provider.mode, 'fallback');
+      }
+    }
+
     // 3) Explicit catalog requests are resolved entirely from the database.
     // A new patient cannot inherit the previous patient's specialty/clinic context.
     const catalogRoute = await routeCatalog(activeRequest, this.catalog, this.resolver);
     if (catalogRoute) return this.catalogAnswer(activeRequest, catalogRoute);
 
+    // Persist symptom status per patient and use ONLY still-active facts to
+    // score referrals. A resolved eye complaint must never anchor the next
+    // recommendation to Oftalmologia when the remaining issue is nasal.
+    const previousSymptoms = activeRequest.context?.symptomState ??
+      symptomLedgerFromMessages(conversation.history);
+    const symptomState = updateSymptomLedger(previousSymptoms, request.message);
+    const currentEvidence = currentReferralEvidence(scopedMessages, symptomState);
+    activeRequest = {
+      ...activeRequest,
+      context: {
+        ...(activeRequest.context ?? {
+          specialtyId: null, clinicIds: [], city: activeRequest.city,
+          insurance: activeRequest.insurance,
+        }),
+        symptomState,
+      },
+    };
+
+    // Catalog questions must not count as answers to an open clinical interview.
+    // Record only a genuine clinical follow-up after catalog intent was ruled out.
+    // Preserve answers to questions within this episode. A simple "não" is
+    // evidence only for an associated-signs question that was actually asked.
+    const priorCare = conversation.care;
+    const reply = normalize(request.message);
+    if (priorCare?.questions.length) {
+      const isNo = /^(?:nao|nao tenho|nenhum|nenhuma|nada|nenhum deles|nenhuma delas)[.! ]*$/.test(reply);
+      // A user may answer two questions in one message: "começou hoje. não".
+      // A stand-alone negative after punctuation answers the associated-signs
+      // question instead of forcing another identical round of questions.
+      const finalStandaloneNo = /(?:^|[.!?;]\s*)(?:nao|nenhum|nenhuma|nada)[.!? ]*$/.test(reply);
+      const isYes = /^(?:sim|sim tenho|tenho sim)[.! ]*$/.test(reply);
+      const explicitKnown = assessDetail([request.message]).known;
+      const responded = priorCare.questions.filter((topic) =>
+        explicitKnown.has(topic) || (topic === 'associated_symptoms' && (isNo || finalStandaloneNo)) ||
+        (topic === 'age_group' && /^(?:\d{1,3}|um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez)[.! ]*$/.test(reply)),
+      );
+      const care = {
+        ...priorCare,
+        answeredTopics: [...new Set([...(priorCare.answeredTopics ?? []), ...responded])],
+        interview: [...(priorCare.interview ?? []), {
+          topics: priorCare.questions,
+          answer: redactIdentifiers(request.message),
+        }].slice(-3),
+      };
+      conversation.care = care;
+      if (activeRequest.context) activeRequest = {
+        ...activeRequest, context: { ...activeRequest.context, care },
+      };
+
+      // The user affirmed at least one warning sign, but did not identify it.
+      // Clarify rather than assuming "no symptoms" or offering elective clinics.
+      if (isYes && priorCare.questions.includes('associated_symptoms')) {
+        if (priorCare.round >= 3) return safetyResponse('prompt');
+        const question = /\b(?:costas|coluna|lombar)\b/.test(normalize(scopedMessages.join(' ')))
+          ? 'Qual dos sinais você percebeu: fraqueza ou dormência nas pernas, febre, alteração para urinar/evacuar ou outro?'
+          : 'Qual dos sintomas associados você percebeu? Descreva qual deles.';
+        return {
+          ...empty(), status: 'needs_information', urgency: 'uncertain', mode: this.provider.mode,
+          answer: 'Preciso saber qual sinal apareceu antes de indicar o atendimento.',
+          questions: [question],
+          context: { ...activeRequest.context!, care: {
+            ...care, round: Math.min(3, care.round + 1),
+            questions: ['associated_symptoms'],
+          } },
+        };
+      }
+    }
+
+
+    // A plan written alongside a symptom must filter the clinically selected specialty as well.
+    const meta = await this.catalog.metadata();
+    const plans = resolveInsurances(request.message, meta.insurances);
+    if (
+      plans.ambiguous ||
+      plans.matches.length > 1 ||
+      hasUnrecognizedInsurance(request.message, meta.insurances) ||
+      (activeRequest.context?.catalog?.resumeCare &&
+        !plans.matches.length &&
+        !activeRequest.insurance)
+    )
+      return {
+        ...empty(),
+        status: 'needs_information',
+        urgency: 'uncertain',
+        mode: this.provider.mode,
+        answer:
+          plans.matches.length > 1
+            ? `Identifiquei mais de um convênio possível: ${plans.matches.join(', ')}. Qual deles você quer usar nesta consulta?`
+            : 'Não identifiquei esse plano no catálogo. Qual é o nome do convênio? Informe o nome ou selecione uma opção no filtro para continuar o direcionamento.',
+        questions: ['Qual convênio você quer consultar?'],
+        context: {
+          specialtyId: null,
+          clinicIds: [],
+          city: activeRequest.city,
+          insurance: '',
+          ...(activeRequest.context?.care ? { care: activeRequest.context.care } : {}),
+          catalog: { scope: 'all', clinicIds: [], awaitingInsurance: true, resumeCare: true },
+        },
+      };
+    const mentionedCity = meta.cities.find((city) =>
+      ` ${normalize(request.message)} `.includes(` ${normalize(city)} `),
+    );
+    activeRequest = {
+      ...activeRequest,
+      city: mentionedCity ?? (activeRequest.city || activeRequest.context?.city || ''),
+      insurance: clearsInsuranceFilter(request.message, plans.matches.length > 0)
+        ? ''
+        : plans.matches.length === 1
+          ? plans.matches[0]
+          : activeRequest.insurance || activeRequest.context?.insurance || '',
+    };
+
     const patient = patientProfile(
       scopedMessages,
-      conversation.care?.questions.includes('age_group'),
+      conversation.care?.askedTopics.includes('age_group'),
     );
-    const routing = routeComplaint(scopedMessages, patient);
+    const routing = routeComplaint(scopedMessages, patient, currentEvidence);
+    const hasPendingAge = Boolean(patient.needsAge && patient.ageYears === null);
 
+    // A question challenging a previous referral ("não seria mais indicado
+    // Ortopedia?") is NOT medication advice or a new symptom. Reassess the
+    // ORIGINAL clinical evidence without treating the requested specialty as
+    // a symptom. Do not inherit a three-round fallback as a final judgment.
+    const referralChallenge =
+      /\b(?:nao seria|seria|nao e|acha que|poderia ser|por que nao|porque nao)\b.{0,75}\b(?:indicado|indicada|adequado|adequada|melhor|especialidade|especialista)\b/.test(reply);
+    if (
+      referralChallenge &&
+      !conversation.newEpisode &&
+      conversation.history.length > 0 &&
+      activeRequest.context?.specialtyId
+    ) {
+      const mentioned = await this.resolver.mentions(request.message);
+      if (mentioned.length === 1) {
+        const proposed = mentioned[0];
+        const earlierPatient = patientProfile(conversation.history);
+        const earlierRouting = routeComplaint(conversation.history, earlierPatient);
+        if (isSupportedReferral(proposed.id, earlierRouting, earlierPatient)) {
+          const missing = adaptiveIntakeTopics(conversation.history).slice(0, 2);
+          if (missing.length) {
+            const clarification = this.clarificationResponse(
+              activeRequest, undefined, missing, false, conversation.history.join('\n'),
+              this.provider.mode,
+            );
+            clarification.answer =
+              `${proposed.name} é uma possibilidade coerente com a queixa relatada, ` +
+              'mas preciso diferenciar causas e verificar sinais relevantes antes de priorizar a especialidade.';
+            return clarification;
+          }
+          return this.specialtyAnswer(
+            activeRequest, proposed, conversation.history, 'routine', this.provider.mode, 'medium',
+          );
+        }
+        const clarification = this.clarificationResponse(
+          activeRequest, undefined, ['associated_symptoms'], false,
+          conversation.history.join('\n'), this.provider.mode,
+        );
+        clarification.answer =
+          `Não tenho evidências suficientes no relato para priorizar ${proposed.name}. ` +
+          'Vou verificar sinais relevantes antes de reavaliar o encaminhamento.';
+        return clarification;
+      }
+    }
+
+    if (routing.socialOnly && activeRequest.context)
+      return {
+        ...empty(),
+        status: 'ok',
+        urgency: 'routine',
+        mode: this.provider.mode,
+        context: activeRequest.context,
+        answer:
+          'Certo! Posso continuar com as clínicas indicadas, consultar outro convênio ou ajudar com uma nova queixa.',
+      };
     if (routing.socialOnly || !routing.healthComplaint)
       return this.describeComplaintResponse(activeRequest);
 
-    // 4) High-confidence common complaints stay on the instant path.
-    // We only ask follow-up questions when they can actually change an ambiguous route.
-    if (routing.deterministicId) {
+    // Never infer a child's age from the caregiver or another episode.
+    if (hasPendingAge) return this.clarificationResponse(
+      activeRequest, conversation.care, ['age_group'], true, scopedMessages.join('\n'),
+    );
+
+    // In Ollama/OpenAI modes, the model interprets every new clinical complaint,
+    // including the very first message. The lexical router supplies safety and
+    // fallback hints, but never replaces the semantic model on a clear symptom.
+    // The offline demo mode deliberately retains its predictable fast-path.
+    const semanticFirst = this.provider.mode !== 'demo';
+
+    // 4) Localized pain is NOT a diagnosis. For an under-described back, foot,
+    // shoulder, knee, etc. first collect onset, relevant associated signs and
+    // what triggered it. The deterministic high-score shortcut must not skip
+    // these clinically useful questions.
+    const musculoskeletal = needsMusculoskeletalIntake(scopedMessages);
+    const intakeTopics = adaptiveIntakeTopics(scopedMessages, conversation.care);
+    // Cross-system anatomy is a reason to ask discriminating questions, NOT a
+    // reason to silently bypass the semantic model. In Ollama/OpenAI mode the
+    // model still interprets the very first complaint; the backend constrains
+    // the output and asks required questions before any elective referral.
+    // Demo mode keeps its deterministic, offline intake without an LLM.
+    const unresolvedAnatomy = assessAnatomicalDifferential(currentEvidence).unresolved;
+    if (!semanticFirst && unresolvedAnatomy && intakeTopics.length && (conversation.care?.round ?? 0) < 3) {
+      return this.clarificationResponse(
+        activeRequest, conversation.care, intakeTopics, false,
+        scopedMessages.join('\n'), this.provider.mode,
+      );
+    }
+    if (intakeTopics.length && !semanticFirst)
+      return this.clarificationResponse(
+        activeRequest,
+        conversation.care,
+        intakeTopics,
+        false,
+        scopedMessages.join('\n'),
+      );
+
+    // The three-round cap prevents looping; it is NOT a reason by itself
+    // to erase a well-supported specialist recommendation. When the patient
+    // has answered nothing discriminating ("não sei" repeatedly), retain a
+    // cautious general destination without asking the LLM to hallucinate.
+    const knownDetails = assessDetail(scopedMessages).known;
+    const answeredDetails = new Set(conversation.care?.answeredTopics ?? []);
+    const hasTimingOrCause = knownDetails.has('onset_duration') ||
+      knownDetails.has('trigger') || answeredDetails.has('onset_duration') ||
+      answeredDetails.has('trigger');
+    const hasClinicalContext = knownDetails.has('associated_symptoms') ||
+      knownDetails.has('pattern') || answeredDetails.has('associated_symptoms') ||
+      answeredDetails.has('pattern');
+    if ((conversation.care?.round ?? 0) >= 3 && !hasTimingOrCause && !hasClinicalContext) {
+      const broad = await this.resolver.byId(broadFallbackId(patient));
+      if (broad) {
+        const response = await this.specialtyAnswer(
+          activeRequest, broad, scopedMessages, 'uncertain', this.provider.mode, 'fallback',
+        );
+        response.answer = `Ainda faltam informações para indicar com segurança uma especialidade específica. ${response.answer}`;
+        return response;
+      }
+    }
+
+    // Fully described, straightforward complaints can still use fast-path.
+    // After an interactive intake, give the semantic model a chance to check
+    // the candidate specialty instead of blindly forcing the body-location rule.
+    const needsSemanticReview = Boolean(conversation.care?.round) && (
+      musculoskeletal || /\b(?:tontura|vertigem|cefaleia|dor de cabeca|dor na barriga|dor abdominal|dor no estomago)\b/.test(
+        normalize(scopedMessages.join(' ')),
+      )
+    );
+    if (routing.deterministicId && !needsSemanticReview && !semanticFirst) {
       const specialty = await this.resolver.byId(routing.deterministicId);
       if (specialty)
         return this.specialtyAnswer(
@@ -244,7 +505,7 @@ export class ChatService {
       ? clarificationQuestions(assessment, [...requestedTopics], conversation.care)
       : [];
 
-    if (topics.length)
+    if (topics.length && !semanticFirst)
       return this.clarificationResponse(
         activeRequest,
         conversation.care,
@@ -253,16 +514,37 @@ export class ChatService {
         scopedMessages.join('\n'),
       );
 
-    // 6) Ambiguity goes to the semantic model with a SHORTLIST, not the whole taxonomy.
-    // Unknown free text gets the full active taxonomy as a last semantic attempt.
-    const candidateIds = [
-      ...routing.candidates.map((candidate) => candidate.id),
-      routing.fallbackId,
-    ];
-    let specialties = routing.candidates.length
-      ? await this.resolver.listByIds(candidateIds)
+    // 6) The semantic model runs from the first complaint but cannot choose
+    // arbitrary specialties whenever the current patient already supplied
+    // independent anatomical/symptom evidence. Provide only plausible first
+    // referrals and a general entry point. For genuinely unfamiliar terms,
+    // permit the model to read the full taxonomy, then validate its output
+    // independently before showing any clinic.
+    const evidenceIds = modelCandidateIds(routing, patient);
+    let specialties = evidenceIds?.length
+      ? await this.resolver.listByIds(evidenceIds)
       : await this.resolver.list();
-    if (!specialties.length) specialties = await this.resolver.list();
+    if (!specialties.length) {
+      const general = await this.resolver.byId(broadFallbackId(patient));
+      specialties = general ? [general] : [];
+    }
+
+    // Pediatria is never a valid default for an unknown-age or adult patient.
+    // It cannot be inferred merely from a relative or a previous conversation.
+    const requestedPediatrics = /\b(?:pediatra|pediatria)\b/.test(normalize(request.message));
+    if (patient.adultReported || (patient.ageYears !== null && patient.ageYears >= 18) || (patient.ageYears === null && !requestedPediatrics)) {
+      specialties = specialties.filter((candidate) => candidate.id !== 'pediatria');
+    }
+    if (!specialties.length) {
+      const general = await this.resolver.byId(broadFallbackId(patient));
+      if (general) specialties = [general];
+    }
+    // A careful general/adult intake remains possible even when a body-location
+    // rule is strongly weighted; never force a specialty on insufficient evidence.
+    if (needsSemanticReview && !specialties.some((candidate) => candidate.id === 'clinica-medica')) {
+      const general = await this.resolver.byId('clinica-medica');
+      if (general) specialties.push(general);
+    }
 
     // OpenAI is optional and consent-gated only when we are actually about to call it.
     if (this.provider.mode === 'openai' && !request.consent)
@@ -270,8 +552,12 @@ export class ChatService {
         statusCode: 400,
       });
 
+    // An overloaded local model must not turn a guess from keywords into an
+    // apparently model-validated specialist recommendation.
     if (this.inFlight >= this.maxConcurrency)
-      return this.fallbackNavigation(activeRequest, scopedMessages, patient, routing.fallbackId);
+      return semanticFirst
+        ? this.semanticUnavailable(activeRequest, scopedMessages, conversation.care, intakeTopics, topics)
+        : this.fallbackNavigation(activeRequest, scopedMessages, patient, routing.fallbackId);
 
     this.inFlight++;
     try {
@@ -279,69 +565,134 @@ export class ChatService {
       try {
         output = await this.provider.generate({
           message: redactIdentifiers(request.message),
-          history: conversation.history.map(redactIdentifiers),
+          history: conversation.history.slice(-6).map(redactIdentifiers),
           specialties,
           previousQuestions: (conversation.care?.questions ?? []).map((topic) =>
             questionText(topic, scopedMessages.join('\n')),
           ),
           patient,
+          clinicalGuidance: retrieveClinicalGuidance([currentEvidence]),
+          navigationHints: routing.candidates.slice(0, 4).map((candidate, index) => ({
+            specialtyId: candidate.id,
+            reason: candidate.reason.slice(0, 160),
+            relativePriority: index === 0 ? 'primary' as const : 'alternative' as const,
+          })),
+          interview: conversation.care?.interview ?? [],
         });
       } catch {
         this.reportFailure();
-        return this.fallbackNavigation(activeRequest, scopedMessages, patient, routing.fallbackId);
+        return semanticFirst
+          ? this.semanticUnavailable(activeRequest, scopedMessages, conversation.care, intakeTopics, topics)
+          : this.fallbackNavigation(activeRequest, scopedMessages, patient, routing.fallbackId);
       }
 
       const parsed = modelAnswerSchema.safeParse(output);
       if (!parsed.success) {
         this.reportFailure();
-        return this.fallbackNavigation(activeRequest, scopedMessages, patient, routing.fallbackId);
+        return semanticFirst
+          ? this.semanticUnavailable(activeRequest, scopedMessages, conversation.care, intakeTopics, topics)
+          : this.fallbackNavigation(activeRequest, scopedMessages, patient, routing.fallbackId);
       }
 
       const draft = parsed.data;
       if (draft.urgency === 'emergency' || draft.urgency === 'prompt')
         return safetyResponse(draft.urgency);
 
-      // If the semantic model still asks for a genuinely useful missing detail, respect at most one
-      // new backend-owned question. Never loop into a long questionnaire.
-      const requestedTopics = draft.questions.filter(
-        (topic, index, topics) => topics.indexOf(topic) === index,
-      );
+      // The model selects topics, but the backend controls the text and makes
+      // sure sparse musculoskeletal, pelvic and systemic complaints receive a
+      // meaningful interview even if a small model prematurely names a specialty.
+      const requestedTopics = [...new Set(draft.questions)];
+      const known = assessDetail(scopedMessages).known;
+      for (const answered of conversation.care?.answeredTopics ?? []) known.add(answered);
       const asked = new Set(conversation.care?.askedTopics ?? []);
-      const newTopics = requestedTopics.filter((topic) => !asked.has(topic)).slice(0, 1);
-      const canAskOneMore =
-        (conversation.care?.round ?? 0) < 3 && asked.size < 3;
-      if (!draft.specialty && newTopics.length && canAskOneMore)
+      const canAsk = (conversation.care?.round ?? 0) < 3;
+      const viable = requestedTopics.filter((topic) => !known.has(topic) && !asked.has(topic));
+      const required = [...new Set([
+        ...(patient.needsAge ? (['age_group'] as const) : []),
+        ...intakeTopics,
+        ...topics,
+      ])].filter(
+        // A user may clarify the body region while accidentally skipping the
+        // onset/red-flag questions. Retry the still-unanswered questions ONCE,
+        // rather than inventing a specialty after one unrelated reply.
+        (topic) => !known.has(topic) && (
+          !asked.has(topic) ||
+          ((conversation.care?.round ?? 0) < 2 && conversation.care?.questions.includes(topic))
+        ),
+      );
+      if (canAsk && semanticFirst && required.length) {
+        // Prefer model-chosen relevant topics when they overlap the safety-aware
+        // intake, but do not let the model skip missing essential facts.
+        const prioritized = [
+          ...viable.filter((topic) => required.includes(topic)),
+          ...required,
+        ];
+        const selected = [...new Set(prioritized)].slice(0, 2);
         return this.clarificationResponse(
           activeRequest,
           conversation.care,
-          newTopics,
-          newTopics.includes('age_group'),
+          selected,
+          selected.includes('age_group'),
           scopedMessages.join('\n'),
           this.provider.mode,
         );
+      }
+      // For unfamiliar symptoms with no dictionary match, let the model ask
+      // a focused missing question instead of guessing from a body-part word.
+      if (canAsk && viable.length && (semanticFirst || !draft.specialty || Boolean(conversation.care?.round))) {
+        const selected = viable.slice(0, 2);
+        return this.clarificationResponse(
+          activeRequest,
+          conversation.care,
+          selected,
+          selected.includes('age_group'),
+          scopedMessages.join('\n'),
+          this.provider.mode,
+        );
+      }
 
       let specialty: Specialty | null = null;
       if (draft.specialty) {
         const match = await this.resolver.resolve(draft.specialty.name);
         const allowedIds = new Set(specialties.map((candidate) => candidate.id));
-        if (
-          match.status === 'resolved' &&
-          match.specialty &&
-          allowedIds.has(match.specialty.id)
-        )
+        if (match.status === 'resolved' && match.specialty && allowedIds.has(match.specialty.id))
           specialty = match.specialty;
+      }
+
+      // Mandatory independent referral validation for EVERY confidence level,
+      // not just 'high'. A known but unrelated specialty (e.g. Ortopedia for
+      // nasal congestion/fever) must never become a list of unrelated clinics.
+      // Unknown new symptoms are interpreted by the model, but a specialty
+      // without independently supported clinical evidence is not asserted.
+      if (specialty && !isSupportedReferral(specialty.id, routing, patient)) {
+        specialty = null;
       }
 
       // A pediatric suggestion cannot override an explicitly adult patient. Recover to the broad
       // adult entry point instead of displaying an invalid model choice.
-      if (specialty?.id === 'pediatria' && patient.adultReported) specialty = null;
+      if (
+        specialty?.id === 'pediatria' &&
+        (patient.adultReported || (patient.ageYears !== null && patient.ageYears >= 18) || (patient.ageYears === null && !requestedPediatrics))
+      ) specialty = null;
 
+      // Reconcile model output with independently supported, discriminating
+      // clinical evidence. Do not let a malformed/off-shortlist model response
+      // erase a strongly evidenced referral and force Clínica Médica.
+      // Conversely, ambiguous one-word complaints retain broad entry care.
+      const decision = selectEvidenceBackedReferral(
+        routing,
+        patient,
+        specialty?.id ?? null,
+        assessDetail(scopedMessages).known,
+      );
+      if (decision.specialtyId !== specialty?.id) {
+        specialty = decision.specialtyId
+          ? await this.resolver.byId(decision.specialtyId)
+          : null;
+      }
       if (!specialty) {
-        const fallback =
-          (await this.resolver.byId(routing.fallbackId)) ??
-          (await this.resolver.byId(broadFallbackId(patient)));
-        if (!fallback)
-          return this.describeComplaintResponse(activeRequest, this.provider.mode);
+        const fallback = await this.resolver.byId(broadFallbackId(patient));
+        if (!fallback) return this.describeComplaintResponse(activeRequest, this.provider.mode);
         specialty = fallback;
       }
 
@@ -356,10 +707,36 @@ export class ChatService {
     } catch (error) {
       // Schema/JSON errors from provider adapters are contained and converted to navigation.
       if (error instanceof ZodError || error instanceof SyntaxError) this.reportFailure();
-      return this.fallbackNavigation(activeRequest, scopedMessages, patient, routing.fallbackId);
+      return semanticFirst
+        ? this.semanticUnavailable(activeRequest, scopedMessages, conversation.care, intakeTopics, topics)
+        : this.fallbackNavigation(activeRequest, scopedMessages, patient, routing.fallbackId);
     } finally {
       this.inFlight--;
     }
+  }
+
+  /** An offline or malformed model is not evidence for any specific specialty. */
+  private semanticUnavailable(
+    request: ChatRequest,
+    messages: string[],
+    previous: NonNullable<ChatRequest['context']>['care'] | undefined,
+    intake: Parameters<typeof questionText>[0][],
+    topics: Parameters<typeof questionText>[0][],
+  ): ChatResponse {
+    const assessment = assessDetail(messages);
+    const missing = [...new Set([...intake, ...topics, ...assessment.missing])]
+      .filter((topic) => !assessment.known.has(topic));
+    const response = this.clarificationResponse(
+      request, previous, missing.slice(0, 2), false, messages.join('\n'), 'fallback',
+    );
+    return {
+      ...response,
+      status: 'llm_unavailable',
+      answer: 'A IA local está indisponível neste momento. Não vou indicar uma especialidade específica sem analisar o relato. Confira se o Ollama e o modelo estão ativos; você pode complementar os sintomas abaixo enquanto isso.',
+      questions: response.questions.length ? response.questions : [
+        'Há quanto tempo começou e quais outros sintomas ou limitações você percebeu?',
+      ],
+    };
   }
 
   private describeComplaintResponse(
@@ -381,6 +758,7 @@ export class ChatService {
         clinicIds: [],
         city: request.city,
         insurance: request.insurance,
+        ...(request.context?.symptomState ? { symptomState: request.context.symptomState } : {}),
       },
     };
   }
@@ -398,8 +776,10 @@ export class ChatService {
       status: 'needs_information',
       urgency: 'uncertain',
       mode,
-      answer: needsAge
-        ? 'A idade de quem está com o sintoma pode mudar a indicação de atendimento. Preciso confirmar essa informação antes de recomendar uma especialidade.'
+      answer: previous?.questions.some((topic) => topics.includes(topic))
+        ? 'Entendi o que você acrescentou. Para sugerir o encaminhamento inicial sem adivinhar, ainda preciso das informações abaixo.'
+        : needsAge
+          ? 'A idade de quem está com o sintoma pode mudar a indicação de atendimento. Preciso confirmar essa informação antes de recomendar uma especialidade.'
         : topics.length > 1
           ? 'Antes de indicar a especialidade, preciso de mais algumas informações curtas para direcionar melhor o atendimento.'
           : 'Preciso de só mais uma informação para direcionar melhor a especialidade.',
@@ -409,10 +789,13 @@ export class ChatService {
         clinicIds: [],
         city: request.city,
         insurance: request.insurance,
+        ...(request.context?.symptomState ? { symptomState: request.context.symptomState } : {}),
         care: {
           questions: topics,
           askedTopics: [...new Set([...(previous?.askedTopics ?? []), ...topics])],
           round: Math.min(3, (previous?.round ?? 0) + 1),
+          ...(previous?.answeredTopics ? { answeredTopics: previous.answeredTopics } : {}),
+          ...(previous?.interview ? { interview: previous.interview } : {}),
         },
       },
     };
@@ -465,6 +848,19 @@ export class ChatService {
               : 'Área associada ao tipo e/ou local da queixa relatada, sem estabelecer um diagnóstico.',
       },
     };
+    // Respect an explicit correction such as "nenhuma clínica, só quero a
+    // especialidade". Never respond with unrelated generic catalog cards.
+    if (requestsSpecialtyWithoutClinics(request.message)) {
+      response.context = {
+        specialtyId: specialty.id,
+        clinicIds: [],
+        city: request.city,
+        insurance: request.insurance,
+        ...(request.context?.care ? { care: { ...request.context.care, questions: [] } } : {}),
+        ...(request.context?.symptomState ? { symptomState: request.context.symptomState } : {}),
+      };
+      return response;
+    }
     return this.findClinics(request, response, specialty, request.city, request.insurance);
   }
 
@@ -480,7 +876,13 @@ export class ChatService {
         'Consulte os dados publicados nas fontes de cada unidade. Confirme cobertura e disponibilidade diretamente com a clínica.',
     };
     if (route.clarification)
-      return { ...base, status: 'needs_information', specialty: null, answer: route.clarification };
+      return {
+        ...base,
+        status: 'needs_information',
+        specialty: null,
+        answer: route.clarification,
+        context: catalogContext(route, request.context),
+      };
     const response = await this.findClinics(
       request,
       base,
@@ -489,19 +891,64 @@ export class ChatService {
       route.insurance,
       route.clinicIds,
     );
+    const visibleIds = response.clinics.map((clinic) => clinic.id);
+    const context = catalogContext(route, request.context);
+    response.context = {
+      ...context,
+      clinicIds: visibleIds,
+      catalog: {
+        ...context.catalog!,
+        // New global/named searches establish a new group. Follow-up filters
+        // keep the original group even if only one (or zero) clinics matched.
+        selectionIds: route.scope === 'selection'
+          ? (route.selectionIds ?? route.clinicIds ?? [])
+          : visibleIds,
+        resultIds: visibleIds,
+      },
+    };
+    if (route.insuranceQuery && route.insurance) {
+      const scope = route.scope === 'selection' ? 'Entre as clínicas selecionadas' : 'No catálogo';
+      response.answer = response.clinics.length
+        ? `${scope}, encontrei ${response.clinics.map((clinic) => clinic.name).join('; ')} com ${route.insurance} entre os convênios cadastrados. Confirme a cobertura do seu produto e do procedimento diretamente com a unidade.`
+        : `${scope}, não encontrei uma unidade com ${route.insurance} registrado que corresponda aos filtros informados. A ausência no cadastro não confirma que a clínica não aceita esse plano. Confirme diretamente com a unidade. Os filtros não foram relaxados automaticamente.`;
+      if (route.scope === 'selection' && route.clinicIds?.length) {
+        const selection = await this.catalog.search(
+          { city: route.city, insurance: '', specialty: route.specialty?.id ?? '', page: 1 },
+          undefined,
+          route.clinicIds,
+        );
+        const unconfirmed = selection.items.filter(
+          (clinic) =>
+            !clinic.insurances.some((plan) => normalize(plan) === normalize(route.insurance)),
+        );
+        if (unconfirmed.length)
+          response.answer += ` Não há registro desse convênio em: ${unconfirmed.map((clinic) => clinic.name).join('; ')}.`;
+      }
+    }
     if (route.nearest && !request.location)
       response.questions = [
         'Ative “Usar minha localização” e repita a pergunta para ordenar por distância.',
       ];
     if (route.intent === 'clinic_information' && response.clinics.length) {
-      response.answer = route.detailsUnavailable
-        ? 'Horários, preços e vagas não são confirmados pelo MedFinder. Consulte o contato e os textos da fonte oficial da unidade abaixo.'
-        : response.clinics
+      response.answer = route.insuranceOverview
+        ? response.clinics
             .map(
               (clinic) =>
-                `${clinic.name}: ${clinic.address}, ${clinic.neighborhood ? clinic.neighborhood + ', ' : ''}${clinic.city}${clinic.state ? ' — ' + clinic.state : ''}.`,
+                `${clinic.name}: ${
+                  clinic.insurances.length
+                    ? `convênios cadastrados: ${clinic.insurances.join(', ')}.`
+                    : 'convênios não informados no cadastro; confirme diretamente com a unidade.'
+                }`,
             )
-            .join('\n');
+            .join('\n')
+        : route.detailsUnavailable
+          ? 'Horários, preços e vagas não são confirmados pelo MedFinder. Consulte o contato e os textos da fonte oficial da unidade abaixo.'
+          : response.clinics
+              .map(
+                (clinic) =>
+                  `${clinic.name}: ${clinic.address}, ${clinic.neighborhood ? clinic.neighborhood + ', ' : ''}${clinic.city}${clinic.state ? ' — ' + clinic.state : ''}.`,
+              )
+              .join('\n');
     }
     return response;
   }
@@ -530,6 +977,20 @@ export class ChatService {
         clinicIds: clinics.map((clinic) => clinic.id),
         city,
         insurance,
+        // A new clinical navigation answer starts a new comparison set.
+        // This prevents the first insurer filter from erasing earlier cards.
+        catalog: {
+          scope: 'selection',
+          clinicIds: clinics.map((clinic) => clinic.id),
+          selectionIds: clinics.map((clinic) => clinic.id),
+          resultIds: clinics.map((clinic) => clinic.id),
+          awaitingInsurance: false,
+        },
+        ...(request.context?.care ? { care: {
+          ...request.context.care,
+          questions: [],
+        } } : {}),
+        ...(request.context?.symptomState ? { symptomState: request.context.symptomState } : {}),
       },
     };
     if (!clinics.length) {
@@ -544,7 +1005,9 @@ export class ChatService {
       ];
       return response;
     }
-    if (this.provider.mode === 'openai' && !request.consent) return response;
+    // Catalog facts already come from SQL. Do not send these questions to an embedding model.
+    if (base.mode === 'catalog' || (this.provider.mode === 'openai' && !request.consent))
+      return response;
     try {
       // RAG enriches ONLY clinic IDs already selected by SQL filters; it never chooses specialty.
       const rag = await this.retriever.search(

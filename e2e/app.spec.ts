@@ -7,7 +7,7 @@ test('relato claro → especialidade rápida → clínica filtrada → texto da 
   await page.getByLabel('Convênio', { exact: true }).selectOption('CASSI');
   await page
     .getByLabel('Descreva o que você está sentindo')
-    .fill('Estou com dor no pescoço desde ontem e piora quando movimento.');
+    .fill('Estou com dor no pescoço desde ontem, piora quando movimento e não tenho outros sintomas.');
   const pending = page.waitForResponse((r) => r.url().endsWith('/api/chat'));
   await page.getByRole('button', { name: 'Enviar mensagem' }).click();
   const payload = await (await pending).json();
