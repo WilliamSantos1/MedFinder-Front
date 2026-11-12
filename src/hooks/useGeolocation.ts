@@ -9,8 +9,8 @@ interface Position extends Location {
 export function searchLocation(location: Position | null): Location | undefined {
   return location
     ? {
-        latitude: Number(location.latitude.toFixed(4)),
-        longitude: Number(location.longitude.toFixed(4)),
+         latitude: location.latitude,
+         longitude: location.longitude,
       }
     : undefined;
 }
@@ -72,9 +72,13 @@ export function useGeolocation() {
               : 'Não foi possível obter sua localização. Você pode escolher uma cidade.',
         );
       },
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 },
+      { 
+        enableHighAccuracy: true,
+        timeout: 30000,
+        maximumAge: 0, },
     );
   }
   return { status, location, error, requestLocation, clearLocation };
+  
 }
 export type GeolocationState = ReturnType<typeof useGeolocation>;

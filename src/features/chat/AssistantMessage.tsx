@@ -11,8 +11,14 @@ const messages: Partial<Record<ChatResponse['status'], string>> = {
   no_matching_clinics:
     'Nenhuma clínica do catálogo corresponde a esta consulta e aos filtros escolhidos.',
 };
-export function AssistantMessage({ response }: { response: ChatResponse }) {
+interface Coordinates {
+  latitude: number;
+  longitude: number;
+}
+
+export function AssistantMessage({ response,  userLocation }: { response: ChatResponse, userLocation: Coordinates |null}) {
   const urgent = response.urgency === 'emergency' || response.urgency === 'prompt';
+
   return (
     <article className={`assistant-message ${urgent ? 'urgent-message' : ''}`}>
       <div className="message-author">
@@ -85,6 +91,7 @@ export function AssistantMessage({ response }: { response: ChatResponse }) {
               clinic={clinic}
               compact
               showDistance={response.locationUsed}
+              userLocation={userLocation}
             />
           ))}
         </section>

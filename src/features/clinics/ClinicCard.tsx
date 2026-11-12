@@ -1,14 +1,23 @@
 import { ArrowUpRight, Building2, MapPin, Phone } from 'lucide-react';
 import { type ClinicResult } from '../../../shared/contracts';
+import { ClinicRouteModal } from './ClinicRouteModal';
+
+interface Coordinates {
+  latitude: number;
+  longitude: number;
+}
 
 export function ClinicCard({
   clinic,
   compact = false,
   showDistance = false,
+  userLocation,
 }: {
   clinic: ClinicResult;
   compact?: boolean;
   showDistance?: boolean;
+  userLocation:Coordinates |null;
+
 }) {
   return (
     <article className={`clinic-card ${compact ? 'compact' : ''}`}>
@@ -32,6 +41,17 @@ export function ClinicCard({
           )}
         </div>
       </div>
+      {userLocation && clinic.latitude != null &&
+        clinic.longitude != null && (
+          <ClinicRouteModal
+            userLocation={userLocation}
+            clinicLocation={{
+              latitude: clinic.latitude,
+              longitude: clinic.longitude,
+            }}
+            clinicName={clinic.name}
+          />
+      )}
       <p className="clinic-location">
         <MapPin size={14} />
         {[clinic.neighborhood, [clinic.city, clinic.state].filter(Boolean).join(', ')]
