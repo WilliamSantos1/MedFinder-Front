@@ -14,7 +14,6 @@ export function ClinicCard({
 }: {
   clinic: ClinicResult;
   compact?: boolean;
-  showDistance?: boolean;
   userLocation:Coordinates |null;
 
 }) {

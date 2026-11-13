@@ -90,7 +90,6 @@ export function AssistantMessage({ response,  userLocation }: { response: ChatRe
               key={clinic.id}
               clinic={clinic}
               compact
-              showDistance={response.locationUsed}
               userLocation={userLocation}
             />
           ))}
