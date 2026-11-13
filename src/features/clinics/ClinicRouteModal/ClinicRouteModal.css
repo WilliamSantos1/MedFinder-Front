@@ -1,0 +1,179 @@
+
+.clinic-route-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 13px;
+  margin-top: 5px;
+  border: 1px solid #52665f;
+  border-radius: 8px;
+  background: transparent;
+  color: #52665f;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.clinic-route-button:hover {
+  background: #e6f2e9;
+}
+
+.route-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.route-modal {
+  width: 100%;
+  height: 100%;
+  max-width: 80vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: white;
+  border-radius: 14px;
+  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.2);
+}
+
+.route-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.route-modal-subtitle {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+}
+
+.route-modal-header h2 {
+  margin: 5px 0 0;
+  font-size: 20px;
+}
+
+.route-modal-close {
+  display: flex;
+  padding: 8px;
+  border: none;
+  border-radius: 8px;
+  background: #f1f5f9;
+  cursor: pointer;
+}
+
+.route-info {
+  display: flex;
+  gap: 30px;
+  padding: 18px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.route-info div {
+  display: grid;
+  grid-template-columns: 20px auto;
+  align-items: center;
+  gap: 4px 8px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.route-info strong {
+  grid-column: 2;
+  color: #1e293b;
+  font-size: 16px;
+}
+
+.route-map-container {
+  height: 70vh;
+  width: 100%;
+}
+
+.route-map {
+  height: 100%;
+  width: 100%;
+}
+
+.route-modal-loading,
+.route-modal-error {
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+}
+
+.route-modal-error {
+  color: #dc2626;
+}
+
+.loading-icon {
+  animation: route-spin 1s linear infinite;
+}
+.custom-clinic-marker {
+  background: transparent;
+  border: none;
+}
+
+.marker-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.marker-pin {
+  width: 35px;
+  height: 30px;
+  background-color: #df5959;
+  border: 3px solid white;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes route-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 600px) {
+  .route-modal-overlay {
+    padding: 10px;
+  }
+
+  .route-modal {
+    max-height: 95vh;
+  }
+
+  .route-modal-header {
+    padding: 16px;
+  }
+
+  .route-info {
+    gap: 15px;
+    padding: 16px;
+  }
+
+  .route-map-container {
+    height: 400px;
+  }
+}
+@media (max-width: 425px) {
+  .route-map-container {
+    height: 80vh;
+  
+  }
+}

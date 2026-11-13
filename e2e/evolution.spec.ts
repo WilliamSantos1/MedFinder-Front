@@ -62,7 +62,7 @@ test('localização só após clique; relato → especialidade → clínicas pr�
     .click();
 
   await expect(
-    page.getByText(/Localização ativa/),
+    page.getByText(/Localização aproximada ativa/),
   ).toBeVisible();
 
   await page
@@ -84,13 +84,15 @@ test('localização só após clique; relato → especialidade → clínicas pr�
     name: 'Conversa com o MedFinder',
   });
 
+  // Verifica se as clínicas foram apresentadas
   await expect(
-    chat.locator('.clinic-distance'),
+    chat.getByRole('button', { name: 'Como chegar' }),
   ).toHaveCount(2);
 
+  // Verifica se a ordenação por proximidade continua funcionando
   await expect(
-    chat.locator('.clinic-distance').first(),
-  ).toContainText(/\d+ m de você/);
+    chat.getByText(/Ordenado por proximidade/),
+  ).toBeVisible();
 
   await expect(
     chat.getByText(/Ordenado por proximidade/),
@@ -108,7 +110,7 @@ test('localização só após clique; relato → especialidade → clínicas pr�
   });
 
   await expect(
-    directory.getByText(/Localização ativa/),
+    directory.getByText(/Localização aproximada ativa/),
   ).toBeVisible();
 
   await directory
@@ -500,9 +502,21 @@ test('clínicas reais com coordenadas verificadas recebem distância', async ({
     ),
   ).toHaveCount(0);
 
+  // Abre a rota da primeira clínica
+  const routeButton = directory
+    .getByRole('button', { name: 'Como chegar' })
+    .first();
+
+  await routeButton.click();
+
+  // Verifica o modal e a informação de distância
+  const routeDialog = page.getByRole('dialog');
+
+  await expect(routeDialog).toBeVisible();
+
   await expect(
-    directory.locator('.clinic-distance'),
-  ).toContainText(/\d+[,.]?\d* km de você/);
+    routeDialog.getByText('Distância', { exact: true })
+  ).toBeVisible();
 });
 
 test('preserva o próximo rascunho digitado durante uma resposta que falha', async ({ page }) => {

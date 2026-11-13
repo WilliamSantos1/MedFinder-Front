@@ -28,7 +28,7 @@ export function LocationControl({ geolocation }: { geolocation: GeolocationState
       <p role="status">
         {error ||
           (status === 'granted'
-            ? 'Localização ativa. Distâncias em linha reta; não indicam tempo de viagem ou qualidade médica.'
+            ? 'Localização aproximada ativa.'
             : status === 'requesting'
               ? 'Aguardando a localização…'
               : 'Use sua localização para encontrar clínicas mais próximas. Sua posição não será armazenada.')}

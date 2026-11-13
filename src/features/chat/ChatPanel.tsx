@@ -161,7 +161,7 @@ export function ChatPanel(props: CareFilterProps) {
               <p>{message.text}</p>
             </div>
           ) : (
-            <AssistantMessage key={message.id} response={message.response} />
+            <AssistantMessage key={message.id} response={message.response} userLocation={props.geolocation.location}/>
           ),
         )}
         {pending && (

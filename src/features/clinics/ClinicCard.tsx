@@ -1,14 +1,21 @@
 import { ArrowUpRight, Building2, MapPin, Phone } from 'lucide-react';
 import { type ClinicResult } from '../../../shared/contracts';
+import { ClinicRouteModal } from './ClinicRouteModal/ClinicRouteModal';
+
+interface Coordinates {
+  latitude: number;
+  longitude: number;
+}
 
 export function ClinicCard({
   clinic,
   compact = false,
-  showDistance = false,
+  userLocation,
 }: {
   clinic: ClinicResult;
   compact?: boolean;
-  showDistance?: boolean;
+  userLocation:Coordinates |null;
+
 }) {
   return (
     <article className={`clinic-card ${compact ? 'compact' : ''}`}>
@@ -58,14 +65,16 @@ export function ClinicCard({
           )}
         </div>
       )}
-      {showDistance && (
-        <p className="clinic-distance">
-          {clinic.distanceKm === null
-            ? 'Distância não disponível'
-            : clinic.distanceKm < 1
-              ? `${Math.round((clinic.distanceKm * 1000) / 50) * 50} m de você`
-              : `${clinic.distanceKm.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km de você`}
-        </p>
+      {userLocation && clinic.latitude != null &&
+        clinic.longitude != null && (
+          <ClinicRouteModal
+            userLocation={userLocation}
+            clinicLocation={{
+              latitude: clinic.latitude,
+              longitude: clinic.longitude,
+            }}
+            clinicName={clinic.name}
+          />
       )}
       <div className="insurance-tags">
         {clinic.insurances.map((insurance) => (
