@@ -41,17 +41,6 @@ export function ClinicCard({
           )}
         </div>
       </div>
-      {userLocation && clinic.latitude != null &&
-        clinic.longitude != null && (
-          <ClinicRouteModal
-            userLocation={userLocation}
-            clinicLocation={{
-              latitude: clinic.latitude,
-              longitude: clinic.longitude,
-            }}
-            clinicName={clinic.name}
-          />
-      )}
       <p className="clinic-location">
         <MapPin size={14} />
         {[clinic.neighborhood, [clinic.city, clinic.state].filter(Boolean).join(', ')]
@@ -82,10 +71,19 @@ export function ClinicCard({
         <p className="clinic-distance">
           {clinic.distanceKm === null
             ? 'Distância não disponível'
-            : clinic.distanceKm < 1
-              ? `${Math.round((clinic.distanceKm * 1000) / 50) * 50} m de você`
-              : `${clinic.distanceKm.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km de você`}
+            : ""}
         </p>
+      )}
+      {userLocation && clinic.latitude != null &&
+        clinic.longitude != null && (
+          <ClinicRouteModal
+            userLocation={userLocation}
+            clinicLocation={{
+              latitude: clinic.latitude,
+              longitude: clinic.longitude,
+            }}
+            clinicName={clinic.name}
+          />
       )}
       <div className="insurance-tags">
         {clinic.insurances.map((insurance) => (

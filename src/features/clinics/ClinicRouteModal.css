@@ -5,10 +5,10 @@
   justify-content: center;
   gap: 6px;
   padding: 9px 13px;
-  border: 1px solid #2563eb;
+  border: 1px solid #52665f;
   border-radius: 8px;
   background: transparent;
-  color: #2563eb;
+  color: #52665f;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -16,7 +16,7 @@
 }
 
 .clinic-route-button:hover {
-  background: #eff6ff;
+  background: #e6f2e9;
 }
 
 .route-modal-overlay {
@@ -32,7 +32,8 @@
 
 .route-modal {
   width: 100%;
-  max-width: 850px;
+  height: 100%;
+  max-width: 80vw;
   max-height: 90vh;
   overflow-y: auto;
   background: white;
@@ -92,7 +93,7 @@
 }
 
 .route-map-container {
-  height: 450px;
+  height: 70vh;
   width: 100%;
 }
 
@@ -119,6 +120,26 @@
 
 .loading-icon {
   animation: route-spin 1s linear infinite;
+}
+.custom-clinic-marker {
+  background: transparent;
+  border: none;
+}
+
+.marker-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.marker-pin {
+  width: 35px;
+  height: 30px;
+  background-color: #df5959;
+  border: 3px solid white;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 @keyframes route-spin {
@@ -147,5 +168,11 @@
 
   .route-map-container {
     height: 400px;
+  }
+}
+@media (max-width: 425px) {
+  .route-map-container {
+    height: 80vh;
+  
   }
 }

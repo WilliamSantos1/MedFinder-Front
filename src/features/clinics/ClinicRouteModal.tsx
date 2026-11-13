@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from 'react';
-import {MapContainer,TileLayer,Marker,Popup,Polyline,useMap,} from 'react-leaflet';
+import {MapContainer,TileLayer,Marker,Popup,Polyline,CircleMarker,useMap,} from 'react-leaflet';
 import { X, MapPin, Navigation, LoaderCircle } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -61,10 +61,17 @@ export function ClinicRouteModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-  console.log('--- LOCALIZAÇÃO RECEBIDA PELO MAPA ---');
-  console.log(userLocation);
-}, [userLocation]);
+  const clinicIcon = L.divIcon({
+    className: 'custom-clinic-marker',
+    html: `
+      <div class="marker-container">
+        <div class="marker-pin"></div>
+      </div>
+    `,
+    iconSize: [30, 30],
+    iconAnchor: [15, 30],
+    popupAnchor: [0, -30],
+  });
 
   async function handleOpenModal() {
     setIsOpen(true);
@@ -232,20 +239,27 @@ export function ClinicRouteModal({
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
 
-                    <Marker
-                      position={[
+                    <CircleMarker
+                      center={[
                         userLocation.latitude,
                         userLocation.longitude,
                       ]}
-                    >
-                      <Popup>Sua localização</Popup>
-                    </Marker>
-
+                      radius={9}
+                      pathOptions={{
+                        color: '#ffffff',
+                        fillColor: '#2563eb',
+                        fillOpacity: 1,
+                        weight: 3,
+                      }}
+                                      >
+                    <Popup>Sua localização</Popup>
+                  </CircleMarker>
                     <Marker
                       position={[
                         clinicLocation.latitude,
                         clinicLocation.longitude,
                       ]}
+                      icon={clinicIcon}
                     >
                       <Popup>{clinicName}</Popup>
                     </Marker>
