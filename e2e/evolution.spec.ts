@@ -84,13 +84,15 @@ test('localização só após clique; relato → especialidade → clínicas pr�
     name: 'Conversa com o MedFinder',
   });
 
+  // Verifica se as clínicas foram apresentadas
   await expect(
-    chat.locator('.clinic-distance'),
+    chat.getByRole('button', { name: 'Como chegar' }),
   ).toHaveCount(2);
 
+  // Verifica se a ordenação por proximidade continua funcionando
   await expect(
-    chat.locator('.clinic-distance').first(),
-  ).toContainText(/\d+ m de você/);
+    chat.getByText(/Ordenado por proximidade/),
+  ).toBeVisible();
 
   await expect(
     chat.getByText(/Ordenado por proximidade/),

@@ -76,7 +76,7 @@ test('relato ocular claro, especialidade canônica e continuidade por proximidad
   );
 
   await expect(
-    first.locator('.clinic-distance'),
+    first.getByRole('button', { name: 'Como chegar' }),
   ).toHaveCount(3);
 
   const pending =
@@ -118,13 +118,27 @@ test('relato ocular claro, especialidade canônica e continuidade por proximidad
     ),
   );
 
+  const lastAssistantMessage = page
+  .locator('.assistant-message')
+  .last();
+
+  const routeButton = lastAssistantMessage
+    .getByRole('button', { name: 'Como chegar' })
+    .first();
+
+  await routeButton.click();
+
+  const routeDialog = page.getByRole('dialog');
+
+  await expect(routeDialog).toBeVisible();
+
   await expect(
-    page
-      .locator('.assistant-message')
-      .last()
-      .locator('.clinic-distance')
-      .first(),
-  ).toContainText(/\d/);
+    routeDialog.getByText('Distância', { exact: true }),
+  ).toBeVisible();
+
+  await expect(
+    routeDialog.locator('.route-info'),
+  ).toContainText(/\d+([,.]\d+)?\s?(m|km)/);
 
   await expect(
     page
