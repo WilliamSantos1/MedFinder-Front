@@ -72,6 +72,14 @@ describe('Roteador híbrido de queixas → especialidade', () => {
     expect(result.deterministicId).toBe(expected);
   });
 
+  it('costas é reconhecida como região possível de queixa musculoesquelética', () => {
+    const message = 'bom dia, estou com dor nas costas';
+    const result = route(message);
+    expect(result.candidates.map((candidate) => candidate.id)).toContain('ortopedia');
+    expect(result.fallbackId).toBe('clinica-medica');
+    // ChatService ainda exigirá perguntas antes de concluir a navegação.
+  });
+
   it('caso real do olho é fast-path e nunca cai no antigo dead-end', () => {
     const result = route('bom dia, meu olho esta avermelhado e coçando.');
     expect(result).toMatchObject({

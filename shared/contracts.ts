@@ -44,6 +44,12 @@ export const careContextSchema = z
     questions: z.array(clarificationTopicSchema).max(2),
     askedTopics: z.array(clarificationTopicSchema).max(7),
     round: z.number().int().min(1).max(3),
+    // Answers belong to the current clinical episode, never the full chat.
+    answeredTopics: z.array(clarificationTopicSchema).max(7).optional(),
+    interview: z.array(z.object({
+      topics: z.array(clarificationTopicSchema).max(2),
+      answer: z.string().max(2000),
+    }).strict()).max(3).optional(),
   })
   .strict();
 export const chatContextSchema = z
@@ -53,6 +59,24 @@ export const chatContextSchema = z
     city: z.string().trim().max(80),
     insurance: z.string().trim().max(80),
     care: careContextSchema.optional(),
+    symptomState: z.array(z.object({
+      key: z.string().min(2).max(50),
+      status: z.enum(['active', 'resolved', 'denied']),
+    }).strict()).max(32).optional(),
+    catalog: z
+      .object({
+        scope: z.enum(['all', 'selection']),
+        clinicIds: z.array(idSchema).max(6),
+        // Immutable comparison group established by the preceding clinic cards.
+        // 'resultIds' records only the last visible subset after filtering.
+        // Optional to accept contexts created by older installations.
+        selectionIds: z.array(idSchema).max(6).optional(),
+        resultIds: z.array(idSchema).max(6).optional(),
+        awaitingInsurance: z.boolean(),
+        resumeCare: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 export type ChatContext = z.infer<typeof chatContextSchema>;
@@ -60,7 +84,7 @@ export const intentSchema = z.enum(['care_navigation', 'clinic_search', 'clinic_
 export const chatRequestSchema = z
   .object({
     message: z.string().trim().min(1).max(2000),
-    history: z.array(z.string().trim().min(1).max(2000)).max(6).default([]),
+    history: z.array(z.string().trim().min(1).max(2000)).max(12).default([]),
     city: z.string().trim().max(80).default(''),
     insurance: z.string().trim().max(80).default(''),
     consent: z.boolean().default(false),
@@ -103,10 +127,15 @@ const clinicFields = z
   })
   .strict();
 export const clinicSchema = clinicFields.superRefine((clinic, ctx) => {
-  if (clinic.professionals.some((professional) => !clinic.specialties.includes(professional.specialtyId)))
+  if (
+    clinic.professionals.some(
+      (professional) => !clinic.specialties.includes(professional.specialtyId),
+    )
+  )
     ctx.addIssue({
       code: 'custom',
-      message: 'A especialidade de cada profissional precisa estar entre as especialidades da unidade.',
+      message:
+        'A especialidade de cada profissional precisa estar entre as especialidades da unidade.',
     });
   if (!clinic.isDemo && (!clinic.sourceUrl || !clinic.verifiedAt))
     ctx.addIssue({ code: 'custom', message: 'Clínicas reais exigem fonte e data de verificação.' });

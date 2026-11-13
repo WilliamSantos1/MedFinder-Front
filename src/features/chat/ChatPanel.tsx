@@ -13,6 +13,7 @@ import { useChat } from './useChat';
 import { LocationControl } from '../../components/LocationControl';
 import { searchLocation } from '../../hooks/useGeolocation';
 import { AssistantMessage } from './AssistantMessage';
+import { clearlyChangedPatient } from './patient-transition';
 
 const suggestions = [
   'Estou com dor no pescoço',
@@ -26,6 +27,13 @@ export function ChatPanel(props: CareFilterProps) {
   const [consent, setConsent] = useState(false);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const scrollArea = useRef<HTMLDivElement>(null);
+  const latestFilters = useRef({ city: props.city, insurance: props.insurance });
+  // Only automatically applied chat filters reset on a clearly new patient.
+  // A manually selected global filter remains the user's choice.
+  const chatAppliedInsurance = useRef<string | null>(null);
+  useEffect(() => {
+    latestFilters.current = { city: props.city, insurance: props.insurance };
+  }, [props.city, props.insurance]);
   // The API can issue a local emergency response without sending data to the AI.
   // It enforces consent before any request reaches the external provider.
   const ready = Boolean(props.catalog);
@@ -37,15 +45,45 @@ export function ChatPanel(props: CareFilterProps) {
   async function submit() {
     const message = input.trim();
     if (!message || message.length > 2000 || pending || !ready) return;
+    const priorUserMessages = messages
+      .filter((item) => item.role === 'user')
+      .map((item) => item.text);
+    const newPatient = clearlyChangedPatient(message, priorUserMessages);
+    const resetChatInsurance =
+      newPatient && chatAppliedInsurance.current !== null &&
+      chatAppliedInsurance.current === props.insurance;
+    const insuranceForRequest = resetChatInsurance ? '' : props.insurance;
+    if (resetChatInsurance) {
+      chatAppliedInsurance.current = null;
+      props.onInsuranceChange('');
+    }
     setInput('');
-    const success = await send({
+    const response = await send({
       message,
       city: props.city,
-      insurance: props.insurance,
+      insurance: insuranceForRequest,
       consent,
       location: searchLocation(props.geolocation.location),
-    });
-    if (!success) setInput((draft) => draft || message);
+    }, { newPatient });
+    if (!response) setInput((draft) => draft || message);
+    else if (
+      response.context &&
+      response.mode !== 'safety' &&
+      response.status !== 'needs_information'
+    ) {
+      // A written plan/city and the visible selectors represent the same resolved filters.
+      // Preserve any manual filter edit made while the response was pending.
+      if (latestFilters.current.city === props.city) props.onCityChange(response.context.city);
+      if (latestFilters.current.insurance === props.insurance) {
+        // The chat owns a filter only if it actually changed the chosen plan.
+        // Merely echoing a manually selected filter does not turn it into a
+        // chat-originated filter that gets cleared on the next patient.
+        const resolved = response.context.insurance;
+        if (resolved !== insuranceForRequest) chatAppliedInsurance.current = resolved || null;
+        else if (chatAppliedInsurance.current !== resolved) chatAppliedInsurance.current = null;
+        props.onInsuranceChange(resolved);
+      }
+    }
     textarea.current?.focus();
   }
   function fill(text: string) {
@@ -73,7 +111,13 @@ export function ChatPanel(props: CareFilterProps) {
           </p>
         </div>
       </div>
-      <CareFilters {...props} />
+      <CareFilters
+        {...props}
+        onInsuranceChange={(insurance) => {
+          chatAppliedInsurance.current = null;
+          props.onInsuranceChange(insurance);
+        }}
+      />
       <LocationControl geolocation={props.geolocation} />
       <div
         className={`conversation ${messages.length ? 'has-messages' : ''}`}

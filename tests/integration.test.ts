@@ -225,12 +225,14 @@ describe('Validação e proteção das APIs', () => {
     const provider = { ...demoProvider, mode: 'openai' as const, generate: vi.fn(), embed: vi.fn() };
     const connected = await buildApp(config, db, provider);
     try {
-      const fast = await connected.inject({
+      // The semantic model is used on the first clinical message;
+      // consent is required before any data reaches the external provider.
+      const firstWithoutConsent = await connected.inject({
         method: 'POST',
         url: '/api/chat',
         payload: { message: 'meu olho está vermelho e coçando' },
       });
-      expect(fast.statusCode).toBe(200);
+      expect(firstWithoutConsent.statusCode).toBe(400);
       expect(provider.generate).not.toHaveBeenCalled();
 
       const semantic = await connected.inject({

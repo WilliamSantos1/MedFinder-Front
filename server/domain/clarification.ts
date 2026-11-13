@@ -1,5 +1,6 @@
 import type { ChatRequest, ClarificationTopic } from '../../shared/contracts.js';
 import { normalize } from './text.js';
+import { hasVocabularyHealthTerm, hasVocabularyLocation, vocabularyDomains } from './clinical-vocabulary.js';
 import {
   explicitDifferentPerson,
   explicitPatientSubject,
@@ -17,8 +18,8 @@ const regions = [
   ['back', /\b(costas|coluna|lombar)\b/],
   ['ear', /\b(ouvido|audicao)\b/],
   ['airway', /\b(garganta|nariz|coriza|rinite|congestao|tosse|rouquidao|espirros?|respirar)\b/],
-  ['abdomen', /\b(barriga|estomago|abdomen|abdominal|intestino)\b/],
-  ['limbs', /\b(braco|perna|joelho|ombro|mao|pe|tornozelo|articulacao)s?\b/],
+  ['abdomen', /\b(barriga|estomago|abdomen|abdominal|intestino|virilha|pelve|pelvica|pelvico|perineo|pe da barriga|bacia|pubis|baixo ventre|regiao inguinal)\b/],
+  ['limbs', /\b(braco|bracos|perna|pernas|joelho|joelhos|ombro|ombros|mao|maos|pe|pes|tornozelo|tornozelos|quadril|quadris|cotovelo|cotovelos|punho|punhos|articulacao|articulacoes)\b/],
 ] as const;
 
 const symptom =
@@ -30,7 +31,7 @@ const clinicalDomains = [
   ['skin', /\b(pele|manchas?|erupcao|urticaria|coceira|prurido|acne|micose)\b/],
   [
     'musculoskeletal',
-    /\b(joelho|ombro|tornozelo|quadril|cotovelo|punho|mao|dedos?|pe|pes|osso|ossos|articulacao|articulacoes|coluna|lombar|pescoco|cervical|musculo|tendao|ligamento|entorse|fratura|luxacao)\b/,
+    /\b(joelho|ombro|tornozelo|quadril|cotovelo|punho|mao|dedos?|pe|pes|osso|ossos|articulacao|articulacoes|coluna|costas|lombar|pescoco|cervical|musculo|tendao|ligamento|entorse|fratura|luxacao)\b/,
   ],
   [
     'neurologic',
@@ -72,12 +73,34 @@ type ClinicalEpisode = {
   subject: PatientSubject | null;
 };
 
-const bodyRegion = (text: string) => regions.find(([, pattern]) => pattern.test(text))?.[0];
+function bodyRegion(value: string) {
+  const text = normalize(value);
+  const known = regions.find(([, pattern]) => pattern.test(text))?.[0];
+  if (known) return known;
+  const domains = vocabularyDomains(text);
+  if (domains.includes('musculoskeletal')) return 'limbs';
+  if (domains.includes('ent')) return 'airway';
+  if (domains.includes('eye')) return 'eye';
+  if (domains.includes('skin')) return 'skin';
+  if (domains.includes('digestive')) return 'abdomen';
+  if (domains.includes('urinary') || domains.includes('gynecologic')) return 'urinary';
+  return undefined;
+}
 
 function complaintDomains(text: string) {
-  return new Set<ClinicalDomain>(
+  const domains = new Set<ClinicalDomain>(
     clinicalDomains.filter(([, pattern]) => pattern.test(text)).map(([domain]) => domain),
   );
+  const mapped = {
+    musculoskeletal: 'musculoskeletal', ent: 'ent', digestive: 'digestive',
+    neurologic: 'neurologic', skin: 'skin', eye: 'eye', urinary: 'urinary',
+    gynecologic: 'gynecologic', respiratory: 'respiratory',
+    cardiovascular: 'cardiovascular', endocrine: 'endocrine',
+    blood: 'general', vascular: 'cardiovascular', breast: 'gynecologic',
+    mental: 'mental', geriatric: 'general',
+  } as const satisfies Record<ReturnType<typeof vocabularyDomains>[number], ClinicalDomain>;
+  for (const item of vocabularyDomains(text)) domains.add(mapped[item]);
+  return domains;
 }
 
 function specificDomains(text: string) {
@@ -98,6 +121,14 @@ const revisitCue =
 
 const freshComplaintCue =
   /^(?:bom dia[, ]*|boa tarde[, ]*|boa noite[, ]*)?(?:(?:eu\s+)?(?:estou|tenho|sinto|comecei|apareceu)|(?:meu|minha|nosso|nossa)\b|(?:dor|coceira|ardencia|refluxo|azia|tontura|vertigem|tosse|febre|nausea|enjoo|diarreia|ansiedade|insonia)\b)/;
+
+// A caregiver may answer an interview question in first person (e.g. 
+// "começou ontem, não tenho outros sintomas"). It is not evidence
+// that the patient changed from the child to the caregiver.
+function caregiverClinicalAnswer(text: string) {
+  return /\b(?:nao\s+(?:tenho|sinto|percebi|notei)\s+(?:(?:mais|outros?|outras?)\s+)*(?:sintomas?|sinais?|queixas?)|sem\s+outros?\s+(?:sintomas?|sinais?))\b/.test(text) &&
+    !/\b(?:agora\s+(?:sou eu|comigo)|eu\s+estou\s+com\s+(?:dor|febre)|estou\s+com\s+(?:dor|febre))\b/.test(text);
+}
 
 const explicitNewComplaintCue =
   /\b(?:outra queixa|outro problema|novo problema|nova queixa|outra coisa|agora sobre outra coisa)\b/;
@@ -150,10 +181,17 @@ function segmentEpisodes(
     const personChanged =
       !caregiverAgeInsteadOfPatientAge &&
       (explicitDifferentPerson(message) ||
-        Boolean(explicitSubject && previous.subject && explicitSubject !== previous.subject));
+        Boolean(explicitSubject && previous.subject && explicitSubject !== previous.subject &&
+          !(explicitSubject === 'self' && caregiverClinicalAnswer(text) && previous.subject !== 'self')));
 
+    // A neurological/urinary warning sign may arrive after a previously
+    // discussed back-pain complaint. Do not split the episode before safety
+    // combines these clinically relevant messages.
+    const backWarningFollowup =
+      /\b(?:formigamento|dormencia|fraqueza|nao consigo urinar|nao consegue urinar|perdi o controle da urina|perda de sensibilidade)\b/.test(text) &&
+      previous.messages.some((entry) => /\b(?:dor nas costas|dor lombar)\b/.test(normalize(entry)));
     const freshIndependentComplaint = Boolean(
-      !continuationCue.test(text) &&
+      !backWarningFollowup && !continuationCue.test(text) &&
         freshComplaintCue.test(text) &&
         previous.domains.size &&
         domains.size &&
@@ -232,15 +270,21 @@ export function careConversation(request: ChatRequest) {
   const newPerson = Boolean(
     !caregiverAgeInsteadOfPatientAge &&
       (explicitDifferentPerson(request.message) ||
-        (currentSubject && previousSubject && currentSubject !== previousSubject)),
+        (currentSubject && previousSubject && currentSubject !== previousSubject &&
+          !(currentSubject === 'self' && previousSubject !== 'self' &&
+            caregiverClinicalAnswer(current) && Boolean(request.context?.care?.questions.length)))),
   );
 
   const explicitNewComplaint = explicitNewComplaintCue.test(current);
   const looksLikeFreshComplaint = freshComplaintCue.test(current) && !continuationCue.test(current);
   const latestDomains = latest?.domains ?? new Set<ClinicalDomain>();
 
+  const pendingInterviewReply = Boolean(request.context?.care?.questions.length);
+  const backWarningFollowup =
+    /\b(?:formigamento|dormencia|fraqueza|nao consigo urinar|nao consegue urinar|perdi o controle da urina|perda de sensibilidade)\b/.test(current) &&
+    latest?.messages.some((entry) => /\b(?:dor nas costas|dor lombar)\b/.test(normalize(entry)));
   const domainChanged = Boolean(
-    !newPerson &&
+    !newPerson && !pendingInterviewReply && !backWarningFollowup &&
       looksLikeFreshComplaint &&
       latestDomains.size &&
       currentDomains.size &&
@@ -254,7 +298,7 @@ export function careConversation(request: ChatRequest) {
     .find(Boolean);
   const currentRegion = bodyRegion(current);
   const regionChanged = Boolean(
-    !newPerson &&
+    !newPerson && !pendingInterviewReply && !backWarningFollowup &&
       looksLikeFreshComplaint &&
       symptom.test(current) &&
       currentRegion &&
@@ -297,6 +341,8 @@ export function assessDetail(messages: string[]) {
 
   if (
     bodyRegion(text) ||
+    hasVocabularyLocation(text) ||
+    hasVocabularyHealthTerm(text) ||
     /\b(ansiedade|insonia|tristeza|fadiga|cansaco|coceira|cocando|cocar|coriza|rinite|congestao|tontura|vertigem|febre|nausea|enjoo|vomito|diarreia|refluxo|azia|palpitacao)\b/.test(
       text,
     )
@@ -309,26 +355,28 @@ export function assessDetail(messages: string[]) {
     ) ||
     /\b(?:\d+|um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|quinze|vinte|alguns|algumas|poucos|poucas)\s+(?:minutos?|horas?|dias?|semanas?|meses)\b/.test(
       text,
-    )
+    ) ||
+    /\b(?:ha|faz|durante|por)\s+(?:varios?\s+|muitas?\s+|algumas?\s+)?(?:dias?|semanas?|meses|anos)\b/.test(text) ||
+    /\b(?:desde a semana passada|desde o mes passado|ha muito tempo|ha bastante tempo)\b/.test(text)
   )
     known.add('onset_duration');
 
   if (
-    /\b(pressao|pontadas?|pulsando|pulsacao|lateja\w*|queimacao|constante|intermitente|vai e volta|todos os dias|quase todo dia|quase todos os dias|um lado|lado direito|lado esquerdo|descamando|bolhas?|manchas?|catarro|tosse seca|coriza|nariz entupido|congestao nasal|espirros?)\b/.test(
+    /\b(pressao|pontadas?|pulsando|pulsacao|lateja\w*|queimacao|constante|intermitente|vai e volta|todos os dias|quase todo dia|quase todos os dias|fica da mesma forma|nao piora|sempre igual|um lado|lado direito|lado esquerdo|descamando|bolhas?|manchas?|catarro|tosse seca|coriza|nariz entupido|congestao nasal|espirros?)\b/.test(
       text,
     )
   )
     known.add('pattern');
 
   if (
-    /\b(febre|formigamento|dormencia|nausea|enjoo|vomito|sangramento|vermelhidao|vermelho|avermelhado|secrecao|coriza|espirros?|sem outros sintomas|sem outro sintoma|nenhum outro sintoma|nenhum outro sintomas|nao tenho outros sintomas|nao tem outros sintomas|nao apresenta outros sintomas|nao percebe outros sintomas|nao sinto mais nada|nao sente mais nada|nao tenho mais nada|nao tem mais nada|nada alem disso)\b/.test(
+    /\b(febre|formigamento|dormencia|nausea|enjoo|vomito|sangramento|ardencia ao urinar|ardencia para urinar|dor ao urinar|dificuldade para urinar|sangue na urina|urina com sangue|jato urinario|sangue nas fezes|diarreia|corrimento vaginal|abaulamento|calombo|caroco|vermelhidao|vermelho|avermelhado|secrecao|coriza|espirros?|sem outros sintomas|sem mais sintomas|sem outro sintoma|sem outros sinais|sem mais sinais|somente essa dor|somente esta dor|apenas essa dor|apenas esta dor|so essa dor|so esta dor|so sinto essa dor|sinto apenas a dor|apenas uma dor|apenas a dor|somente a dor|so dor|sem dificuldade|sem inchaco|sem formigamento|sem dormencia|somente esse sintoma|somente este sintoma|somente esse|somente isso|so esse|so isso|nao somente esse|nao so esse|apenas esse sintoma|apenas este sintoma|apenas isso|sem nenhum outro|sem mais nenhum|nenhum outro|nenhuma outra|nao percebi nenhum|nao percebi nenhuma|nada mais|nao tenho nada disso|nenhum outro sintoma|nenhum outro sintomas|nao tenho outros sintomas|nao tem outros sintomas|nao apresenta outros sintomas|nao percebe outros sintomas|nao sinto mais nada|nao sente mais nada|nao tenho mais nada|nao tem mais nada|nada alem disso|nao percebi mais nada|nao sinto nada alem da dor)\b/.test(
       text,
     )
   )
     known.add('associated_symptoms');
 
   if (
-    /\b(piora|melhora|apos|depois (?:de|que)|desde que|quando (?:viro|mexo|uso)|ao movimentar|ao mexer|ao virar|ao caminhar|ao correr|depois de correr|apos correr|ao trabalhar|irradia|espalha|acordar)\b/.test(
+    /\b(piora|melhora|apos|depois (?:de|da|do|que)|desde que|quando (?:viro|mexo|uso)|ao movimentar|ao mexer|ao virar|ao caminhar|ao correr|depois de correr|apos correr|ao trabalhar|irradia|espalha|acordar|queda|cai|pancada|academia|corrida|treino|exercicio|esforco|pisei errado|torci|levantar|levantou|levantando|erguer|ergueu|carregar|carregou|segurar peso|pegou peso|puxar|puxou|empurrar|empurrou|sem trauma|sem queda|sem esforco|sem causa clara)\b/.test(
       text,
     )
   )
@@ -399,10 +447,37 @@ export function questionText(topic: ClarificationTopic, text: string) {
           ? 'Em que região da cabeça a dor aparece e como ela é: pressão, pontadas, pulsação ou de outro jeito?'
           : bodyRegion(text) === 'neck'
             ? 'A dor fica só no pescoço ou se espalha para ombros ou braços? Ela muda ao movimentar o pescoço?'
+            : /\b(?:virilha|pelve|pelvica|pelvico|perineo|pe da barriga|bacia|pubis|pubica|pubico|pubiana|pubiano|suprapubiana|suprapubiano|suprapubica)\b/.test(normalize(text))
+            ? 'A dor ou o espasmo fica na virilha, no baixo ventre ou em outra parte da pelve? É contínuo ou vem em crises?'
             : 'Como é o desconforto? Ele é constante ou vai e volta?',
     associated_symptoms:
-      'Além desse desconforto, você percebeu algum outro sintoma? Descreva quais, ou diga se não percebeu nenhum.',
-    trigger: 'Você percebe algo que inicia, piora ou melhora o desconforto?',
+      /\b(?:palpebras?|olhos?|ocular|visao)\b/.test(normalize(text)) &&
+      /\b(?:inchaco|inchad\w*|vermelh\w*|avermelhad\w*|dor|ardor|ardencia|coc\w*)\b/.test(normalize(text))
+        ? 'Além da alteração nas pálpebras/olhos, há dor dentro do olho, mudança na visão, sensibilidade à luz, febre ou piora rápida do inchaço? Se não houver, diga que não.'
+      : /\b(?:perna|pernas|panturrilha|coxa)\b/.test(normalize(text)) &&
+        /\b(?:dor|doendo|dolorid\w*)\b/.test(normalize(text))
+        ? 'A perna está inchada, principalmente de um lado, quente ou avermelhada? Há falta de ar, dor no peito, dormência ou fraqueza? Se não houver, diga que não.'
+      : /\b(?:disenteria|desinteria|disinteria|dissenteria|diarreia|fezes liquidas|intestino solto)\b/.test(normalize(text))
+        ? 'Além da alteração intestinal, há sangue nas fezes, febre, vômitos, dor forte ou sinais de desidratação (pouca urina, tontura ou dificuldade para beber)? Diga quais ou responda que não.'
+      : bodyRegion(text) === 'back'
+        ? 'Além da dor nas costas, há fraqueza ou dormência nas pernas, febre ou alteração para urinar/evacuar? Se não houver, diga que não. Se houver perda de controle da urina/fezes ou perda de sensibilidade genital, procure emergência imediatamente.'
+        : bodyRegion(text) === 'limbs'
+          ? /\b(?:quadril|quadris)\b/.test(normalize(text))
+            ? 'Além da dor no quadril, você percebe inchaço, fraqueza, dormência, febre ou dificuldade para caminhar ou movimentar a perna? Se não houver, diga que não.'
+            : /\b(?:ombro|ombros|braco|bracos|clavicula)\b/.test(normalize(text))
+              ? 'Além da dor no ombro/braço/clavícula, há dor ou aperto no peito, falta de ar, suor frio, fraqueza, dormência, inchaço ou dificuldade para movimentar o braço? Se não houver, diga que não.'
+              : /\b(?:pe|pes|tornozelo|tornozelos)\b/.test(normalize(text))
+                ? 'Além da dor, há inchaço, vermelhidão, dormência ou dificuldade para apoiar o pé e caminhar? Se não houver, diga que não.'
+                : 'Além da dor, há inchaço, vermelhidão, dormência, fraqueza ou dificuldade para movimentar a região afetada? Se não houver, diga que não.'
+          : /\b(?:virilha|pelve|pelvica|pelvico|perineo|pe da barriga|bacia|pubis|pubica|pubico|pubiana|pubiano|suprapubiana|suprapubiano|suprapubica)\b/.test(normalize(text))
+            ? 'Além da dor no púbis/pelve/virilha, há febre, ardência ou dificuldade para urinar, alteração intestinal, sangramento, abaulamento ou outro sintoma? Se não, diga que não.'
+            : 'Além desse desconforto, você percebeu algum outro sintoma? Descreva quais, ou diga se não percebeu nenhum.',
+    trigger:
+      /\b(?:pubis|pubica|pubico|pubiana|pubiano|suprapubiana|suprapubiano|suprapubica|pelve|pelvica|pelvico|virilha|inguinal|baixo ventre|perineo)\b/.test(normalize(text))
+        ? 'A dor começou após exercício, esforço, pancada ou queda? Piora ao caminhar/movimentar ou apareceu sem causa clara?'
+      : bodyRegion(text) === 'back' || bodyRegion(text) === 'limbs'
+        ? 'A dor surgiu após queda, pancada, exercício ou esforço? Ela piora com algum movimento ou apareceu sem causa clara?'
+        : 'Você percebe algo que inicia, piora ou melhora o desconforto?',
     impact: 'Como o desconforto está afetando suas atividades e seu sono?',
     age_group: ageQuestion(text),
   };
@@ -420,6 +495,7 @@ export function clarificationQuestions(
 ) {
   if ((previous?.round ?? 0) >= 3) return [];
 
+  for (const answered of previous?.answeredTopics ?? []) assessment.known.add(answered);
   const asked = new Set(previous?.askedTopics ?? []);
   const candidates = requested.length ? requested : assessment.missing;
 

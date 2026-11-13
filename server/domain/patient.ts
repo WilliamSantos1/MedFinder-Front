@@ -1,4 +1,5 @@
 import { normalize } from './text.js';
+import { hasVocabularyHealthTerm } from './clinical-vocabulary.js';
 
 export type PatientSubject =
   | 'self'
@@ -21,6 +22,10 @@ export type PatientSubject =
   | 'niece'
   | 'cousin'
   | 'friend'
+  | 'teacher'
+  | 'colleague'
+  | 'neighbor'
+  | 'boss'
   | 'child'
   | 'other';
 
@@ -145,6 +150,36 @@ const relativeMatchers: Array<{
     subject: 'friend',
     relationship: 'amiga',
     pattern: /\b(?:minha|nossa)\s+amiga\b/,
+  },
+  {
+    subject: 'teacher',
+    relationship: 'professor',
+    pattern: /\b(?:meu|nosso|o)\s+professor\b/,
+  },
+  {
+    subject: 'teacher',
+    relationship: 'professora',
+    pattern: /\b(?:minha|nossa|a)\s+professora\b/,
+  },
+  {
+    subject: 'colleague',
+    relationship: 'colega',
+    pattern: /\b(?:meu|minha|nosso|nossa|o|a)\s+colega\b/,
+  },
+  {
+    subject: 'neighbor',
+    relationship: 'vizinho',
+    pattern: /\b(?:meu|nosso|o)\s+vizinho\b/,
+  },
+  {
+    subject: 'neighbor',
+    relationship: 'vizinha',
+    pattern: /\b(?:minha|nossa|a)\s+vizinha\b/,
+  },
+  {
+    subject: 'boss',
+    relationship: 'chefe',
+    pattern: /\b(?:meu|minha|nosso|nossa|o|a)\s+chefe\b/,
   },
   {
     subject: 'child',
@@ -350,7 +385,7 @@ export function patientSubject(
   // Current short follow-ups without an explicit subject keep the
   // previous patient instead of accidentally switching to "self".
   if (
-    healthSignal.test(text) &&
+    (healthSignal.test(text) || hasVocabularyHealthTerm(text)) &&
     !/\b(?:ele|ela|eles|elas)\b/.test(text)
   )
     return 'self';
@@ -470,9 +505,9 @@ export function patientProfile(
 
         // "Coceira há 5 anos" is symptom duration, not age.
         if (
-          /\b(?:ha|desde(?: os| as)?|durante|faz|por|comecou a|quando tinha)\s*(?:mais de |cerca de )?$/.test(
-            before,
-          )
+          /\b(?:ha|desde(?: os| as)?|durante|faz|por|comecou a|quando tinha|duracao de|nos ultimos?|ultimos?|com duracao de)\s*(?:mais de |cerca de )?$/.test(before) ||
+          /\b(?:de dor|de sintomas?|de molestias?|de desconforto)\b/.test(segment.slice(match.index! + match[0].length, match.index! + match[0].length + 28)) ||
+          /\btenho\s*$/.test(before) && /\bde (?:dor|sintomas?|desconforto)\b/.test(segment.slice(match.index! + match[0].length))
         )
           continue;
 
@@ -486,8 +521,7 @@ export function patientProfile(
 
         const shortAnswer =
           answeringAge &&
-          index ===
-            messages.length - 1;
+          index === messages.length - 1;
 
         if (
           !unit.startsWith('ano') &&
@@ -528,15 +562,13 @@ export function patientProfile(
           ageYears = years;
 
           adultReported =
-            years >= 20;
+            years >= 18;
         }
       }
     }
 
     if (
-      answeringAge &&
-      index ===
-        messages.length - 1
+      answeringAge && index > 0
     ) {
       const bare =
         text
@@ -556,7 +588,7 @@ export function patientProfile(
           numberValue(bare[1]);
 
         adultReported =
-          ageYears >= 20;
+          ageYears >= 18;
       }
     }
   }
