@@ -1,6 +1,6 @@
 import { ArrowUpRight, Building2, MapPin, Phone } from 'lucide-react';
 import { type ClinicResult } from '../../../shared/contracts';
-import { ClinicRouteModal } from './ClinicRouteModal';
+import { ClinicRouteModal } from './ClinicRouteModal/ClinicRouteModal';
 
 interface Coordinates {
   latitude: number;
@@ -66,13 +66,6 @@ export function ClinicCard({
             <p>+ {clinic.professionals.length - (compact ? 3 : 5)} profissional(is) publicado(s)</p>
           )}
         </div>
-      )}
-      {showDistance && (
-        <p className="clinic-distance">
-          {clinic.distanceKm === null
-            ? 'Distância não disponível'
-            : ""}
-        </p>
       )}
       {userLocation && clinic.latitude != null &&
         clinic.longitude != null && (

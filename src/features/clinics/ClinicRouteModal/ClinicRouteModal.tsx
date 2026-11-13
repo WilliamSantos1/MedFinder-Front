@@ -244,7 +244,7 @@ export function ClinicRouteModal({
                         userLocation.latitude,
                         userLocation.longitude,
                       ]}
-                      radius={9}
+                      radius={12}
                       pathOptions={{
                         color: '#ffffff',
                         fillColor: '#2563eb',
