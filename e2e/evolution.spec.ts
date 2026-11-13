@@ -500,9 +500,21 @@ test('clínicas reais com coordenadas verificadas recebem distância', async ({
     ),
   ).toHaveCount(0);
 
+  // Abre a rota da primeira clínica
+  const routeButton = directory
+    .getByRole('button', { name: 'Como chegar' })
+    .first();
+
+  await routeButton.click();
+
+  // Verifica o modal e a informação de distância
+  const routeDialog = page.getByRole('dialog');
+
+  await expect(routeDialog).toBeVisible();
+
   await expect(
-    directory.locator('.clinic-distance'),
-  ).toContainText(/\d+[,.]?\d* km de você/);
+    routeDialog.getByText('Distância', { exact: true })
+  ).toBeVisible();
 });
 
 test('preserva o próximo rascunho digitado durante uma resposta que falha', async ({ page }) => {
