@@ -62,7 +62,7 @@ test('localização só após clique; relato → especialidade → clínicas pr�
     .click();
 
   await expect(
-    page.getByText(/Localização ativa/),
+    page.getByText(/Localização aproximada ativa/),
   ).toBeVisible();
 
   await page
@@ -110,7 +110,7 @@ test('localização só após clique; relato → especialidade → clínicas pr�
   });
 
   await expect(
-    directory.getByText(/Localização ativa/),
+    directory.getByText(/Localização aproximada ativa/),
   ).toBeVisible();
 
   await directory

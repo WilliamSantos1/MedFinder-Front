@@ -21,7 +21,7 @@ test('relato ocular claro, especialidade canônica e continuidade por proximidad
     .click();
 
   await expect(
-    page.getByText(/Localização ativa/),
+    page.getByText(/Localização aproximada ativa/),
   ).toBeVisible();
 
   const input = page.getByLabel(
