@@ -10,7 +10,6 @@ interface Coordinates {
 export function ClinicCard({
   clinic,
   compact = false,
-  showDistance = false,
   userLocation,
 }: {
   clinic: ClinicResult;

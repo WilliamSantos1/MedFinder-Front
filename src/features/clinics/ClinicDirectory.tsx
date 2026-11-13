@@ -172,7 +172,6 @@ export function ClinicDirectory(props: CareFilterProps) {
                 <ClinicCard
                   key={clinic.id}
                   clinic={clinic}
-                  showDistance={result.data?.order === 'proximity'}
                   userLocation={props.geolocation.location}
                 />
               ))}
