@@ -1611,12 +1611,7 @@ h1 > span {
   color: var(--muted);
   margin-top: 8px;
 }
-.clinic-distance {
-  color: var(--green);
-  font-size: var(--text-lg);
-  font-weight: 600;
-  margin: 9px 0;
-}
+
 .specialty-suggestions {
   display: grid;
   gap: 12px;
